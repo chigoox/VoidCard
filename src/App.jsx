@@ -1,31 +1,31 @@
-import { useState } from 'react'
 import './App.css'
-import Main from './Pages/MainPage'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './Pages/Layout'
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import LoginPage from './Pages/LoginPage';
-import ProfileEditPage from './Pages/ProfileEditPage';
-import ShopPage from './Pages/ShopPage';
-import ExchangeContact from './Pages/ExchangeContactPage';
-
+import HomePage from './Pages/HomePage'
+import StorePageV2 from './Pages/StorePageV2'
+import UserProfilePage from './Pages/UserProfilePage'
+import SettingsPage from './Pages/SettingsPage'
+import CardRedirectPage from './Pages/CardRedirectPage'
+import AnalyticsPage from './Pages/AnalyticsPage'
+import LoginLitePage from './Pages/LoginLitePage'
+import ProtectedRoute from './Pages/ProtectedRoute'
 
 function App() {
-  
   return (
     <BrowserRouter>
       <Routes>
-        <Route exact path="/" element={<Layout />}>
-          <Route index element={<LoginPage />} />
-          <Route path="/:id" element={<Main />} />
-          <Route path="/:id/profileEdit" element={<ProfileEditPage />} />
-          <Route path="/:id/ExContact" element={<ExchangeContact />} />
-          <Route path="/Shop" element={<ShopPage />} />
+        <Route path="/" element={<Layout />}>
+          <Route index element={<HomePage />} />
+          <Route path="store" element={<ProtectedRoute><StorePageV2 /></ProtectedRoute>} />
+          <Route path="settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="u/:username" element={<UserProfilePage />} />
+          <Route path="c/:cardId" element={<CardRedirectPage />} />
+          <Route path="analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
+          <Route path="login" element={<LoginLitePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
-    
   )
 }
 
 export default App
-//<Route path="/smallpainting" element={<SmallPaintings />} />
