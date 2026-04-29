@@ -21,7 +21,7 @@ export default function UserProfilePage() {
         <p className="mt-6 max-w-2xl">{profile.bio}</p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
           {(profile.links || []).map((item) => (
-            <a key={`${item.label}-${item.url}`} href={item.url} className="rounded-xl border border-white/20 glass px-4 py-3 text-left hover:bg-white/10">{item.label}</a>
+            <a key={`${item.label}-${item.url}`} href={item.url} className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-left hover:bg-white/10">{item.label}</a>
           ))}
         </div>
       </div>

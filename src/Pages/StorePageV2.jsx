@@ -28,7 +28,7 @@ export default function StorePageV2() {
       <h1 className="text-4xl font-black">Store</h1>
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         {plans.map((plan) => (
-          <div key={plan.id} className="rounded-2xl border border-white/10 glass p-6">
+          <div key={plan.id} className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-xl font-bold">{plan.name}</h2>
             <p className="mt-2 text-3xl font-black text-cyan-300">${plan.price}</p>
             <p className="mt-3 text-sm text-slate-300">{plan.desc}</p>
@@ -36,7 +36,7 @@ export default function StorePageV2() {
           </div>
         ))}
       </div>
-      <div className="mt-8 rounded-2xl border border-white/10 glass p-5">
+      <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
         <h3 className="text-xl font-bold">Cart ({items.length})</h3>
         <p className="mt-2 text-slate-300">Total: ${total}</p>
       </div>

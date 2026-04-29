@@ -8,7 +8,7 @@ export default function AnalyticsPage() {
     <div>
       <h1 className="text-4xl font-black">Tap Analytics</h1>
       <p className="text-slate-300 mt-2">Recent card tap events.</p>
-      <div className="mt-6 rounded-2xl border border-white/10 glass p-4 overflow-auto">
+      <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 overflow-auto">
         <table className="w-full text-left text-sm">
           <thead><tr><th>Card</th><th>User</th><th>Timestamp</th></tr></thead>
           <tbody>

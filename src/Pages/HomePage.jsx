@@ -2,41 +2,48 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getCurrentUserId, getOnboardingStatus } from '../data/platformService'
 
+const featureCards = [
+  'Tap or scan to share instantly (NFC + QR).',
+  'Fully customizable personal and team profiles.',
+  'Lead capture, analytics, and follow-up reminders.',
+  'No app needed for recipients — works in browser.',
+]
+
 export default function HomePage() {
   const [status, setStatus] = useState(null)
-  useEffect(() => { getOnboardingStatus(getCurrentUserId()).then(setStatus) }, [])
+
+  useEffect(() => {
+    getOnboardingStatus(getCurrentUserId()).then(setStatus)
+  }, [])
 
   return (
-    <div className="space-y-6 fade-up">
-      <section className="glass rounded-3xl p-6 md:p-10">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-300">Compete. Convert. Close.</p>
-        <h1 className="mt-3 text-4xl font-black leading-tight md:text-6xl">The digital business card platform your team actually wants to use.</h1>
-        <p className="mt-4 max-w-2xl text-slate-300">Beautiful mobile-first profiles, one-tap NFC sharing, role-based card controls, and analytics that prove ROI.</p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link to="/settings" className="rounded-xl bg-teal-300 px-5 py-3 font-bold text-slate-900">Open Dashboard</Link>
-          <Link to="/store" className="rounded-xl border border-white/20 px-5 py-3 font-bold">Shop Cards</Link>
+    <div className="space-y-10">
+      <section className="rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-cyan-500/20 via-blue-600/10 to-violet-600/20 p-8 md:p-12">
+        <p className="mb-3 inline-block rounded-full bg-cyan-300/20 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-cyan-200">Digital Business Cards — Reimagined</p>
+        <h1 className="text-4xl font-black leading-tight md:text-6xl">A modern NFC card platform built to beat the old way of networking.</h1>
+        <p className="mt-5 max-w-2xl text-slate-300">Create a beautiful profile, connect your NFC card in minutes, and collect more leads with less friction. Built for creators, sales teams, and growing businesses.</p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link to="/store" className="rounded-full bg-cyan-300 px-6 py-3 font-bold text-slate-950">Shop Cards</Link>
+          <Link to="/settings" className="rounded-full border border-white/20 px-6 py-3 font-bold">Connect My NFC Card</Link>
         </div>
       </section>
 
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <h2 className="text-xl font-bold">Onboarding Checklist</h2>
+        <ul className="mt-3 space-y-2 text-slate-300">
+          <li>{status?.hasProfile ? '✅' : '⬜'} Create your profile</li>
+          <li>{status?.hasConnectedCard ? '✅' : '⬜'} Connect your NFC card</li>
+          <li>{status?.cardId ? '✅' : '⬜'} Test tap route: {status?.cardId ? `/c/${status.cardId}` : 'not set'}</li>
+          <li>{status?.role ? '✅' : '⬜'} Role loaded: {status?.role || 'unknown'}</li>
+        </ul>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2">
-        <article className="glass rounded-2xl p-5">
-          <h2 className="text-xl font-bold">Onboarding Progress</h2>
-          <ul className="mt-3 space-y-2 text-slate-200">
-            <li>{status?.hasProfile ? '✅' : '⬜'} Profile created</li>
-            <li>{status?.hasConnectedCard ? '✅' : '⬜'} NFC card connected</li>
-            <li>{status?.cardId ? '✅' : '⬜'} Tap route ready</li>
-            <li>{status?.role ? '✅' : '⬜'} Role loaded</li>
-          </ul>
-        </article>
-        <article className="glass rounded-2xl p-5">
-          <h2 className="text-xl font-bold">Why teams switch</h2>
-          <ul className="mt-3 space-y-2 text-slate-300">
-            <li>• Instant contact exchange</li>
-            <li>• Fully editable branded profile</li>
-            <li>• Role-based card governance</li>
-            <li>• Tap analytics and attribution</li>
-          </ul>
-        </article>
+        {featureCards.map((feature) => (
+          <article key={feature} className="rounded-2xl border border-white/10 bg-white/5 p-5 text-slate-200">
+            {feature}
+          </article>
+        ))}
       </section>
     </div>
   )
