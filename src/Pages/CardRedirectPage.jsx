@@ -7,10 +7,7 @@ export default function CardRedirectPage() {
   const [username, setUsername] = useState(null)
 
   useEffect(() => {
-    getCardUsername(cardId).then(async (u) => {
-      if (u) await logTap(cardId, u)
-      setUsername(u || false)
-    })
+    getCardUsername(cardId).then((u) => { if (u) logTap(cardId, u); setUsername(u || false) })
   }, [cardId])
 
   if (username === null) return <p className="rounded-xl bg-white/10 p-4">Resolving card...</p>
@@ -18,9 +15,9 @@ export default function CardRedirectPage() {
 
   return (
     <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 p-6">
-      <h1 className="text-2xl font-bold text-rose-200">Card not linked yet</h1>
-      <p className="mt-2 text-slate-200">ID: <code>{cardId}</code></p>
-      <Link to="/settings" className="mt-4 inline-block rounded-lg bg-cyan-300 px-4 py-2 font-semibold text-slate-900">Connect card</Link>
+      <h1 className="text-2xl font-bold text-rose-200">Card not connected</h1>
+      <p className="mt-2 text-slate-200">No user page is linked to card ID: <code>{cardId}</code></p>
+      <Link to="/settings" className="mt-4 inline-block rounded-lg bg-cyan-300 px-4 py-2 font-semibold text-slate-900">Connect this card</Link>
     </div>
   )
 }
