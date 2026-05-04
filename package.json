@@ -23,7 +23,8 @@
     "react-router-dom": "^6.6.1",
     "shade-blend-color": "^1.0.0",
     "tailwind-scrollbar-hide": "^1.1.7",
-    "vcards-js": "^2.10.0"
+    "vcards-js": "^2.10.0",
+    "framer-motion": "^11.11.17"
   },
   "devDependencies": {
     "@types/react": "^18.0.26",
