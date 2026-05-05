@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const Body = z.object({
   email: z.string().email(),
-  next: z.string().optional(),
+  next: z.string().nullable().optional(),
 });
 
 function normalizeOrigin(value: string | null | undefined): string | null {

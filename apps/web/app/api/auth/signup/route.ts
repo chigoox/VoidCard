@@ -8,7 +8,7 @@ const Body = z.object({
   email: z.string().email(),
   username: z.string().regex(/^[a-z0-9_.-]{3,32}$/),
   password: z.string().min(8).max(72).optional(),
-  next: z.string().optional(),
+  next: z.string().nullable().optional(),
 });
 
 function normalizeOrigin(value: string | null | undefined) {
