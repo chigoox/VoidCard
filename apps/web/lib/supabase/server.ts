@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "./database.types";
+import { getCookieDomain } from "./cookie-domain";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
@@ -20,7 +21,7 @@ export async function createClient() {
             for (const { name, value, options } of toSet) {
               cookieStore.set(name, value, {
                 ...options,
-                domain: process.env.NEXT_PUBLIC_COOKIE_DOMAIN ?? options?.domain,
+                domain: getCookieDomain(options?.domain),
                 sameSite: "lax",
                 secure: process.env.NODE_ENV === "production",
               });

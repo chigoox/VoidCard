@@ -1,6 +1,7 @@
 "use client";
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "./database.types";
+import { getCookieDomain } from "./cookie-domain";
 
 export function createClient() {
   return createBrowserClient<Database>(
@@ -8,7 +9,7 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookieOptions: {
-        domain: process.env.NEXT_PUBLIC_COOKIE_DOMAIN ?? undefined,
+        domain: getCookieDomain(),
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
       },

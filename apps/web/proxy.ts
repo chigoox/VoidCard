@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "./lib/supabase/admin";
+import { getCookieDomain } from "./lib/supabase/cookie-domain";
 import { buildCsp, cspHeaderName, generateNonce, REPORT_TO_HEADER } from "./lib/csp";
 
 const PUBLIC_ROUTES = [
@@ -141,7 +142,7 @@ export async function proxy(req: NextRequest) {
           for (const { name, value, options } of toSet) {
             res.cookies.set(name, value, {
               ...options,
-              domain: process.env.NEXT_PUBLIC_COOKIE_DOMAIN ?? options?.domain,
+              domain: getCookieDomain(options?.domain),
               sameSite: "lax",
               secure: process.env.NODE_ENV === "production",
             });
