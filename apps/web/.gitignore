@@ -1,0 +1,10 @@
+.vercel
+.next/
+playwright-report/
+test-results/
+coverage/
+.vercel.production.env
+*.tsbuildinfo
+public/sw.js
+public/swe-worker-*.js
+.env*.local

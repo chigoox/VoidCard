@@ -1,0 +1,17 @@
+# Optional: gitleaks rule overrides for VoidCard.
+# Defaults are applied; this file lets us add allowlists for known false positives.
+
+title = "VoidCard gitleaks config"
+
+[allowlist]
+description = "Documentation samples"
+paths = [
+  '''docs/.+\.md''',
+  '''README\.md''',
+  '''SECURITY\.md''',
+]
+regexes = [
+  # Stripe test keys are safe to commit.
+  '''sk_test_[A-Za-z0-9]{24,}''',
+  '''pk_test_[A-Za-z0-9]{24,}''',
+]

@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/ci.yml"
+  push:
+    branches: [main]
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      SUPABASE_SERVICE_ROLE_KEY: dummy
+      STRIPE_SECRET_KEY: sk_test_dummy
+      STRIPE_WEBHOOK_SECRET: whsec_dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm --filter @voidcard/web lint
+      - name: Typecheck
+        run: pnpm --filter @voidcard/web typecheck
+      - name: Unit tests
+        run: pnpm --filter @voidcard/web test
+      - name: Build
+        run: pnpm --filter @voidcard/web build
+      - name: Upload Sentry sourcemaps
+        if: github.ref == 'refs/heads/main' && env.SENTRY_AUTH_TOKEN != ''
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_URL: ${{ secrets.SENTRY_URL }}
+        run: pnpm dlx @sentry/cli@2 sourcemaps upload apps/web/.next --url-prefix '~/_next' --rewrite

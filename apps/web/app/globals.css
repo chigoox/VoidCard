@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0a0b;
+  --bg-2: #16161a;
+  --gold: #d4af37;
+  --gold-soft: #b89028;
+  --ivory: #f5f1e8;
+  --ivory-dim: #c7c2b5;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--ivory);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--gold); color: #000; }
+
+.text-gold-grad {
+  background: linear-gradient(135deg, #f5e9b0 0%, #d4af37 50%, #8c6c1e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-pill px-5 py-2.5 text-sm font-semibold transition-all;
+}
+.btn-gold {
+  @apply btn bg-gold-grad text-onyx-950 shadow-gold hover:shadow-gold-lg active:scale-[0.98];
+}
+.btn-ghost {
+  @apply btn border border-onyx-600 text-ivory hover:border-gold/40 hover:text-gold;
+}
+.card {
+  @apply rounded-card border border-onyx-700 bg-onyx-900/80 backdrop-blur-sm shadow-inset;
+}
+.input {
+  @apply w-full rounded-card border border-onyx-700 bg-onyx-900 px-3.5 py-2.5 text-sm text-ivory placeholder:text-ivory-mute focus:border-gold/60 focus:outline-none;
+}
+
+/* ============================================================
+ * Trustable-SaaS palette (black & white brand for marketing)
+ * Used by SiteHeader / SiteFooter / TrustStrip and all marketing
+ * pages. Product surfaces (/u/*, (app)/*) keep the Onyx Gold look.
+ * ============================================================ */
+.btn-primary {
+  @apply btn bg-ink text-white shadow-soft hover:bg-ink-800 active:scale-[0.98];
+}
+.btn-outline {
+  @apply btn border border-paper-300 bg-white text-ink hover:border-ink hover:shadow-soft;
+}
+.surface {
+  @apply rounded-card border border-paper-200 bg-white shadow-soft;
+}
+.surface-muted {
+  @apply rounded-card border border-paper-200 bg-paper-50;
+}
+.input-clean {
+  @apply w-full rounded-card border border-paper-300 bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10;
+}
+.eyebrow {
+  @apply text-xs font-medium uppercase tracking-[0.18em] text-ink-500;
+}
+.divider {
+  @apply h-px w-full bg-paper-200;
+}
+
+/* phone frame on marketing & public profile preview */
+.phone-frame {
+  width: min(390px, 92vw);
+  aspect-ratio: 9 / 19.5;
+  border-radius: 44px;
+  background: linear-gradient(180deg, #0a0a0b 0%, #16161a 100%);
+  box-shadow:
+    0 0 0 8px #1a1a1f,
+    0 0 0 9px #2a2a33,
+    0 30px 80px -20px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  position: relative;
+}
+
+/* a11y: focus ring */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
