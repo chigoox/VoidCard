@@ -20,7 +20,6 @@ type PrimaryProfileRow = {
   custom_font_url: string | null;
   sections: unknown;
   sections_draft: unknown;
-  links: unknown;
   published: boolean | null;
   password_hash: string | null;
   scheduled_publish_at: string | null;
@@ -65,6 +64,13 @@ type SharedProfileRow = {
   origin_site: string | null;
   role: string | null;
   created_at: string | null;
+};
+
+type PrimaryProfileStateRow = {
+  user_id: string;
+  username: string | null;
+  origin_site: string | null;
+  onboarding_state: { step?: number } | null;
 };
 
 type OwnerPlanRow = {
@@ -122,7 +128,8 @@ export type ManagedProfile = ManagedProfileSummary & {
 };
 
 const PRIMARY_PROFILE_SELECT =
-  "user_id, username, display_name, bio, avatar_url, theme, custom_css, custom_font_url, sections, sections_draft, links, published, password_hash, scheduled_publish_at, verified, plan, bonus_storage_bytes, remove_branding, is_indexable, ai_indexing, updated_at, deleted_at";
+  "user_id, username, display_name, bio, avatar_url, theme, custom_css, custom_font_url, sections, sections_draft, published, password_hash, scheduled_publish_at, verified, plan, bonus_storage_bytes, remove_branding, is_indexable, ai_indexing, updated_at, deleted_at";
+const PRIMARY_PROFILE_STATE_SELECT = "user_id, username, origin_site, onboarding_state";
 const SECONDARY_PROFILE_SELECT =
   "id, owner_user_id, username, display_name, bio, avatar_url, theme, custom_css, custom_font_url, sections, sections_draft, links, published, password_hash, scheduled_publish_at, remove_branding, is_indexable, ai_indexing, updated_at, deleted_at";
 const SHARED_PROFILE_SELECT = "id, email, username, display_name, origin_site, role, created_at";
@@ -154,10 +161,8 @@ function profileOriginSite() {
 async function primaryProfileSource() {
   if (!primaryProfileSourcePromise) {
     primaryProfileSourcePromise = (async () => {
-      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return "profiles";
-
-      const admin = createAdminClient();
-      const { error } = await admin.from("vcard_profile_ext").select("user_id").limit(1);
+      const sourceClient = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
+      const { error } = await sourceClient.from("vcard_profile_ext").select("user_id").limit(1);
       return isMissingTableError(error) ? "profiles" : "vcard_profile_ext";
     })();
   }
@@ -187,7 +192,7 @@ function mapPrimaryProfile(row: PrimaryProfileRow): ManagedProfile {
     customFontUrl: row.custom_font_url,
     sections: row.sections ?? [],
     sectionsDraft: row.sections_draft ?? [],
-    links: row.links ?? [],
+    links: [],
     passwordHash: row.password_hash,
     scheduledPublishAt: row.scheduled_publish_at,
     removeBranding: row.remove_branding === true,
@@ -200,29 +205,40 @@ function mapPrimaryProfile(row: PrimaryProfileRow): ManagedProfile {
 }
 
 function mapSharedProfile(row: SharedProfileRow, owner: OwnerPlanRow): ManagedProfile {
+  return mapSharedProfileWithCompanion(row, owner, null);
+}
+
+function mapSharedProfileWithCompanion(
+  row: SharedProfileRow,
+  owner: OwnerPlanRow,
+  companion: PrimaryProfileRow | null,
+): ManagedProfile {
+  const username = row.username ?? companion?.username ?? null;
+  const displayName = row.display_name ?? companion?.display_name ?? null;
+
   return {
     id: PRIMARY_PROFILE_ID,
     isPrimary: true,
     source: "primary",
     ownerUserId: row.id,
-    username: row.username,
-    displayName: row.display_name,
-    published: !!row.username,
-    updatedAt: row.created_at,
-    publicPath: toPublicPath(row.username),
-    bio: null,
-    avatarUrl: null,
-    theme: { id: "onyx-gold" },
-    customCss: "",
-    customFontUrl: null,
-    sections: [],
-    sectionsDraft: [],
+    username,
+    displayName,
+    published: companion ? companion.published === true : !!username,
+    updatedAt: companion?.updated_at ?? row.created_at,
+    publicPath: toPublicPath(username),
+    bio: companion?.bio ?? null,
+    avatarUrl: companion?.avatar_url ?? null,
+    theme: companion?.theme ?? { id: "onyx-gold" },
+    customCss: companion?.custom_css ?? "",
+    customFontUrl: companion?.custom_font_url ?? null,
+    sections: companion?.sections ?? [],
+    sectionsDraft: companion?.sections_draft ?? [],
     links: [],
-    passwordHash: null,
-    scheduledPublishAt: null,
-    removeBranding: false,
-    isIndexable: true,
-    aiIndexing: null,
+    passwordHash: companion?.password_hash ?? null,
+    scheduledPublishAt: companion?.scheduled_publish_at ?? null,
+    removeBranding: companion?.remove_branding === true,
+    isIndexable: companion?.is_indexable !== false,
+    aiIndexing: companion?.ai_indexing ?? null,
     plan: owner.plan ?? "free",
     bonusStorageBytes: Number(owner.bonus_storage_bytes ?? 0),
     verified: owner.verified === true,
@@ -285,6 +301,46 @@ async function loadSharedProfileByUsername(username: string) {
   return (data as SharedProfileRow | null) ?? null;
 }
 
+async function loadPrimaryProfileExtByUserId(userId: string) {
+  const client = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
+  const { data, error } = await client
+    .from("vcard_profile_ext")
+    .select(PRIMARY_PROFILE_SELECT)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (isMissingTableError(error)) return null;
+  return (data as PrimaryProfileRow | null) ?? null;
+}
+
+async function loadPrimaryProfileExtStateByUserId(userId: string) {
+  const client = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
+  const { data, error } = await client
+    .from("vcard_profile_ext")
+    .select(PRIMARY_PROFILE_STATE_SELECT)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (isMissingTableError(error)) return { available: false, row: null, error: null };
+  return {
+    available: true,
+    row: (data as PrimaryProfileStateRow | null) ?? null,
+    error,
+  };
+}
+
+async function loadPrimaryProfileExtByUsername(username: string) {
+  const client = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
+  const { data, error } = await client
+    .from("vcard_profile_ext")
+    .select(PRIMARY_PROFILE_SELECT)
+    .eq("username", username)
+    .maybeSingle();
+
+  if (isMissingTableError(error)) return null;
+  return (data as PrimaryProfileRow | null) ?? null;
+}
+
 async function loadSharedDerivedPlanContext(userId: string): Promise<OwnerPlanRow> {
   const admin = createAdminClient();
   const [{ data: subscriptions }, { data: verification }, { data: orders }] = await Promise.all([
@@ -344,10 +400,13 @@ async function loadOwnerPlanContext(userId: string): Promise<OwnerPlanRow> {
 export async function loadPrimaryProfile(userId: string): Promise<ManagedProfile | null> {
   if (await usesSharedProfilesAsPrimary()) {
     const shared = await loadSharedProfileByUserId(userId);
-    if (!shared) return null;
+    const companion = await loadPrimaryProfileExtByUserId(userId);
+    if (!shared) {
+      return companion ? mapPrimaryProfile(companion) : null;
+    }
 
     const owner = await loadOwnerPlanContext(userId);
-    return mapSharedProfile(shared, owner);
+    return mapSharedProfileWithCompanion(shared, owner, companion);
   }
 
   const sb = await createClient();
@@ -423,7 +482,31 @@ export async function ensurePrimaryProfileRecord(input: {
         },
         { onConflict: "id" },
       );
-      return { error, onboardingStep: 5 };
+      if (error) return { error, onboardingStep: 5 };
+
+      const companionResult = await loadPrimaryProfileExtStateByUserId(input.userId);
+      if (!companionResult.available) {
+        return { error: null, onboardingStep: 5 };
+      }
+      if (companionResult.error) {
+        return { error: companionResult.error, onboardingStep: 5 };
+      }
+      if (!companionResult.row) {
+        const { error: companionError } = await admin.from("vcard_profile_ext").insert({
+          user_id: input.userId,
+          username: input.username,
+          display_name: input.displayName ?? null,
+          avatar_url: input.avatarUrl ?? null,
+          origin_site: originSite,
+          plan: "free",
+        });
+        return { error: companionError, onboardingStep: 0 };
+      }
+
+      return {
+        error: null,
+        onboardingStep: companionResult.row.onboarding_state?.step ?? 0,
+      };
     }
 
     const sharedPatch = Object.fromEntries(
@@ -442,10 +525,48 @@ export async function ensurePrimaryProfileRecord(input: {
         .from("profiles")
         .update(sharedPatch)
         .eq("id", input.userId);
-      return { error, onboardingStep: 5 };
+      if (error) return { error, onboardingStep: 5 };
     }
 
-    return { error: null, onboardingStep: 5 };
+    const companionResult = await loadPrimaryProfileExtStateByUserId(input.userId);
+    if (!companionResult.available) {
+      return { error: null, onboardingStep: 5 };
+    }
+    if (companionResult.error) {
+      return { error: companionResult.error, onboardingStep: 5 };
+    }
+
+    if (!companionResult.row) {
+      const { error } = await admin.from("vcard_profile_ext").insert({
+        user_id: input.userId,
+        username: existing.username ?? input.username,
+        display_name: existing.display_name ?? input.displayName ?? null,
+        avatar_url: input.avatarUrl ?? null,
+        origin_site: existing.origin_site ?? originSite,
+        plan: "free",
+      });
+      return { error, onboardingStep: 0 };
+    }
+
+    const companionPatch = Object.fromEntries(
+      Object.entries({
+        username: companionResult.row.username ? undefined : existing.username ?? input.username,
+        origin_site: companionResult.row.origin_site ? undefined : existing.origin_site ?? originSite,
+      }).filter(([, value]) => value !== undefined),
+    );
+
+    if (Object.keys(companionPatch).length > 0) {
+      const { error } = await admin.from("vcard_profile_ext").update(companionPatch).eq("user_id", input.userId);
+      return {
+        error,
+        onboardingStep: companionResult.row.onboarding_state?.step ?? 0,
+      };
+    }
+
+    return {
+      error: null,
+      onboardingStep: companionResult.row.onboarding_state?.step ?? 0,
+    };
   }
 
   const { data: existing } = await admin
@@ -531,11 +652,45 @@ export async function updateManagedProfile(
         }).filter(([, value]) => value !== undefined),
       );
 
-      if (Object.keys(sharedPatch).length === 0) {
+      const companionPatch = Object.fromEntries(
+        Object.entries({
+          username: patch.username,
+          display_name: patch.display_name,
+          bio: patch.bio,
+          avatar_url: patch.avatar_url,
+          theme: patch.theme,
+          custom_css: patch.custom_css,
+          custom_font_url: patch.custom_font_url,
+          sections: patch.sections,
+          sections_draft: patch.sections_draft,
+          published: patch.published,
+          password_hash: patch.password_hash,
+          scheduled_publish_at: patch.scheduled_publish_at,
+          remove_branding: patch.remove_branding,
+          is_indexable: patch.is_indexable,
+          ai_indexing: patch.ai_indexing,
+        }).filter(([, value]) => value !== undefined),
+      );
+
+      if (Object.keys(sharedPatch).length > 0) {
+        const { error } = await sb.from("profiles").update(sharedPatch).eq("id", userId);
+        if (error) {
+          return { data: null, error };
+        }
+      }
+
+      if (Object.keys(companionPatch).length === 0) {
         return { data: null, error: null };
       }
 
-      return sb.from("profiles").update(sharedPatch).eq("id", userId);
+      const { error } = await sb.from("vcard_profile_ext").upsert({ user_id: userId, ...companionPatch }, { onConflict: "user_id" });
+      if (isMissingTableError(error)) {
+        return {
+          data: null,
+          error: { message: "Primary profile customization storage is unavailable." },
+        };
+      }
+      return { data: null, error };
     }
 
     return sb.from("vcard_profile_ext").update(patch).eq("user_id", userId);
@@ -563,6 +718,10 @@ export async function validateProfileUsername(
     ? admin.from("profiles").select("id").eq("username", normalized).maybeSingle()
     : admin.from("vcard_profile_ext").select("user_id").eq("username", normalized).maybeSingle());
 
+  const extLookup = await (await usesSharedProfilesAsPrimary()
+    ? admin.from("vcard_profile_ext").select("user_id").eq("username", normalized).maybeSingle()
+    : Promise.resolve({ data: null }));
+
   const [{ data: reserved }, { data: secondary }] = await Promise.all([
     admin.from("vcard_reserved_usernames").select("username").eq("username", normalized).maybeSingle(),
     admin.from("vcard_profiles").select("id").eq("username", normalized).maybeSingle(),
@@ -570,6 +729,7 @@ export async function validateProfileUsername(
 
   if (reserved) return { ok: false, error: "username_reserved" };
   if (primaryLookup.data && excludeProfileId !== PRIMARY_PROFILE_ID) return { ok: false, error: "username_taken" };
+  if (extLookup.data && excludeProfileId !== PRIMARY_PROFILE_ID) return { ok: false, error: "username_taken" };
   if (secondary && secondary.id !== excludeProfileId) return { ok: false, error: "username_taken" };
   return { ok: true, username: normalized };
 }
@@ -631,10 +791,20 @@ export async function findPublicProfileByUsername(username: string): Promise<Man
 
   if (await usesSharedProfilesAsPrimary()) {
     const shared = await loadSharedProfileByUsername(normalized);
-    if (!shared?.username) return null;
+    if (shared?.username) {
+      const [owner, companion] = await Promise.all([
+        loadOwnerPlanContext(shared.id),
+        loadPrimaryProfileExtByUserId(shared.id),
+      ]);
+      return mapSharedProfileWithCompanion(shared, owner, companion);
+    }
 
-    const owner = await loadOwnerPlanContext(shared.id);
-    return mapSharedProfile(shared, owner);
+    const companion = await loadPrimaryProfileExtByUsername(normalized);
+    if (!companion) return null;
+
+    const owner = await loadOwnerPlanContext(companion.user_id);
+    const sharedById = await loadSharedProfileByUserId(companion.user_id);
+    return sharedById ? mapSharedProfileWithCompanion(sharedById, owner, companion) : mapPrimaryProfile(companion);
   }
 
   const admin = createAdminClient();
