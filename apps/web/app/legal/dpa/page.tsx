@@ -48,7 +48,7 @@ export default function DpaPage() {
         <p>
           TLS 1.2+ in transit, AES-256 at rest, RLS-isolated data per user, daily-rotating IP-hash salt for analytics,
           per-request CSP nonce, Stripe-handled card data (PCI SAQ-A), least-privilege service-role keys, audit log of admin
-          actions, secret rotation per <Link href="/docs/SECURITY.md" className="text-gold underline">SECURITY.md</Link>.
+          actions, secret rotation per <Link href="/legal/security" className="text-gold underline">security documentation</Link>.
         </p>
 
         <h2 className="font-display text-xl text-ivory">4. Data subject rights</h2>
