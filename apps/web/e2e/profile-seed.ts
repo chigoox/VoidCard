@@ -42,6 +42,7 @@ export async function seedPrimaryProfile(admin: AdminClient, input: PrimaryProfi
         email: input.email ?? `${input.username ?? input.userId}@voidcard-test.dev`,
         username: input.published === false ? null : (input.username ?? null),
         display_name: input.displayName ?? null,
+        origin_site: "vcard.ed5enterprise.com",
         role: "user",
       },
       { onConflict: "id" },

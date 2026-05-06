@@ -62,6 +62,7 @@ type SharedProfileRow = {
   email: string | null;
   username: string | null;
   display_name: string | null;
+  origin_site: string | null;
   role: string | null;
   created_at: string | null;
 };
@@ -124,7 +125,7 @@ const PRIMARY_PROFILE_SELECT =
   "user_id, username, display_name, bio, avatar_url, theme, custom_css, custom_font_url, sections, sections_draft, links, published, password_hash, scheduled_publish_at, verified, plan, bonus_storage_bytes, remove_branding, is_indexable, ai_indexing, updated_at, deleted_at";
 const SECONDARY_PROFILE_SELECT =
   "id, owner_user_id, username, display_name, bio, avatar_url, theme, custom_css, custom_font_url, sections, sections_draft, links, published, password_hash, scheduled_publish_at, remove_branding, is_indexable, ai_indexing, updated_at, deleted_at";
-const SHARED_PROFILE_SELECT = "id, email, username, display_name, role, created_at";
+const SHARED_PROFILE_SELECT = "id, email, username, display_name, origin_site, role, created_at";
 const STORAGE_GRANTING_PREFIX = "card-";
 const ONE_GB = 1_000_000_000;
 const STORAGE_CAP = 25 * ONE_GB;
@@ -417,6 +418,7 @@ export async function ensurePrimaryProfileRecord(input: {
           email: input.email ?? null,
           username: input.username,
           display_name: input.displayName ?? null,
+          origin_site: originSite,
           role: "user",
         },
         { onConflict: "id" },
@@ -424,10 +426,21 @@ export async function ensurePrimaryProfileRecord(input: {
       return { error, onboardingStep: 5 };
     }
 
-    if (!existing.username) {
+    const sharedPatch = Object.fromEntries(
+      Object.entries({
+        username: existing.username ? undefined : input.username,
+        display_name:
+          existing.username || existing.display_name
+            ? undefined
+            : input.displayName ?? null,
+        origin_site: existing.origin_site ? undefined : originSite,
+      }).filter(([, value]) => value !== undefined),
+    );
+
+    if (Object.keys(sharedPatch).length > 0) {
       const { error } = await admin
         .from("profiles")
-        .update({ username: input.username, display_name: existing.display_name ?? input.displayName ?? null })
+        .update(sharedPatch)
         .eq("id", input.userId);
       return { error, onboardingStep: 5 };
     }

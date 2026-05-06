@@ -18,7 +18,7 @@ type Row = {
   created_at: string;
 };
 
-export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ q?: string; origin?: string }> }) {
   const sp = await searchParams;
   const sb = createAdminClient();
   const sharedPrimary = await usesSharedProfilesAsPrimary();
@@ -28,13 +28,14 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   if (sharedPrimary) {
     let q = sb
       .from("profiles")
-      .select("id, username, display_name, created_at")
+      .select("id, username, display_name, origin_site, created_at")
       .order("created_at", { ascending: false })
       .limit(200);
     if (sp.q) q = q.ilike("username", `%${sp.q}%`);
+    if (sp.origin) q = q.ilike("origin_site", `%${sp.origin}%`);
 
     const { data } = await q;
-    const baseRows = ((data as Array<{ id: string; username: string | null; display_name: string | null; created_at: string | null }> | null) ?? []);
+    const baseRows = ((data as Array<{ id: string; username: string | null; display_name: string | null; origin_site: string | null; created_at: string | null }> | null) ?? []);
     const userIds = baseRows.map((row) => row.id);
     const [{ data: subscriptions }, { data: verifications }] = userIds.length
       ? await Promise.all([
@@ -71,7 +72,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
       user_id: row.id,
       username: row.username,
       display_name: row.display_name,
-      origin_site: null,
+      origin_site: row.origin_site,
       plan: planByUserId.get(row.id) ?? "free",
       verified: verificationByUserId.get(row.id) ?? false,
       published: !!row.username,
@@ -98,6 +99,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         </div>
         <form className="flex gap-2 text-sm">
           <input name="q" defaultValue={sp.q ?? ""} placeholder="search by username" className="input" />
+          <input name="origin" defaultValue={sp.origin ?? ""} placeholder="filter origin site" className="input" />
           <button className="btn-ghost" type="submit">Search</button>
         </form>
       </div>

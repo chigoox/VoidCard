@@ -99,6 +99,10 @@ export async function GET(req: Request) {
   }
 
   const step = onboardingStep ?? 5;
-  if (step < 5) return NextResponse.redirect(new URL("/onboarding", req.url));
+  if (step < 5) {
+    const onboardingUrl = new URL("/onboarding", req.url);
+    if (nextPath) onboardingUrl.searchParams.set("next", nextPath);
+    return NextResponse.redirect(onboardingUrl);
+  }
   return NextResponse.redirect(new URL(nextPath ?? "/dashboard", req.url));
 }
