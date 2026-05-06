@@ -12,6 +12,7 @@ type PrimaryProfileRow = {
   user_id: string;
   username: string | null;
   display_name: string | null;
+  origin_site: string | null;
   bio: string | null;
   avatar_url: string | null;
   theme: unknown;
@@ -128,6 +129,7 @@ const STORAGE_GRANTING_PREFIX = "card-";
 const ONE_GB = 1_000_000_000;
 const STORAGE_CAP = 25 * ONE_GB;
 const SHARED_PLAN_PRIORITY: Plan[] = ["enterprise", "team", "pro"];
+const DEFAULT_PROFILE_ORIGIN_SITE = "vcard.ed5enterprise.com";
 
 let primaryProfileSourcePromise: Promise<"vcard_profile_ext" | "profiles"> | null = null;
 
@@ -138,6 +140,14 @@ function toPublicPath(username: string | null) {
 function isMissingTableError(error: { message?: string | null; code?: string | null } | null | undefined) {
   const message = error?.message?.toLowerCase() ?? "";
   return error?.code === "PGRST205" || message.includes("schema cache") || message.includes("could not find the table");
+}
+
+function profileOriginSite() {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? `https://${DEFAULT_PROFILE_ORIGIN_SITE}`).hostname.toLowerCase();
+  } catch {
+    return DEFAULT_PROFILE_ORIGIN_SITE;
+  }
 }
 
 async function primaryProfileSource() {
@@ -396,6 +406,7 @@ export async function ensurePrimaryProfileRecord(input: {
   avatarUrl?: string | null;
 }) {
   const admin = createAdminClient();
+  const originSite = profileOriginSite();
 
   if (await usesSharedProfilesAsPrimary()) {
     const existing = await loadSharedProfileByUserId(input.userId);
@@ -426,7 +437,7 @@ export async function ensurePrimaryProfileRecord(input: {
 
   const { data: existing } = await admin
     .from("vcard_profile_ext")
-    .select("user_id, username, onboarding_state")
+    .select("user_id, username, origin_site, onboarding_state")
     .eq("user_id", input.userId)
     .maybeSingle();
 
@@ -436,13 +447,21 @@ export async function ensurePrimaryProfileRecord(input: {
       username: input.username,
       display_name: input.displayName ?? null,
       avatar_url: input.avatarUrl ?? null,
+      origin_site: originSite,
       plan: "free",
     });
     return { error, onboardingStep: 0 };
   }
 
-  if (!existing.username) {
-    const { error } = await admin.from("vcard_profile_ext").update({ username: input.username }).eq("user_id", input.userId);
+  const patch = Object.fromEntries(
+    Object.entries({
+      username: existing.username ? undefined : input.username,
+      origin_site: existing.origin_site ? undefined : originSite,
+    }).filter(([, value]) => value !== undefined),
+  );
+
+  if (Object.keys(patch).length > 0) {
+    const { error } = await admin.from("vcard_profile_ext").update(patch).eq("user_id", input.userId);
     return {
       error,
       onboardingStep: (existing.onboarding_state as { step?: number } | null)?.step ?? 0,

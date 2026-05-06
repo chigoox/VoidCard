@@ -10,6 +10,7 @@ type Row = {
   user_id: string;
   username: string | null;
   display_name: string | null;
+  origin_site: string | null;
   plan: string;
   verified: boolean;
   published: boolean;
@@ -70,6 +71,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
       user_id: row.id,
       username: row.username,
       display_name: row.display_name,
+      origin_site: null,
       plan: planByUserId.get(row.id) ?? "free",
       verified: verificationByUserId.get(row.id) ?? false,
       published: !!row.username,
@@ -79,7 +81,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   } else {
     let q = sb
       .from("vcard_profile_ext")
-      .select("user_id, username, display_name, plan, verified, published, bonus_storage_bytes, created_at")
+      .select("user_id, username, display_name, origin_site, plan, verified, published, bonus_storage_bytes, created_at")
       .order("created_at", { ascending: false })
       .limit(200);
     if (sp.q) q = q.ilike("username", `%${sp.q}%`);
@@ -107,13 +109,14 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
               <th className="px-4 py-3">Username</th>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Plan</th>
+              <th className="px-4 py-3">Origin</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Joined</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-onyx-700/60">
             {rows.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-ivory-mute">No users.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-ivory-mute">No users.</td></tr>
             )}
             {rows.map((r) => (
               <tr key={r.user_id}>
@@ -128,6 +131,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                 <td className="px-4 py-3">
                   <span className="rounded-pill border border-onyx-700/60 px-2.5 py-0.5 text-xs">{r.plan}</span>
                 </td>
+                <td className="px-4 py-3 text-xs text-ivory-mute">{r.origin_site ?? "shared/unknown"}</td>
                 <td className="px-4 py-3 text-xs">
                   {r.verified && <span className="mr-2 text-gold">✓ verified</span>}
                   {r.published ? <span className="text-emerald-400">live</span> : <span className="text-ivory-mute">draft</span>}
