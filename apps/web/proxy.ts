@@ -36,8 +36,21 @@ const PUBLIC_ROUTES = [
   /^\/offline$/,
 ];
 
+const CANONICAL_SITE_ROUTES = [
+  /^\/login$/,
+  /^\/signup$/,
+  /^\/auth(\/.*)?$/,
+  /^\/onboarding$/,
+  /^\/admin(\/.*)?$/,
+  /^\/(dashboard|edit|links|insights|account|cards|contacts|profiles|settings|share|team|variants|orders|fonts)(\/.*)?$/,
+];
+
 function isPublic(pathname: string) {
   return PUBLIC_ROUTES.some((re) => re.test(pathname));
+}
+
+function isCanonicalSiteRoute(pathname: string) {
+  return CANONICAL_SITE_ROUTES.some((re) => re.test(pathname));
 }
 
 function applySecurityHeaders(res: NextResponse, nonce: string) {
@@ -52,6 +65,14 @@ function siteHost() {
     return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com").hostname.toLowerCase();
   } catch {
     return "vcard.ed5enterprise.com";
+  }
+}
+
+function siteOrigin() {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com").origin;
+  } catch {
+    return "https://vcard.ed5enterprise.com";
   }
 }
 
@@ -130,6 +151,13 @@ export async function proxy(req: NextRequest) {
 
   const pathname = req.nextUrl.pathname;
   const host = normalizeRequestHost(req.headers.get("host"));
+
+  if (isCustomDomainCandidate(host) && isCanonicalSiteRoute(pathname)) {
+    const canonicalUrl = new URL(`${pathname}${req.nextUrl.search}`, siteOrigin());
+    const redirect = NextResponse.redirect(canonicalUrl);
+    applySecurityHeaders(redirect, nonce);
+    return redirect;
+  }
 
   if (isCustomDomainCandidate(host) && !isCustomDomainBypassPath(pathname)) {
     const username = await lookupCustomDomainUsername(host);
