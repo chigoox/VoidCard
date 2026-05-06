@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { validateProfileUsername } from "@/lib/profiles";
 import { rateLimits } from "@/lib/rate-limit";
 
 const Body = z.object({
@@ -50,27 +50,16 @@ export async function POST(req: Request) {
   const rl = await rateLimits.signup.limit(`ip:${ip}`);
   if (!rl.success) return NextResponse.json({ error: "too_many" }, { status: 429 });
 
-  const admin = createAdminClient();
-  // reserved username check
-  const { data: reserved } = await admin
-    .from("vcard_reserved_usernames")
-    .select("username")
-    .eq("username", parsed.data.username)
-    .maybeSingle();
-  if (reserved) return NextResponse.json({ error: "username_reserved" }, { status: 409 });
+  const usernameAvailability = await validateProfileUsername(parsed.data.username);
+  if (!usernameAvailability.ok) {
+    const status = usernameAvailability.error === "invalid_username" ? 400 : 409;
+    return NextResponse.json({ error: usernameAvailability.error }, { status });
+  }
 
-  // collision check
-  const { data: taken } = await admin
-    .from("vcard_profile_ext")
-    .select("user_id")
-    .eq("username", parsed.data.username)
-    .maybeSingle();
-  if (taken) return NextResponse.json({ error: "username_taken" }, { status: 409 });
-
-  // create magic link signup; on callback we'll insert profile_ext row
+  // Create auth user first; callback provisioning will attach or update the primary profile row.
   const supabase = await createClient();
   const emailRedirectTo = new URL("/auth/callback", getRequestOrigin(req));
-  emailRedirectTo.searchParams.set("username", parsed.data.username);
+  emailRedirectTo.searchParams.set("username", usernameAvailability.username);
   const nextPath = normalizeInternalPath(parsed.data.next);
   if (nextPath) emailRedirectTo.searchParams.set("next", nextPath);
 
@@ -80,7 +69,7 @@ export async function POST(req: Request) {
       password: parsed.data.password,
       options: {
         emailRedirectTo: emailRedirectTo.toString(),
-        data: { pending_username: parsed.data.username },
+        data: { pending_username: usernameAvailability.username },
       },
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -91,7 +80,7 @@ export async function POST(req: Request) {
     email: parsed.data.email,
     options: {
       emailRedirectTo: emailRedirectTo.toString(),
-      data: { pending_username: parsed.data.username },
+      data: { pending_username: usernameAvailability.username },
     },
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -59,6 +59,11 @@ function normalizeRequestHost(rawHost: string | null) {
   return (rawHost ?? "").split(":", 1)[0].trim().toLowerCase();
 }
 
+function isMissingTableError(error: { message?: string | null; code?: string | null } | null | undefined) {
+  const message = error?.message?.toLowerCase() ?? "";
+  return error?.code === "PGRST205" || message.includes("schema cache") || message.includes("could not find the table");
+}
+
 function isCustomDomainCandidate(host: string) {
   if (!host) return false;
   if (host === siteHost()) return false;
@@ -97,14 +102,20 @@ async function lookupCustomDomainUsername(hostname: string) {
 
     if (!domain?.user_id) return null;
 
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from("vcard_profile_ext")
-      .select("username")
+      .select("username, published")
       .eq("user_id", domain.user_id)
-      .eq("published", true)
       .maybeSingle();
 
-    return typeof profile?.username === "string" ? profile.username : null;
+    if (isMissingTableError(profileError)) {
+      const { data: sharedProfile } = await admin.from("profiles").select("username").eq("id", domain.user_id).maybeSingle();
+      return typeof sharedProfile?.username === "string" ? sharedProfile.username : null;
+    }
+
+    if (profileError) return null;
+
+    return profile?.published === true && typeof profile.username === "string" ? profile.username : null;
   } catch {
     return null;
   }

@@ -8,6 +8,11 @@ export type ApiContext = {
   scopes: string[];
 };
 
+function isMissingTableError(error: { message?: string | null; code?: string | null } | null | undefined) {
+  const message = error?.message?.toLowerCase() ?? "";
+  return error?.code === "PGRST205" || message.includes("schema cache") || message.includes("could not find the table");
+}
+
 export async function authenticateApiKey(req: Request): Promise<ApiContext | { error: string; status: number }> {
   const auth = req.headers.get("authorization") ?? "";
   const m = /^Bearer\s+(vk_[A-Za-z0-9]+)/.exec(auth);
@@ -24,10 +29,12 @@ export async function authenticateApiKey(req: Request): Promise<ApiContext | { e
 
   if (!row || row.revoked_at) return { error: "invalid_key", status: 401 };
 
-  const { data: ext } = await admin
+  const { data: ext, error: profileError } = await admin
     .from("vcard_profile_ext")
-    .select("plan").eq("user_id", row.user_id).single();
-  const plan = (ext?.plan as string) ?? "pro";
+    .select("plan")
+    .eq("user_id", row.user_id)
+    .maybeSingle();
+  const plan = isMissingTableError(profileError) ? "free" : ((ext?.plan as string) ?? "pro");
 
   if (plan === "free") return { error: "pro_required", status: 403 };
 

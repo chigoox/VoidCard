@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateApiKey } from "@/lib/api-auth";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { loadPrimaryProfile } from "@/lib/profiles";
 
 export const runtime = "nodejs";
 
@@ -8,12 +8,20 @@ export async function GET(req: Request) {
   const ctx = await authenticateApiKey(req);
   if ("error" in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("vcard_profile_ext")
-    .select("username, display_name, avatar_url, theme, sections, verified, plan, published")
-    .eq("user_id", ctx.userId)
-    .single();
+  const profile = await loadPrimaryProfile(ctx.userId);
 
-  return NextResponse.json({ profile: data });
+  return NextResponse.json({
+    profile: profile
+      ? {
+          username: profile.username,
+          display_name: profile.displayName,
+          avatar_url: profile.avatarUrl,
+          theme: profile.theme,
+          sections: profile.sections,
+          verified: profile.verified,
+          plan: profile.plan,
+          published: profile.published,
+        }
+      : null,
+  });
 }

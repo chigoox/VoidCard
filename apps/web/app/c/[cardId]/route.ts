@@ -5,6 +5,22 @@ import { queueWebhookEvent } from "@/lib/webhook-queue";
 
 export const runtime = "edge";
 
+function isMissingTableError(error: { message?: string | null; code?: string | null } | null | undefined) {
+  const message = error?.message?.toLowerCase() ?? "";
+  return error?.code === "PGRST205" || message.includes("schema cache") || message.includes("could not find the table");
+}
+
+async function resolveCardUsername(admin: ReturnType<typeof createAdminClient>, userId: string) {
+  const { data: profile, error } = await admin.from("vcard_profile_ext").select("username").eq("user_id", userId).maybeSingle();
+  if (isMissingTableError(error)) {
+    const { data: sharedProfile } = await admin.from("profiles").select("username").eq("id", userId).maybeSingle();
+    return typeof sharedProfile?.username === "string" ? sharedProfile.username : null;
+  }
+
+  if (error) return null;
+  return typeof profile?.username === "string" ? profile.username : null;
+}
+
 // NFC tap: /c/<cardId>  →  302 /u/<username> + log tap (deduped 1h per IP+card via Redis).
 export async function GET(req: Request, { params }: { params: Promise<{ cardId: string }> }) {
   const { cardId } = await params;
@@ -28,13 +44,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ cardId: 
   }
 
   // Resolve username for redirect target.
-  const { data: ext } = await admin
-    .from("vcard_profile_ext")
-    .select("username")
-    .eq("user_id", card.user_id)
-    .maybeSingle();
+  const username = await resolveCardUsername(admin, card.user_id);
 
-  if (!ext?.username) {
+  if (!username) {
     return new NextResponse("Profile unavailable", { status: 404 });
   }
 
@@ -62,6 +74,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ cardId: 
     .eq("id", card.id)
     .then(() => null, () => null);
 
-  const dest = new URL(`/u/${ext.username}`, req.url);
+  const dest = new URL(`/u/${username}`, req.url);
   return NextResponse.redirect(dest, 302);
 }

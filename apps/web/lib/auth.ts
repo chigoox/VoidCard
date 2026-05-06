@@ -1,6 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
+import { loadPrimaryProfile } from "./profiles";
 
 export type Plan = "free" | "pro" | "team" | "enterprise";
 
@@ -23,27 +24,19 @@ export async function getUser(): Promise<AppUser | null> {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
 
-  // shared profiles table for role
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const { data: ext } = await sb
-    .from("vcard_profile_ext")
-    .select("username, display_name, plan, bonus_storage_bytes, verified")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [{ data: profile }, primaryProfile] = await Promise.all([
+    sb.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+    loadPrimaryProfile(user.id),
+  ]);
 
   return {
     id: user.id,
     email: user.email ?? null,
-    username: ext?.username ?? null,
-    displayName: ext?.display_name ?? null,
-    plan: (ext?.plan as Plan) ?? "free",
-    bonusStorageBytes: Number(ext?.bonus_storage_bytes ?? 0),
-    verified: !!ext?.verified,
+    username: primaryProfile?.username ?? null,
+    displayName: primaryProfile?.displayName ?? null,
+    plan: primaryProfile?.plan ?? "free",
+    bonusStorageBytes: Number(primaryProfile?.bonusStorageBytes ?? 0),
+    verified: primaryProfile?.verified === true,
     role: (profile?.role as "user" | "admin") ?? "user",
   };
 }

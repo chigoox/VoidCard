@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { validateProfileUsername } from "@/lib/profiles";
+import { ensurePrimaryProfileRecord, loadPrimaryProfile, validateProfileUsername } from "@/lib/profiles";
 
 function readMetadataString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -85,36 +84,21 @@ export async function GET(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/login?error=session", req.url));
 
-  // Ensure profile_ext exists
-  const admin = createAdminClient();
-  const { data: existing } = await admin
-    .from("vcard_profile_ext")
-    .select("user_id, username, onboarding_state")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const existing = await loadPrimaryProfile(user.id);
+  const resolvedUsername = existing?.username ?? (await resolveProfileUsername(user, username));
+  const { error, onboardingStep } = await ensurePrimaryProfileRecord({
+    userId: user.id,
+    email: user.email ?? null,
+    username: resolvedUsername,
+    displayName: readMetadataString(user.user_metadata?.full_name),
+    avatarUrl: readMetadataString(user.user_metadata?.avatar_url),
+  });
 
-  if (!existing) {
-    const resolvedUsername = await resolveProfileUsername(user, username);
-    const { error } = await admin.from("vcard_profile_ext").insert({
-      user_id: user.id,
-      username: resolvedUsername,
-      display_name: readMetadataString(user.user_metadata?.full_name),
-      avatar_url: readMetadataString(user.user_metadata?.avatar_url),
-      plan: "free",
-    });
-    if (error) {
-      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, req.url));
-    }
-    return NextResponse.redirect(new URL("/onboarding", req.url));
+  if (error) {
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, req.url));
   }
 
-  if (!existing.username) {
-    const resolvedUsername = await resolveProfileUsername(user, username);
-    await admin.from("vcard_profile_ext").update({ username: resolvedUsername }).eq("user_id", user.id);
-  }
-
-  // Resume onboarding if not finished
-  const step = (existing.onboarding_state as { step?: number } | null)?.step ?? 0;
+  const step = onboardingStep ?? 5;
   if (step < 5) return NextResponse.redirect(new URL("/onboarding", req.url));
   return NextResponse.redirect(new URL(nextPath ?? "/dashboard", req.url));
 }
