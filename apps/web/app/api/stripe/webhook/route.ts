@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/audit";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { queueWebhookEvent } from "@/lib/webhook-queue";
 
 export const runtime = "nodejs";
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
 
   // Idempotency: short-circuit if we've already processed this event id.
   const { data: existing } = await admin
@@ -71,7 +73,9 @@ export async function POST(req: Request) {
             trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
             seats: plan === "team" ? 10 : 1,
           });
-          await admin.from("vcard_profile_ext").update({ plan }).eq("user_id", userId);
+          if (!sharedPrimary) {
+            await admin.from("vcard_profile_ext").update({ plan }).eq("user_id", userId);
+          }
         }
       }
 
@@ -119,14 +123,16 @@ export async function POST(req: Request) {
             if (VERIFIED_GRANTING_SKUS.has(sku)) grantsVerified = true;
           }
 
-          if (storageDelta > 0) {
+          if (storageDelta > 0 && !sharedPrimary) {
             const { data: cur } = await admin.from("vcard_profile_ext").select("bonus_storage_bytes").eq("user_id", userId).single();
             const next = Math.min((cur?.bonus_storage_bytes ?? 0) + storageDelta, STORAGE_CAP);
             await admin.from("vcard_profile_ext").update({ bonus_storage_bytes: next }).eq("user_id", userId);
           }
 
           if (grantsVerified) {
-            await admin.from("vcard_profile_ext").update({ verified: true }).eq("user_id", userId);
+            if (!sharedPrimary) {
+              await admin.from("vcard_profile_ext").update({ verified: true }).eq("user_id", userId);
+            }
             await admin.from("vcard_verifications").insert({
               user_id: userId, method: "earned", status: "approved",
               decided_at: new Date().toISOString(),
@@ -180,7 +186,9 @@ export async function POST(req: Request) {
 
       if (sub.status === "canceled") {
         const { data: row } = await admin.from("vcard_subscriptions").select("user_id").eq("stripe_subscription_id", sub.id).maybeSingle();
-        if (row) await admin.from("vcard_profile_ext").update({ plan: "free", remove_branding: false }).eq("user_id", row.user_id);
+        if (row && !sharedPrimary) {
+          await admin.from("vcard_profile_ext").update({ plan: "free", remove_branding: false }).eq("user_id", row.user_id);
+        }
       }
       break;
     }

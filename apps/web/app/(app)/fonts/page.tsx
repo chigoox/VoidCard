@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { deleteFont, setActiveFont } from "./actions";
 import FontUploadClient from "./FontUploadClient";
@@ -20,6 +21,7 @@ type Font = {
 export default async function FontsPage() {
   const u = await requireUser();
   const ents = entitlementsFor(u.plan);
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
 
   if (!ents.customFontUpload) {
     return (
@@ -28,6 +30,19 @@ export default async function FontsPage() {
         <div className="card p-6">
           <p className="text-sm text-ivory-mute">Custom font upload is a Pro feature.</p>
           <Link href="/pricing" className="btn-primary mt-4 inline-block">Upgrade to Pro</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (sharedPrimary) {
+    return (
+      <div className="space-y-4">
+        <h1 className="font-display text-3xl text-gold-grad">Custom fonts</h1>
+        <div className="card p-6">
+          <p className="text-sm text-ivory-mute">
+            Custom font activation is temporarily unavailable while this deployment is using shared-profile compatibility mode.
+          </p>
         </div>
       </div>
     );

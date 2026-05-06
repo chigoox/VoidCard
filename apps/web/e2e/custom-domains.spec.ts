@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "./fixtures";
+import { detectPrimaryProfileSource, seedPrimaryProfile } from "./profile-seed";
 
 type TestEnv = {
   supabaseUrl: string;
@@ -63,12 +64,12 @@ function createAdminClientOrThrow() {
 
 async function hasVoidCardSchema() {
   const admin = createAdminClientOrThrow();
-  const [profileCheck, domainCheck] = await Promise.all([
-    admin.from("vcard_profile_ext").select("user_id").limit(1),
+  const source = await detectPrimaryProfileSource(admin);
+  const [domainCheck] = await Promise.all([
     admin.from("vcard_custom_domains").select("id").limit(1),
   ]);
 
-  return !profileCheck.error && !domainCheck.error;
+  return !!source && !domainCheck.error;
 }
 
 async function createSessionCookies(email: string, password: string) {
@@ -128,18 +129,15 @@ test("custom domain flow saves DNS instructions", async ({ page }) => {
     userId = createUser.data.user?.id ?? null;
     if (!userId) throw new Error("Supabase did not return a user id.");
 
-    const { error: profileError } = await admin.from("vcard_profile_ext").upsert(
-      {
-        user_id: userId,
-        username,
-        display_name: "Custom Domain E2E",
-        plan: "pro",
-        verified: false,
-        published: true,
-      },
-      { onConflict: "user_id" }
-    );
-    if (profileError) throw profileError;
+    await seedPrimaryProfile(admin, {
+      userId,
+      email,
+      username,
+      displayName: "Custom Domain E2E",
+      plan: "pro",
+      verified: false,
+      published: true,
+    });
 
     const sessionCookies = await createSessionCookies(email, password);
     await page.context().addCookies(

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
+import { loadPrimaryProfile } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -23,12 +24,7 @@ export async function createVariant(formData: FormData) {
   const parsed = CreateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
 
-  const sb = await createClient();
-  const { data: profile } = await sb
-    .from("vcard_profile_ext")
-    .select("sections, theme")
-    .eq("user_id", u.id)
-    .maybeSingle();
+  const profile = await loadPrimaryProfile(u.id);
 
   const admin = createAdminClient();
   const { error } = await admin.from("vcard_ab_variants").insert({

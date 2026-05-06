@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { coerceVerificationDocuments, coerceVerificationRiskFlags } from "@/lib/verification";
 import { reviewVerification } from "./actions";
 
@@ -66,6 +67,7 @@ function riskFlagLabel(flag: string) {
 
 export default async function AdminVerificationsPage() {
   const admin = createAdminClient();
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
   const { data } = await admin
     .from("vcard_verifications")
     .select("id, user_id, method, status, documents, paid, risk_flags, risk_score, reviewer_note, reason, submitted_at, decided_at")
@@ -75,14 +77,24 @@ export default async function AdminVerificationsPage() {
   const rows = (data as VerificationRow[] | null) ?? [];
   const userIds = Array.from(new Set(rows.map((row) => row.user_id)));
   const { data: profiles } = userIds.length
-    ? await admin
-        .from("vcard_profile_ext")
-        .select("user_id, username, display_name")
-        .in("user_id", userIds)
+    ? (sharedPrimary
+        ? await admin
+            .from("profiles")
+            .select("id, username, display_name")
+            .in("id", userIds)
+        : await admin
+            .from("vcard_profile_ext")
+            .select("user_id, username, display_name")
+            .in("user_id", userIds))
     : { data: [] };
 
   const profileByUserId = new Map(
-    ((profiles as ProfileRow[] | null) ?? []).map((profile) => [profile.user_id, profile])
+    (sharedPrimary
+      ? (((profiles as Array<{ id: string; username: string | null; display_name: string | null }> | null) ?? []).map((profile) => [
+          profile.id,
+          { user_id: profile.id, username: profile.username, display_name: profile.display_name },
+        ]))
+      : (((profiles as ProfileRow[] | null) ?? []).map((profile) => [profile.user_id, profile])))
   );
 
   const reviewRows = await Promise.all(

@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHmac, randomBytes } from "node:crypto";
 import { sendEmail } from "@/lib/email";
+import { loadPrimaryProfile } from "@/lib/profiles";
 import { validateWebhookUrl } from "@/lib/ssrf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { WebhookEventName } from "@/lib/webhook-queue";
@@ -139,28 +140,15 @@ export async function deliverDueWebhookEvents(options?: { limit?: number; webhoo
   let skipped = 0;
 
   for (const delivery of deliveries) {
-    const [{ data: webhookData }, { data: ext }] = await Promise.all([
-      admin
-        .from("vcard_webhooks")
-        .select("id, user_id, url, secret, active")
-        .eq("id", delivery.webhook_id)
-        .maybeSingle(),
-      admin
-        .from("vcard_webhooks")
-        .select("user_id")
-        .eq("id", delivery.webhook_id)
-        .maybeSingle()
-        .then(async ({ data: row }) => {
-          if (!row?.user_id) return { data: null };
-          return admin
-            .from("vcard_profile_ext")
-            .select("verified")
-            .eq("user_id", row.user_id)
-            .maybeSingle();
-        }),
-    ]);
+    const { data: webhookData } = await admin
+      .from("vcard_webhooks")
+      .select("id, user_id, url, secret, active")
+      .eq("id", delivery.webhook_id)
+      .maybeSingle();
 
     const webhook = (webhookData as WebhookRow | null) ?? null;
+    const profile = webhook ? await loadPrimaryProfile(webhook.user_id) : null;
+
     if (!webhook || !webhook.active) {
       await admin
         .from("vcard_webhook_deliveries")
@@ -170,7 +158,7 @@ export async function deliverDueWebhookEvents(options?: { limit?: number; webhoo
       continue;
     }
 
-    const urlCheck = await validateWebhookUrl(webhook.url, { allowHttp: !!ext?.verified });
+    const urlCheck = await validateWebhookUrl(webhook.url, { allowHttp: profile?.verified === true });
     if (!urlCheck.ok) {
       await failDelivery(delivery, webhook, { error: `invalid_destination:${urlCheck.reason}` });
       failed += 1;

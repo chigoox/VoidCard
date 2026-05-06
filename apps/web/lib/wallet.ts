@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PRIMARY_PROFILE_ID, findPublicProfileByUsername } from "@/lib/profiles";
+import { PRIMARY_PROFILE_ID, findPublicProfileByUsername, loadPrimaryProfile } from "@/lib/profiles";
 
 export type WalletPlatform = "apple" | "google";
 
@@ -32,16 +32,6 @@ export type WalletPassRecord = {
   walletClassId: string | null;
   lastSyncedAt: string | null;
   updatedAt: string;
-};
-
-type ProfileRow = {
-  user_id: string;
-  username: string;
-  display_name: string | null;
-  bio: string | null;
-  avatar_url: string | null;
-  verified: boolean | null;
-  updated_at: string | null;
 };
 
 type WalletPassRow = {
@@ -140,27 +130,18 @@ export async function loadWalletProfile(username: string): Promise<WalletProfile
 }
 
 export async function loadWalletProfileByUserId(userId: string): Promise<WalletProfile | null> {
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("vcard_profile_ext")
-    .select("user_id, username, display_name, bio, avatar_url, verified, updated_at")
-    .eq("user_id", userId)
-    .eq("published", true)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  const row = (data as ProfileRow | null) ?? null;
-  if (!row) return null;
+  const profile = await loadPrimaryProfile(userId);
+  if (!profile?.username || !profile.published) return null;
 
   return {
     profileId: PRIMARY_PROFILE_ID,
-    userId: row.user_id,
-    username: row.username,
-    displayName: row.display_name?.trim() || `@${row.username}`,
-    bio: row.bio,
-    avatarUrl: row.avatar_url,
-    verified: row.verified === true,
-    updatedAt: row.updated_at,
+    userId: profile.ownerUserId,
+    username: profile.username,
+    displayName: profile.displayName?.trim() || `@${profile.username}`,
+    bio: profile.bio,
+    avatarUrl: profile.avatarUrl,
+    verified: profile.verified === true,
+    updatedAt: profile.updatedAt,
   };
 }
 

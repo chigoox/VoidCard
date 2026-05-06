@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { saveWeeklyDigestPreference } from "./actions";
 
@@ -10,19 +11,23 @@ export default async function NotificationsPage() {
   const u = await requireUser();
   const ent = entitlementsFor(u.plan, { extraStorageBytes: u.bonusStorageBytes });
   const sb = await createClient();
-  const [{ data: notes }, { data: prefs }] = await Promise.all([
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
+  const [{ data: notes }, prefsResult] = await Promise.all([
     sb
       .from("vcard_notifications")
       .select("id, kind, title, body, created_at, read_at")
       .eq("user_id", u.id)
       .order("created_at", { ascending: false })
       .limit(50),
-    sb
-      .from("vcard_profile_ext")
-      .select("weekly_digest_enabled, last_weekly_digest_at")
-      .eq("user_id", u.id)
-      .maybeSingle(),
+    sharedPrimary
+      ? Promise.resolve({ data: null })
+      : sb
+          .from("vcard_profile_ext")
+          .select("weekly_digest_enabled, last_weekly_digest_at")
+          .eq("user_id", u.id)
+          .maybeSingle(),
   ]);
+  const prefs = prefsResult.data;
 
   const weeklyDigestEnabled = prefs?.weekly_digest_enabled ?? true;
 
@@ -40,19 +45,26 @@ export default async function NotificationsPage() {
                 ? "A Monday summary of taps, contacts, and orders sent to your account email."
                 : "Weekly digest is available on Pro and Team."}
             </p>
+            {sharedPrimary && ent.weeklyDigest && (
+              <p className="mt-1 text-xs text-ivory-mute">
+                Digest preference toggles are unavailable while this deployment is using shared-profile compatibility mode.
+              </p>
+            )}
             {prefs?.last_weekly_digest_at && (
               <p className="mt-1 text-xs text-ivory-mute">
                 Last sent {new Date(prefs.last_weekly_digest_at).toLocaleString()}.
               </p>
             )}
           </div>
-          {ent.weeklyDigest ? (
+          {ent.weeklyDigest && !sharedPrimary ? (
             <form action={saveWeeklyDigestPreference}>
               <input type="hidden" name="enabled" value={weeklyDigestEnabled ? "false" : "true"} />
               <button className={weeklyDigestEnabled ? "btn-ghost" : "btn-gold"} type="submit" data-testid="weekly-digest-toggle">
                 {weeklyDigestEnabled ? "Disable digest" : "Enable digest"}
               </button>
             </form>
+          ) : ent.weeklyDigest ? (
+            <span className="rounded-pill border border-onyx-700/60 px-3 py-2 text-xs text-ivory-mute">Always on</span>
           ) : (
             <Link href="/pricing" className="btn-gold inline-flex">
               Upgrade to Pro

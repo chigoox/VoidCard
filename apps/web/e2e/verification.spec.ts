@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "./fixtures";
+import { detectPrimaryProfileSource, seedPrimaryProfile } from "./profile-seed";
 
 type TestEnv = {
   supabaseUrl: string;
@@ -57,12 +58,12 @@ function createAdminClientOrThrow() {
 
 async function hasVoidCardSchema() {
   const admin = createAdminClientOrThrow();
-  const [profileCheck, verificationCheck] = await Promise.all([
-    admin.from("vcard_profile_ext").select("user_id").limit(1),
+  const source = await detectPrimaryProfileSource(admin);
+  const [verificationCheck] = await Promise.all([
     admin.from("vcard_verifications").select("id").limit(1),
   ]);
 
-  return !profileCheck.error && !verificationCheck.error;
+  return !!source && !verificationCheck.error;
 }
 
 async function createSessionCookies(email: string, password: string) {
@@ -120,18 +121,15 @@ test("verification flow submits brand proof", async ({ page }) => {
     userId = createUser.data.user?.id ?? null;
     if (!userId) throw new Error("Supabase did not return a user id.");
 
-    const { error: profileError } = await admin.from("vcard_profile_ext").upsert(
-      {
-        user_id: userId,
-        username,
-        display_name: "Verification E2E",
-        plan: "free",
-        verified: false,
-        published: false,
-      },
-      { onConflict: "user_id" }
-    );
-    if (profileError) throw profileError;
+    await seedPrimaryProfile(admin, {
+      userId,
+      email,
+      username,
+      displayName: "Verification E2E",
+      plan: "free",
+      verified: false,
+      published: false,
+    });
 
     const seededVerification = await admin
       .from("vcard_verifications")

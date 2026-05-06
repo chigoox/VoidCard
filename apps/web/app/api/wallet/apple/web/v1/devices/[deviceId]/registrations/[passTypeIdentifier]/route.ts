@@ -21,6 +21,11 @@ type WalletProfileRow = {
   updated_at: string | null;
 };
 
+function isMissingTableError(error: { message?: string | null; code?: string | null } | null | undefined) {
+  const message = error?.message?.toLowerCase() ?? "";
+  return error?.code === "PGRST205" || message.includes("schema cache") || message.includes("could not find the table");
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ deviceId: string; passTypeIdentifier: string }> }
@@ -61,15 +66,28 @@ export async function GET(
 
   const walletPasses = (passes as WalletPassRow[] | null) ?? [];
   const userIds = Array.from(new Set(walletPasses.map((pass) => pass.user_id)));
-  const { data: profiles, error: profileError } = userIds.length
-    ? await admin.from("vcard_profile_ext").select("user_id, updated_at").in("user_id", userIds)
-    : { data: [], error: null };
+  let profiles: WalletProfileRow[] | null = [];
+  let profileError: { message?: string | null; code?: string | null } | null = null;
+
+  if (userIds.length) {
+    const profileResult = await admin.from("vcard_profile_ext").select("user_id, updated_at").in("user_id", userIds);
+    if (isMissingTableError(profileResult.error)) {
+      const sharedResult = await admin.from("profiles").select("id, created_at").in("id", userIds);
+      profileError = sharedResult.error;
+      profiles = (((sharedResult.data as Array<{ id: string; created_at: string | null }> | null) ?? [])
+        .map((profile) => ({ user_id: profile.id, updated_at: profile.created_at })));
+    } else {
+      profileError = profileResult.error;
+      profiles = (profileResult.data as WalletProfileRow[] | null) ?? [];
+    }
+  }
+
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
   const profileByUserId = new Map(
-    ((profiles as WalletProfileRow[] | null) ?? []).map((profile) => [profile.user_id, profile.updated_at])
+    (profiles ?? []).map((profile) => [profile.user_id, profile.updated_at])
   );
   const updatedSinceRaw = new URL(req.url).searchParams.get("passesUpdatedSince");
   const updatedSince = updatedSinceRaw ? Date.parse(updatedSinceRaw) : Number.NaN;

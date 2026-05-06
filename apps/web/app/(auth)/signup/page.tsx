@@ -257,7 +257,7 @@ function SignupPageContent() {
         </div>
         <div className="rounded-card border border-onyx-800 bg-onyx-900/40 p-4">
           <p className="text-xs uppercase tracking-[0.24em] text-gold/80">Provisioned on callback</p>
-          <p className="mt-2 text-sm text-ivory-dim">We create or resume your `vcard_profile_ext` row when auth completes, not in client state.</p>
+          <p className="mt-2 text-sm text-ivory-dim">We create or resume your primary profile record when auth completes, not in client state.</p>
         </div>
       </div>
     </AuthShell>

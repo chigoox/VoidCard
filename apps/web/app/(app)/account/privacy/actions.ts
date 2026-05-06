@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { enqueueExport, requestDelete, cancelDelete } from "@/lib/dsr";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 
 const AI_INDEXING = ["allow_search_only", "allow_all", "disallow_all"] as const;
@@ -32,6 +33,12 @@ export async function updateAiIndexingAction(formData: FormData): Promise<void> 
   const u = await requireUser();
   const raw = String(formData.get("ai_indexing") ?? "");
   if (!AI_INDEXING.includes(raw as AiIndexing)) return;
+
+  if (await usesSharedProfilesAsPrimary()) {
+    revalidatePath("/account/privacy");
+    return;
+  }
+
   const sb = await createClient();
   await sb
     .from("vcard_profile_ext")

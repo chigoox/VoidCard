@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth";
+import { loadPrimaryProfile, usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import {
   exportDataAction,
@@ -44,6 +45,7 @@ const AI_OPTIONS: Array<{
 export default async function PrivacyPage() {
   const u = await requireUser();
   const sb = await createClient();
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
   const { data } = await sb
     .from("vcard_dsr_log")
     .select("id, kind, status, url, url_expires_at, delete_at, created_at")
@@ -53,12 +55,8 @@ export default async function PrivacyPage() {
   const rows = (data ?? []) as DsrRow[];
   const pendingDelete = rows.find((r) => r.kind === "delete" && r.status === "queued");
 
-  const { data: ext } = await sb
-    .from("vcard_profile_ext")
-    .select("ai_indexing")
-    .eq("user_id", u.id)
-    .maybeSingle();
-  const currentAi = (ext?.ai_indexing as
+  const profile = await loadPrimaryProfile(u.id);
+  const currentAi = (profile?.aiIndexing as
     | "allow_search_only"
     | "allow_all"
     | "disallow_all"
@@ -78,6 +76,11 @@ export default async function PrivacyPage() {
         <p className="text-sm text-ivory-mute">
           Control which automated crawlers may read your public profile. Changes apply within minutes via robots.txt and per-page headers.
         </p>
+        {sharedPrimary && (
+          <p className="text-xs text-ivory-mute">
+            AI indexing controls are read-only while this deployment is using shared-profile compatibility mode.
+          </p>
+        )}
         <form action={updateAiIndexingAction} className="space-y-3">
           {AI_OPTIONS.map((opt) => (
             <label
@@ -89,6 +92,7 @@ export default async function PrivacyPage() {
                 name="ai_indexing"
                 value={opt.value}
                 defaultChecked={currentAi === opt.value}
+                disabled={sharedPrimary}
                 className="mt-1 accent-gold"
               />
               <div>
@@ -97,7 +101,7 @@ export default async function PrivacyPage() {
               </div>
             </label>
           ))}
-          <button type="submit" className="btn-gold">Save</button>
+          <button type="submit" className="btn-gold" disabled={sharedPrimary}>Save</button>
         </form>
       </section>
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Plan } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
 import { sendEmail } from "@/lib/email";
+import { loadPrimaryProfile, usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { buildWeeklyDigestEmail } from "@/lib/weekly-digest";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -49,25 +50,43 @@ export async function GET(req: Request) {
   activitySince.setUTCDate(activitySince.getUTCDate() - 7);
   const weekKey = windowStart.toISOString().slice(0, 10);
   const insightsBaseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com";
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
 
-  const { data } = await admin
-    .from("vcard_profile_ext")
-    .select("user_id, username, display_name, plan, bonus_storage_bytes, weekly_digest_enabled, last_weekly_digest_at")
-    .is("deleted_at", null)
-    .limit(250);
+  const { data } = sharedPrimary
+    ? await admin
+        .from("profiles")
+        .select("id, username, display_name")
+        .not("username", "is", null)
+        .limit(250)
+    : await admin
+        .from("vcard_profile_ext")
+        .select("user_id, username, display_name, plan, bonus_storage_bytes, weekly_digest_enabled, last_weekly_digest_at")
+        .is("deleted_at", null)
+        .limit(250);
 
-  const candidates = (data as DigestCandidate[] | null) ?? [];
+  const candidates = (sharedPrimary
+    ? (((data as Array<{ id: string; username: string | null; display_name: string | null }> | null) ?? []).map((profile) => ({
+        user_id: profile.id,
+        username: profile.username,
+        display_name: profile.display_name,
+        plan: null,
+        bonus_storage_bytes: null,
+        weekly_digest_enabled: null,
+        last_weekly_digest_at: null,
+      })))
+    : ((data as DigestCandidate[] | null) ?? []));
   let queued = 0;
   let sent = 0;
   let failed = 0;
   let skipped = 0;
 
   for (const candidate of candidates) {
-    const ent = entitlementsFor(candidate.plan ?? "free", {
-      extraStorageBytes: Number(candidate.bonus_storage_bytes ?? 0),
+    const profile = sharedPrimary ? await loadPrimaryProfile(candidate.user_id) : null;
+    const ent = entitlementsFor(profile?.plan ?? candidate.plan ?? "free", {
+      extraStorageBytes: Number(profile?.bonusStorageBytes ?? candidate.bonus_storage_bytes ?? 0),
     });
-    const lastSent = candidate.last_weekly_digest_at ? new Date(candidate.last_weekly_digest_at) : null;
-    if (!ent.weeklyDigest || candidate.weekly_digest_enabled === false || (lastSent && lastSent >= windowStart)) {
+    const lastSent = !sharedPrimary && candidate.last_weekly_digest_at ? new Date(candidate.last_weekly_digest_at) : null;
+    if (!ent.weeklyDigest || (!sharedPrimary && candidate.weekly_digest_enabled === false) || (lastSent && lastSent >= windowStart)) {
       skipped += 1;
       continue;
     }
@@ -167,10 +186,14 @@ export async function GET(req: Request) {
             body: `${tapsCount ?? 0} taps, ${contactsCount ?? 0} contacts, ${ordersCount ?? 0} orders in the last 7 days.`,
             url: "/insights",
           }),
-        admin
-          .from("vcard_profile_ext")
-          .update({ last_weekly_digest_at: new Date().toISOString() })
-          .eq("user_id", candidate.user_id),
+        ...(sharedPrimary
+          ? []
+          : [
+              admin
+                .from("vcard_profile_ext")
+                .update({ last_weekly_digest_at: new Date().toISOString() })
+                .eq("user_id", candidate.user_id),
+            ]),
       ]);
       sent += 1;
     } else {

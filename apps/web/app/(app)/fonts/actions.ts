@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function gateFonts(plan: string, bonusStorageBytes: number) {
@@ -24,6 +25,9 @@ const AddSchema = z.object({
 export async function createFontRecord(input: unknown) {
   const u = await requireUser();
   gateFonts(u.plan, u.bonusStorageBytes);
+  if (await usesSharedProfilesAsPrimary()) {
+    throw new Error("Custom fonts are unavailable in shared-profile compatibility mode.");
+  }
   const parsed = AddSchema.safeParse(input);
   if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
 
@@ -46,6 +50,9 @@ export async function createFontRecord(input: unknown) {
 export async function setActiveFont(formData: FormData) {
   const u = await requireUser();
   gateFonts(u.plan, u.bonusStorageBytes);
+  if (await usesSharedProfilesAsPrimary()) {
+    throw new Error("Custom fonts are unavailable in shared-profile compatibility mode.");
+  }
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("missing id");
   const admin = createAdminClient();
@@ -66,6 +73,9 @@ export async function setActiveFont(formData: FormData) {
 export async function deleteFont(formData: FormData) {
   const u = await requireUser();
   gateFonts(u.plan, u.bonusStorageBytes);
+  if (await usesSharedProfilesAsPrimary()) {
+    throw new Error("Custom fonts are unavailable in shared-profile compatibility mode.");
+  }
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("missing id");
   const admin = createAdminClient();

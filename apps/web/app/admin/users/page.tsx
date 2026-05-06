@@ -1,6 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Plan } from "@/lib/auth";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 
 export const dynamic = "force-dynamic";
+
+const SHARED_PLAN_PRIORITY: Plan[] = ["enterprise", "team", "pro"];
 
 type Row = {
   user_id: string;
@@ -16,14 +20,72 @@ type Row = {
 export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sp = await searchParams;
   const sb = createAdminClient();
-  let q = sb
-    .from("vcard_profile_ext")
-    .select("user_id, username, display_name, plan, verified, published, bonus_storage_bytes, created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (sp.q) q = q.ilike("username", `%${sp.q}%`);
-  const { data } = await q;
-  const rows = (data as Row[] | null) ?? [];
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
+
+  let rows: Row[] = [];
+
+  if (sharedPrimary) {
+    let q = sb
+      .from("profiles")
+      .select("id, username, display_name, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (sp.q) q = q.ilike("username", `%${sp.q}%`);
+
+    const { data } = await q;
+    const baseRows = ((data as Array<{ id: string; username: string | null; display_name: string | null; created_at: string | null }> | null) ?? []);
+    const userIds = baseRows.map((row) => row.id);
+    const [{ data: subscriptions }, { data: verifications }] = userIds.length
+      ? await Promise.all([
+          sb
+            .from("vcard_subscriptions")
+            .select("user_id, plan")
+            .in("user_id", userIds)
+            .in("status", ["trialing", "active", "past_due"]),
+          sb
+            .from("vcard_verifications")
+            .select("user_id, status, submitted_at")
+            .in("user_id", userIds)
+            .order("submitted_at", { ascending: false }),
+        ])
+      : [{ data: [] }, { data: [] }];
+
+    const planByUserId = new Map<string, Plan>();
+    for (const plan of SHARED_PLAN_PRIORITY) {
+      for (const row of (subscriptions as Array<{ user_id: string; plan: Plan | null }> | null) ?? []) {
+        if (row.plan === plan && !planByUserId.has(row.user_id)) {
+          planByUserId.set(row.user_id, plan);
+        }
+      }
+    }
+
+    const verificationByUserId = new Map<string, boolean>();
+    for (const row of (verifications as Array<{ user_id: string; status: string | null }> | null) ?? []) {
+      if (!verificationByUserId.has(row.user_id)) {
+        verificationByUserId.set(row.user_id, row.status === "approved");
+      }
+    }
+
+    rows = baseRows.map((row) => ({
+      user_id: row.id,
+      username: row.username,
+      display_name: row.display_name,
+      plan: planByUserId.get(row.id) ?? "free",
+      verified: verificationByUserId.get(row.id) ?? false,
+      published: !!row.username,
+      bonus_storage_bytes: 0,
+      created_at: row.created_at ?? new Date(0).toISOString(),
+    }));
+  } else {
+    let q = sb
+      .from("vcard_profile_ext")
+      .select("user_id, username, display_name, plan, verified, published, bonus_storage_bytes, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (sp.q) q = q.ilike("username", `%${sp.q}%`);
+    const { data } = await q;
+    rows = (data as Row[] | null) ?? [];
+  }
 
   return (
     <div className="space-y-6">

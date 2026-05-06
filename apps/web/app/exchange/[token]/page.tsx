@@ -1,17 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadPrimaryProfile } from "@/lib/profiles";
 import { exchangeContact } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-type Profile = {
-  user_id: string;
-  username: string | null;
-  display_name: string | null;
-  avatar_url: string | null;
-};
 
 export default async function ExchangePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -28,13 +22,7 @@ export default async function ExchangePage({ params }: { params: Promise<{ token
   const expired = new Date(row.expires_at).getTime() < Date.now();
   const consumed = row.consumed_at !== null;
 
-  const { data: profile } = await sb
-    .from("vcard_profile_ext")
-    .select("user_id, username, display_name, avatar_url")
-    .eq("user_id", row.user_id)
-    .maybeSingle();
-
-  const owner = profile as Profile | null;
+  const owner = await loadPrimaryProfile(row.user_id);
 
   if (expired || consumed) {
     return (
@@ -58,14 +46,14 @@ export default async function ExchangePage({ params }: { params: Promise<{ token
     <main className="mx-auto max-w-md px-6 py-12">
       <div className="card p-8">
         <div className="flex items-center gap-3">
-          {owner?.avatar_url && (
+          {owner?.avatarUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={owner.avatar_url} alt="" className="h-12 w-12 rounded-full border border-onyx-700/60 object-cover" />
+            <img src={owner.avatarUrl} alt="" className="h-12 w-12 rounded-full border border-onyx-700/60 object-cover" />
           )}
           <div>
             <h1 className="font-display text-xl text-gold-grad">Exchange contact</h1>
             <p className="text-sm text-ivory-mute">
-              with {owner?.display_name ?? "this user"}
+              with {owner?.displayName ?? "this user"}
               {owner?.username && <> · @{owner.username}</>}
             </p>
           </div>

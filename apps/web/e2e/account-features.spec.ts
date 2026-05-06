@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "./fixtures";
+import { detectPrimaryProfileSource, seedPrimaryProfile, type PrimaryProfileSource } from "./profile-seed";
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 const ENV = loadTestEnv();
@@ -17,6 +18,7 @@ type TestEnv = {
 type UserSeed = {
   userId: string;
   username: string;
+  primaryProfileSource: PrimaryProfileSource;
 };
 
 function loadTestEnv(): TestEnv | null {
@@ -54,12 +56,12 @@ function adminClient() {
 
 async function hasVoidCardSchema() {
   const admin = adminClient();
+  const source = await detectPrimaryProfileSource(admin);
   const checks = await Promise.all([
-    admin.from("vcard_profile_ext").select("user_id").limit(1),
     admin.from("vcard_webhooks").select("id").limit(1),
     admin.from("vcard_profiles").select("id").limit(1),
   ]);
-  return checks.every((check) => !check.error);
+  return !!source && checks.every((check) => !check.error);
 }
 
 async function createSessionCookies(email: string, password: string) {
@@ -108,19 +110,16 @@ async function prepareUser(page: import("@playwright/test").Page): Promise<UserS
   const userId = createUser.data.user?.id ?? null;
   if (!userId) throw new Error("Supabase did not return a user id.");
 
-  const { error: profileError } = await admin.from("vcard_profile_ext").upsert(
-    {
-      user_id: userId,
-      username,
-      display_name: "Account Features E2E",
-      plan: "pro",
-      verified: false,
-      published: true,
-      weekly_digest_enabled: true,
-    },
-    { onConflict: "user_id" },
-  );
-  if (profileError) throw profileError;
+  const primaryProfileSource = await seedPrimaryProfile(admin, {
+    userId,
+    email,
+    username,
+    displayName: "Account Features E2E",
+    plan: "pro",
+    verified: false,
+    published: true,
+    weeklyDigestEnabled: true,
+  });
 
   const sessionCookies = await createSessionCookies(email, password);
   await page.context().addCookies(
@@ -135,7 +134,7 @@ async function prepareUser(page: import("@playwright/test").Page): Promise<UserS
 
   await page.goto("/dashboard");
   await expect(page.getByTestId("dash-hero")).toBeVisible();
-  return { userId, username };
+  return { userId, username, primaryProfileSource };
 }
 
 async function cleanupUser(seed: UserSeed) {
@@ -153,8 +152,11 @@ async function cleanupUser(seed: UserSeed) {
     admin.from("vcard_ab_variants").delete().eq("user_id", seed.userId),
     admin.from("vcard_user_fonts").delete().eq("user_id", seed.userId),
     admin.from("vcard_notifications").delete().eq("user_id", seed.userId),
+    admin.from("vcard_subscriptions").delete().eq("user_id", seed.userId),
     admin.from("vcard_taps").delete().eq("user_id", seed.userId),
-    admin.from("vcard_profile_ext").delete().eq("user_id", seed.userId),
+    seed.primaryProfileSource === "vcard_profile_ext"
+      ? admin.from("vcard_profile_ext").delete().eq("user_id", seed.userId)
+      : admin.from("profiles").delete().eq("id", seed.userId),
   ]);
 
   await admin.auth.admin.deleteUser(seed.userId);
@@ -202,6 +204,7 @@ test.describe("account features", () => {
   test("can save a theme preset in settings", async ({ page }) => {
     test.skip(!(await hasVoidCardSchema()), "Configured Supabase project is missing the VoidCard tables required for account feature E2E.");
     const seed = await prepareUser(page);
+    test.skip(seed.primaryProfileSource === "profiles", "Theme persistence is not available in shared-profile compatibility mode.");
     try {
       await page.goto("/settings");
       await page.getByTestId("theme-rose-dusk").click();
@@ -240,6 +243,7 @@ test.describe("account features", () => {
   test("can upload and delete a custom font", async ({ page }) => {
     test.skip(!(await hasVoidCardSchema()), "Configured Supabase project is missing the VoidCard tables required for account feature E2E.");
     const seed = await prepareUser(page);
+    test.skip(seed.primaryProfileSource === "profiles", "Custom font activation is disabled in shared-profile compatibility mode.");
     const family = `E2E-${randomUUID().slice(0, 8)}`;
 
     try {
@@ -267,6 +271,7 @@ test.describe("account features", () => {
   test("can toggle weekly digest preference", async ({ page }) => {
     test.skip(!(await hasVoidCardSchema()), "Configured Supabase project is missing the VoidCard tables required for account feature E2E.");
     const seed = await prepareUser(page);
+    test.skip(seed.primaryProfileSource === "profiles", "Weekly digest preferences are read-only in shared-profile compatibility mode.");
 
     try {
       await page.goto("/account/notifications");
@@ -336,6 +341,7 @@ test.describe("account features", () => {
   test("can protect and unlock the public profile", async ({ page, context }) => {
     test.skip(!(await hasVoidCardSchema()), "Configured Supabase project is missing the VoidCard tables required for account feature E2E.");
     const seed = await prepareUser(page);
+    test.skip(seed.primaryProfileSource === "profiles", "Profile password storage is not available in shared-profile compatibility mode.");
     const password = `Voidcard-${randomUUID().slice(0, 8)}`;
 
     try {

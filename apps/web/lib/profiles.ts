@@ -71,6 +71,23 @@ type OwnerPlanRow = {
   verified: boolean | null;
 };
 
+type SubscriptionPlanRow = {
+  plan: Plan | null;
+};
+
+type VerificationStatusRow = {
+  status: string | null;
+};
+
+type OrderIdRow = {
+  id: string;
+};
+
+type OrderItemRow = {
+  sku: string | null;
+  qty: number | null;
+};
+
 export type ManagedProfileSummary = {
   id: string;
   isPrimary: boolean;
@@ -107,6 +124,10 @@ const PRIMARY_PROFILE_SELECT =
 const SECONDARY_PROFILE_SELECT =
   "id, owner_user_id, username, display_name, bio, avatar_url, theme, custom_css, custom_font_url, sections, sections_draft, links, published, password_hash, scheduled_publish_at, remove_branding, is_indexable, ai_indexing, updated_at, deleted_at";
 const SHARED_PROFILE_SELECT = "id, email, username, display_name, role, created_at";
+const STORAGE_GRANTING_PREFIX = "card-";
+const ONE_GB = 1_000_000_000;
+const STORAGE_CAP = 25 * ONE_GB;
+const SHARED_PLAN_PRIORITY: Plan[] = ["enterprise", "team", "pro"];
 
 let primaryProfileSourcePromise: Promise<"vcard_profile_ext" | "profiles"> | null = null;
 
@@ -167,7 +188,7 @@ function mapPrimaryProfile(row: PrimaryProfileRow): ManagedProfile {
   };
 }
 
-function mapSharedProfile(row: SharedProfileRow): ManagedProfile {
+function mapSharedProfile(row: SharedProfileRow, owner: OwnerPlanRow): ManagedProfile {
   return {
     id: PRIMARY_PROFILE_ID,
     isPrimary: true,
@@ -191,9 +212,9 @@ function mapSharedProfile(row: SharedProfileRow): ManagedProfile {
     removeBranding: false,
     isIndexable: true,
     aiIndexing: null,
-    plan: "free",
-    bonusStorageBytes: 0,
-    verified: false,
+    plan: owner.plan ?? "free",
+    bonusStorageBytes: Number(owner.bonus_storage_bytes ?? 0),
+    verified: owner.verified === true,
   };
 }
 
@@ -253,9 +274,51 @@ async function loadSharedProfileByUsername(username: string) {
   return (data as SharedProfileRow | null) ?? null;
 }
 
+async function loadSharedDerivedPlanContext(userId: string): Promise<OwnerPlanRow> {
+  const admin = createAdminClient();
+  const [{ data: subscriptions }, { data: verification }, { data: orders }] = await Promise.all([
+    admin
+      .from("vcard_subscriptions")
+      .select("plan")
+      .eq("user_id", userId)
+      .in("status", ["trialing", "active", "past_due"]),
+    admin
+      .from("vcard_verifications")
+      .select("status")
+      .eq("user_id", userId)
+      .order("submitted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin.from("vcard_orders").select("id").eq("user_id", userId).eq("status", "paid"),
+  ]);
+
+  const subscriptionRows = (subscriptions as SubscriptionPlanRow[] | null) ?? [];
+  const plan = SHARED_PLAN_PRIORITY.find((candidate) => subscriptionRows.some((row) => row.plan === candidate)) ?? "free";
+
+  const orderIds = ((orders as OrderIdRow[] | null) ?? []).map((order) => order.id);
+  let bonusStorageBytes = 0;
+
+  if (orderIds.length > 0) {
+    const { data: orderItems } = await admin.from("vcard_order_items").select("sku, qty").in("order_id", orderIds);
+    bonusStorageBytes = Math.min(
+      (((orderItems as OrderItemRow[] | null) ?? []).reduce((total, item) => {
+        if (!item.sku?.startsWith(STORAGE_GRANTING_PREFIX)) return total;
+        return total + ONE_GB * Math.max(1, Number(item.qty ?? 1));
+      }, 0)),
+      STORAGE_CAP,
+    );
+  }
+
+  return {
+    plan,
+    bonus_storage_bytes: bonusStorageBytes,
+    verified: (verification as VerificationStatusRow | null)?.status === "approved",
+  };
+}
+
 async function loadOwnerPlanContext(userId: string): Promise<OwnerPlanRow> {
   if (await usesSharedProfilesAsPrimary()) {
-    return { plan: "free", bonus_storage_bytes: 0, verified: false };
+    return loadSharedDerivedPlanContext(userId);
   }
 
   const admin = createAdminClient();
@@ -270,7 +333,10 @@ async function loadOwnerPlanContext(userId: string): Promise<OwnerPlanRow> {
 export async function loadPrimaryProfile(userId: string): Promise<ManagedProfile | null> {
   if (await usesSharedProfilesAsPrimary()) {
     const shared = await loadSharedProfileByUserId(userId);
-    return shared ? mapSharedProfile(shared) : null;
+    if (!shared) return null;
+
+    const owner = await loadOwnerPlanContext(userId);
+    return mapSharedProfile(shared, owner);
   }
 
   const sb = await createClient();
@@ -282,7 +348,10 @@ export async function loadPrimaryProfile(userId: string): Promise<ManagedProfile
 
   if (isMissingTableError(error)) {
     const shared = await loadSharedProfileByUserId(userId);
-    return shared ? mapSharedProfile(shared) : null;
+    if (!shared) return null;
+
+    const owner = await loadSharedDerivedPlanContext(userId);
+    return mapSharedProfile(shared, owner);
   }
 
   const primary = (data as PrimaryProfileRow | null) ?? null;
@@ -530,7 +599,10 @@ export async function findPublicProfileByUsername(username: string): Promise<Man
 
   if (await usesSharedProfilesAsPrimary()) {
     const shared = await loadSharedProfileByUsername(normalized);
-    return shared?.username ? mapSharedProfile(shared) : null;
+    if (!shared?.username) return null;
+
+    const owner = await loadOwnerPlanContext(shared.id);
+    return mapSharedProfile(shared, owner);
   }
 
   const admin = createAdminClient();

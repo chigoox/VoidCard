@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "./fixtures";
+import { detectPrimaryProfileSource, seedPrimaryProfile } from "./profile-seed";
 
 type TestEnv = {
   supabaseUrl: string;
@@ -48,12 +49,12 @@ function createAdminClientOrThrow() {
 
 async function hasWalletSchema() {
   const admin = createAdminClientOrThrow();
-  const [profileCheck, walletCheck, registrationCheck] = await Promise.all([
-    admin.from("vcard_profile_ext").select("user_id").limit(1),
+  const source = await detectPrimaryProfileSource(admin);
+  const [walletCheck, registrationCheck] = await Promise.all([
     admin.from("vcard_wallet_passes").select("id, auth_token").limit(1),
     admin.from("vcard_wallet_registrations").select("id").limit(1),
   ]);
-  return !profileCheck.error && !walletCheck.error && !registrationCheck.error;
+  return !!source && !walletCheck.error && !registrationCheck.error;
 }
 
 test("wallet routes expose either live passes or setup errors", async ({ request }) => {
@@ -77,18 +78,15 @@ test("wallet routes expose either live passes or setup errors", async ({ request
     userId = created.data.user?.id ?? null;
     if (!userId) throw new Error("Supabase did not return a user id.");
 
-    const { error: profileError } = await admin.from("vcard_profile_ext").upsert(
-      {
-        user_id: userId,
-        username,
-        display_name: "Wallet Route E2E",
-        bio: "Wallet delivery route coverage.",
-        plan: "free",
-        published: true,
-      },
-      { onConflict: "user_id" }
-    );
-    if (profileError) throw profileError;
+    await seedPrimaryProfile(admin, {
+      userId,
+      email,
+      username,
+      displayName: "Wallet Route E2E",
+      bio: "Wallet delivery route coverage.",
+      plan: "free",
+      published: true,
+    });
 
     const appleResponse = await request.get(`/api/wallet/apple/${username}`);
     if (process.env.APPLE_PASS_TYPE_ID && process.env.APPLE_PASS_TEAM_ID && process.env.APPLE_PASS_CERT && process.env.APPLE_PASS_KEY && process.env.APPLE_WWDR) {
@@ -144,18 +142,15 @@ test("apple web service registration updates stored pass state", async ({ reques
     userId = created.data.user?.id ?? null;
     if (!userId) throw new Error("Supabase did not return a user id.");
 
-    const { error: profileError } = await admin.from("vcard_profile_ext").upsert(
-      {
-        user_id: userId,
-        username,
-        display_name: "Wallet Web E2E",
-        bio: "Wallet web service route coverage.",
-        plan: "free",
-        published: true,
-      },
-      { onConflict: "user_id" }
-    );
-    if (profileError) throw profileError;
+    await seedPrimaryProfile(admin, {
+      userId,
+      email,
+      username,
+      displayName: "Wallet Web E2E",
+      bio: "Wallet web service route coverage.",
+      plan: "free",
+      published: true,
+    });
 
     const { error: passError } = await admin.from("vcard_wallet_passes").insert({
       user_id: userId,

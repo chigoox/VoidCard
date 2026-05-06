@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "./fixtures";
+import { detectPrimaryProfileSource, seedPrimaryProfile } from "./profile-seed";
 
 type TestEnv = {
   supabaseUrl: string;
@@ -45,18 +46,23 @@ function adminClient() {
   });
 }
 
-async function hasProfileSchema() {
+async function primaryProfileSource() {
   const admin = adminClient();
-  const check = await admin.from("vcard_profile_ext").select("user_id").limit(1);
-  return !check.error;
+  return detectPrimaryProfileSource(admin);
 }
 
 test("discover page and API return public profile matches", async ({ page, request }) => {
   test.slow();
   test.skip(!ENV, "Supabase env missing for discovery E2E.");
 
-  if (!(await hasProfileSchema())) {
-    test.skip(true, "Configured Supabase project is missing vcard_profile_ext.");
+  const source = await primaryProfileSource();
+  if (!source) {
+    test.skip(true, "Configured Supabase project is missing a supported primary profile source.");
+    return;
+  }
+
+  if (source === "profiles") {
+    test.skip(true, "Discover E2E still depends on rich side-table fields not available in shared-profile mode.");
     return;
   }
 
@@ -72,31 +78,28 @@ test("discover page and API return public profile matches", async ({ page, reque
     userId = created.data.user?.id ?? null;
     if (!userId) throw new Error("Supabase did not return a user id.");
 
-    const { error: profileError } = await admin.from("vcard_profile_ext").upsert(
-      {
-        user_id: userId,
-        username,
-        display_name: "Discover E2E",
-        bio: "Book a demo, watch the reel, and tip after the show.",
-        published: true,
-        sections: [
-          {
-            id: randomUUID(),
-            type: "schedule",
-            visible: true,
-            props: { provider: "calcom", url: "https://cal.com/discover-e2e" },
-          },
-          {
-            id: randomUUID(),
-            type: "tip",
-            visible: true,
-            props: { stripeAccountId: "acct_test", amounts: [200, 500] },
-          },
-        ],
-      },
-      { onConflict: "user_id" }
-    );
-    if (profileError) throw profileError;
+    await seedPrimaryProfile(admin, {
+      userId,
+      email,
+      username,
+      displayName: "Discover E2E",
+      bio: "Book a demo, watch the reel, and tip after the show.",
+      published: true,
+      sections: [
+        {
+          id: randomUUID(),
+          type: "schedule",
+          visible: true,
+          props: { provider: "calcom", url: "https://cal.com/discover-e2e" },
+        },
+        {
+          id: randomUUID(),
+          type: "tip",
+          visible: true,
+          props: { stripeAccountId: "acct_test", amounts: [200, 500] },
+        },
+      ],
+    });
 
     const apiResponse = await request.get(`/api/discover?q=${username}`);
     expect(apiResponse.status()).toBe(200);

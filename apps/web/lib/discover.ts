@@ -1,6 +1,8 @@
 import "server-only";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { Sections, type SectionType } from "@/lib/sections/types";
 
 const FETCH_LIMIT = 120;
@@ -26,6 +28,13 @@ type DiscoverRow = {
   sections: unknown;
   is_indexable: boolean | null;
   ai_indexing: string | null;
+};
+
+type SharedDiscoverRow = {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  created_at: string | null;
 };
 
 export type DiscoverProfile = {
@@ -60,6 +69,37 @@ export async function getDiscoverPayload(input: {
   const category = normalizeCategory(input.category);
   const offset = parseCursor(input.cursor);
   const limit = clamp(input.limit ?? 12, 1, 24);
+
+  if (await usesSharedProfilesAsPrimary()) {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("profiles")
+      .select("id, username, display_name, created_at")
+      .not("username", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+
+    const profiles = (((data as SharedDiscoverRow[] | null) ?? [])
+      .filter((row) => row.username)
+      .map(toSharedDiscoverProfile)
+      .filter((profile) => matchesSharedDiscoverQuery(profile, query)));
+
+    const categoryCounts = countCategories(profiles);
+    const filtered = category ? profiles.filter((profile) => profile.categories.some((item) => item.slug === category)) : profiles;
+    const results = filtered.slice(offset, offset + limit);
+    const featured = !query && !category ? profiles.slice(0, 3) : [];
+    const nextCursor = offset + limit < filtered.length ? String(offset + limit) : null;
+
+    return {
+      query,
+      category,
+      cursor: input.cursor?.trim() ? input.cursor.trim() : null,
+      nextCursor,
+      results,
+      featured,
+      categories: categoryCounts,
+    };
+  }
 
   const client = await createClient();
   let lookup = client
@@ -160,4 +200,27 @@ function countCategories(profiles: DiscoverProfile[]) {
   }
 
   return DISCOVER_CATEGORY_DEFS.map(({ slug, label }) => counts.get(slug) ?? { slug, label, count: 0 }).filter((item) => item.count > 0);
+}
+
+function toSharedDiscoverProfile(row: SharedDiscoverRow): DiscoverProfile {
+  const username = row.username ?? "unknown";
+  const displayName = row.display_name?.trim() || `@${username}`;
+  return {
+    userId: row.id,
+    username,
+    displayName,
+    avatarUrl: null,
+    bio: null,
+    verified: false,
+    updatedAt: row.created_at,
+    profileUrl: `/u/${username}`,
+    categories: [],
+  };
+}
+
+function matchesSharedDiscoverQuery(profile: DiscoverProfile, query: string) {
+  if (!query) return true;
+
+  const normalizedQuery = query.toLowerCase();
+  return profile.username.toLowerCase().includes(normalizedQuery) || profile.displayName.toLowerCase().includes(normalizedQuery);
 }

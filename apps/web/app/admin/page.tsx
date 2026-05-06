@@ -1,9 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Plan } from "@/lib/auth";
 import { formatPrice } from "@/lib/cms";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 
 export const dynamic = "force-dynamic";
 
 type Stat = { label: string; value: string; sub?: string };
+const SHARED_PLAN_PRIORITY: Plan[] = ["enterprise", "team", "pro"];
 
 async function getStats(): Promise<{
   stats: Stat[];
@@ -12,16 +15,66 @@ async function getStats(): Promise<{
 }> {
   const sb = createAdminClient();
   const since30 = new Date(Date.now() - 30 * 86400_000).toISOString();
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
 
-  const [
-    profiles,
-    pubProfiles,
-    orders30,
-    paid30,
-    subsActive,
-    recentOrders,
-    recentSignups,
-  ] = await Promise.all([
+  if (sharedPrimary) {
+    const [profiles, pubProfiles, orders30, paid30, subsActive, recentOrders, recentSignups] = await Promise.all([
+      sb.from("profiles").select("id", { count: "exact", head: true }),
+      sb.from("profiles").select("id", { count: "exact", head: true }).not("username", "is", null),
+      sb.from("vcard_orders").select("id", { count: "exact", head: true }).gte("created_at", since30),
+      sb.from("vcard_orders").select("total_cents").gte("created_at", since30).eq("status", "paid"),
+      sb.from("vcard_subscriptions").select("plan, interval, status").eq("status", "active"),
+      sb.from("vcard_orders").select("id, email, total_cents, currency, status, created_at").order("created_at", { ascending: false }).limit(10),
+      sb.from("profiles").select("id, username, created_at").order("created_at", { ascending: false }).limit(10),
+    ]);
+
+    const revenue30 = (paid30.data ?? []).reduce((acc: number, r: { total_cents: number | null }) => acc + (r.total_cents ?? 0), 0);
+    const subs = subsActive.data ?? [];
+    const mrr = subs.reduce((acc: number, s: { plan: string; interval: string }) => {
+      const monthly = s.plan === "pro" ? 499 : s.plan === "team" ? 1499 : 0;
+      return acc + (s.interval === "year" ? Math.round(monthly) : monthly);
+    }, 0);
+
+    const stats: Stat[] = [
+      { label: "Profiles", value: String(profiles.count ?? 0) },
+      { label: "Published", value: String(pubProfiles.count ?? 0) },
+      { label: "Active subs", value: String(subs.length), sub: `${formatPrice(mrr)}/mo MRR` },
+      { label: "Orders 30d", value: String(orders30.count ?? 0) },
+      { label: "Revenue 30d", value: formatPrice(revenue30) },
+    ];
+
+    const sharedRecentRows = ((recentSignups.data as Array<{ id: string; username: string | null; created_at: string }> | null) ?? []);
+    const sharedSignupIds = sharedRecentRows.map((row) => row.id);
+    const { data: sharedSignupSubs } = sharedSignupIds.length
+      ? await sb
+          .from("vcard_subscriptions")
+          .select("user_id, plan")
+          .in("user_id", sharedSignupIds)
+          .in("status", ["trialing", "active", "past_due"])
+      : { data: [] };
+
+    const sharedPlanByUserId = new Map<string, Plan>();
+    for (const plan of SHARED_PLAN_PRIORITY) {
+      for (const row of (sharedSignupSubs as Array<{ user_id: string; plan: Plan | null }> | null) ?? []) {
+        if (row.plan === plan && !sharedPlanByUserId.has(row.user_id)) {
+          sharedPlanByUserId.set(row.user_id, plan);
+        }
+      }
+    }
+
+    return {
+      stats,
+      recentOrders: (recentOrders.data as Array<{ id: string; email: string; total_cents: number; currency: string; status: string; created_at: string }> | null) ?? [],
+      recentSignups: sharedRecentRows.map((row) => ({
+        id: row.id,
+        username: row.username,
+        plan: sharedPlanByUserId.get(row.id) ?? "free",
+        created_at: row.created_at,
+      })),
+    };
+  }
+
+  const [profiles, pubProfiles, orders30, paid30, subsActive, recentOrders, recentSignups] = await Promise.all([
     sb.from("vcard_profile_ext").select("user_id", { count: "exact", head: true }),
     sb.from("vcard_profile_ext").select("user_id", { count: "exact", head: true }).eq("published", true),
     sb.from("vcard_orders").select("id", { count: "exact", head: true }).gte("created_at", since30),
@@ -39,22 +92,22 @@ async function getStats(): Promise<{
   }, 0);
 
   const stats: Stat[] = [
-    { label: "Profiles",       value: String(profiles.count ?? 0) },
-    { label: "Published",      value: String(pubProfiles.count ?? 0) },
-    { label: "Active subs",    value: String(subs.length), sub: `${formatPrice(mrr)}/mo MRR` },
-    { label: "Orders 30d",     value: String(orders30.count ?? 0) },
-    { label: "Revenue 30d",    value: formatPrice(revenue30) },
+    { label: "Profiles", value: String(profiles.count ?? 0) },
+    { label: "Published", value: String(pubProfiles.count ?? 0) },
+    { label: "Active subs", value: String(subs.length), sub: `${formatPrice(mrr)}/mo MRR` },
+    { label: "Orders 30d", value: String(orders30.count ?? 0) },
+    { label: "Revenue 30d", value: formatPrice(revenue30) },
   ];
 
   return {
     stats,
     recentOrders: (recentOrders.data as Array<{ id: string; email: string; total_cents: number; currency: string; status: string; created_at: string }> | null) ?? [],
-    recentSignups: (recentSignups.data as Array<{ id: string; username: string | null; plan: string; created_at: string }> | null)?.map((r) => ({
-      id: r.id,
-      username: r.username,
-      plan: r.plan,
-      created_at: r.created_at,
-    })) ?? [],
+    recentSignups: ((recentSignups.data as Array<{ user_id: string; username: string | null; plan: string; created_at: string }> | null) ?? []).map((row) => ({
+      id: row.user_id,
+      username: row.username,
+      plan: row.plan,
+      created_at: row.created_at,
+    })),
   };
 }
 

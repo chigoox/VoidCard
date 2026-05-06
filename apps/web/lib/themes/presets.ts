@@ -1,5 +1,5 @@
 // 12 first-party theme presets shipped with all plans (Free included).
-// Each preset is a JSON-serializable object stored in vcard_profile_ext.theme.
+// Each preset is a JSON-serializable object stored on the primary profile theme payload.
 
 export type ThemePreset = {
   id: string;

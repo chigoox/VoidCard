@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { loadPrimaryProfile, usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { sendVerificationLifecycleEmail } from "@/lib/verification-email";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,6 +24,7 @@ export async function reviewVerification(formData: FormData) {
   }
 
   const admin = createAdminClient();
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
   const { data: verification, error: verificationError } = await admin
     .from("vcard_verifications")
     .select("id, user_id, status, paid, stripe_payment_intent")
@@ -32,11 +34,7 @@ export async function reviewVerification(formData: FormData) {
     throw new Error(verificationError?.message ?? "Verification request not found.");
   }
 
-  const { data: profile } = await admin
-    .from("vcard_profile_ext")
-    .select("username")
-    .eq("user_id", verification.user_id)
-    .maybeSingle();
+  const profile = await loadPrimaryProfile(verification.user_id);
 
   const { data: authUserData, error: authUserError } = await admin.auth.admin.getUserById(verification.user_id);
   if (authUserError) {
@@ -61,11 +59,13 @@ export async function reviewVerification(formData: FormData) {
       .eq("id", verification.id);
     if (error) throw new Error(error.message);
 
-    const { error: profileError } = await admin
-      .from("vcard_profile_ext")
-      .update({ verified: true })
-      .eq("user_id", verification.user_id);
-    if (profileError) throw new Error(profileError.message);
+    if (!sharedPrimary) {
+      const { error: profileError } = await admin
+        .from("vcard_profile_ext")
+        .update({ verified: true })
+        .eq("user_id", verification.user_id);
+      if (profileError) throw new Error(profileError.message);
+    }
 
     await audit({
       action: "verification.approve",
@@ -79,7 +79,7 @@ export async function reviewVerification(formData: FormData) {
     if (recipientEmail) {
       const mail = await sendVerificationLifecycleEmail({
         to: recipientEmail,
-        username: profile?.username,
+        username: profile?.username ?? undefined,
         kind: "approved",
         reviewerNote: reviewer_note,
       });
@@ -142,11 +142,13 @@ export async function reviewVerification(formData: FormData) {
       .eq("id", verification.id);
     if (error) throw new Error(error.message);
 
-    const { error: profileError } = await admin
-      .from("vcard_profile_ext")
-      .update({ verified: false })
-      .eq("user_id", verification.user_id);
-    if (profileError) throw new Error(profileError.message);
+    if (!sharedPrimary) {
+      const { error: profileError } = await admin
+        .from("vcard_profile_ext")
+        .update({ verified: false })
+        .eq("user_id", verification.user_id);
+      if (profileError) throw new Error(profileError.message);
+    }
 
     await audit({
       action: "verification.reject",
@@ -160,7 +162,7 @@ export async function reviewVerification(formData: FormData) {
     if (recipientEmail) {
       const mail = await sendVerificationLifecycleEmail({
         to: recipientEmail,
-        username: profile?.username,
+        username: profile?.username ?? undefined,
         kind: "rejected",
         reviewerNote: reviewer_note,
         reason,
@@ -183,11 +185,13 @@ export async function reviewVerification(formData: FormData) {
       .eq("id", verification.id);
     if (error) throw new Error(error.message);
 
-    const { error: profileError } = await admin
-      .from("vcard_profile_ext")
-      .update({ verified: false })
-      .eq("user_id", verification.user_id);
-    if (profileError) throw new Error(profileError.message);
+    if (!sharedPrimary) {
+      const { error: profileError } = await admin
+        .from("vcard_profile_ext")
+        .update({ verified: false })
+        .eq("user_id", verification.user_id);
+      if (profileError) throw new Error(profileError.message);
+    }
 
     await audit({
       action: "verification.revoke",
@@ -201,7 +205,7 @@ export async function reviewVerification(formData: FormData) {
     if (recipientEmail) {
       const mail = await sendVerificationLifecycleEmail({
         to: recipientEmail,
-        username: profile?.username,
+        username: profile?.username ?? undefined,
         kind: "revoked",
         reviewerNote: reviewer_note,
         reason,

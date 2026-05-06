@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 
 export const revalidate = 3600;
 
@@ -28,10 +29,25 @@ type ProfileRow = { username: string; updated_at: string | null };
 async function fetchPublicProfiles(): Promise<ProfileRow[]> {
   try {
     const sb = createAdminClient();
+
+    if (await usesSharedProfilesAsPrimary()) {
+      const { data } = await sb
+        .from("profiles")
+        .select("username, created_at")
+        .not("username", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(5000);
+
+      return (((data as Array<{ username: string | null; created_at: string | null }> | null) ?? [])
+        .filter((profile): profile is { username: string; created_at: string | null } => typeof profile.username === "string")
+        .map((profile) => ({ username: profile.username, updated_at: profile.created_at })));
+    }
+
     const { data } = await sb
       .from("vcard_profile_ext")
       .select("username, updated_at")
       .eq("published", true)
+      .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(5000);
     return (data as ProfileRow[] | null) ?? [];
