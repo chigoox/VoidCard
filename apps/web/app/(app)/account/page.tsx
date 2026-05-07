@@ -5,6 +5,7 @@ export default async function AccountIndex() {
   const u = await requireUser();
   const items = [
     { href: "/settings", label: "Profile & theme", desc: "Display name, bio, avatar, custom CSS." },
+    { href: "/cards", label: "Cards & accessories", desc: "View paired NFC cards, pair a new card or accessory." },
     { href: "/account/billing", label: "Billing", desc: "Plan, invoices, orders." },
     { href: "/account/payments", label: "Payments & selling", desc: "Connect Stripe and accept payments on your profile." },
     { href: "/account/products", label: "Products", desc: "Manage items you sell from Store sections." },

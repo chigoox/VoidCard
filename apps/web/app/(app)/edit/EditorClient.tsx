@@ -1338,6 +1338,7 @@ export default function EditorClient({
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [variantName, setVariantName] = useState("Variant B");
   const [variantWeight, setVariantWeight] = useState(50);
+  const [editorTab, setEditorTab] = useState<"sections" | "style" | "settings">("sections");
   const [pending, start] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -1936,7 +1937,7 @@ export default function EditorClient({
         </div>
       </div>
 
-      <div className="order-1 min-w-0 space-y-4 pb-24 md:order-1 md:pb-0">
+      <div className="order-1 min-w-0 flex flex-col gap-4 pb-24 md:order-1 md:pb-0">
         <button
           type="button"
           onClick={() => setMobilePreviewOpen(true)}
@@ -1945,6 +1946,29 @@ export default function EditorClient({
         >
           Show live preview
         </button>
+
+        {/* ─── Tab bar ─── */}
+        <div role="tablist" className="card flex overflow-hidden p-0">
+          {(["sections", "style", "settings"] as const).map((tab) => (
+            <button
+              key={tab}
+              role="tab"
+              aria-selected={editorTab === tab}
+              onClick={() => setEditorTab(tab)}
+              className={[
+                "flex-1 px-3 py-3 text-xs uppercase tracking-widest transition",
+                editorTab === tab
+                  ? "bg-onyx-900 text-gold shadow-[inset_0_-2px_0_rgba(212,168,83,0.8)]"
+                  : "text-ivory-mute hover:bg-onyx-900/40 hover:text-ivory",
+              ].join(" ")}
+            >
+              {tab === "sections" ? "Sections" : tab === "style" ? "Style" : "Settings"}
+            </button>
+          ))}
+        </div>
+
+        {/* ─── Settings tab ─── */}
+        {editorTab === "settings" ? <div className="space-y-4">
 
         <section className="card flex flex-wrap items-center justify-between gap-3 p-4" data-testid="share-row">
           <div className="min-w-0">
@@ -2163,6 +2187,11 @@ export default function EditorClient({
           )}
         </section>
 
+        </div> : null}
+
+        {/* ─── Style tab ─── */}
+        {editorTab === "style" ? <div className="space-y-4">
+
         <section className="card space-y-4 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -2225,6 +2254,11 @@ export default function EditorClient({
         </section>
 
         <StyleStudioPanel studio={studio} onChange={setStudio} />
+
+        </div> : null}
+
+        {/* ─── Sections tab ─── */}
+        {editorTab === "sections" ? <div className="space-y-4">
 
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2371,6 +2405,8 @@ export default function EditorClient({
             hasErrors={validationById.size > 0}
           />
         </div>
+
+        </div> : null}
 
         {errorMessage && (
           <p className="rounded-card border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">

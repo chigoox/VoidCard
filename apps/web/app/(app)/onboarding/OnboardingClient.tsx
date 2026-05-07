@@ -240,6 +240,13 @@ export default function OnboardingClient({
     });
   }
 
+  function handleGoToPair() {
+    startTransition(async () => {
+      await dismissOnboarding();
+      router.replace("/cards/pair");
+    });
+  }
+
   function shareProfile() {
     if (typeof window === "undefined") return;
     const url = `${window.location.origin}/u/${initialUsername ?? username}`;
@@ -507,10 +514,16 @@ export default function OnboardingClient({
             <p className="mt-1 text-sm text-ivory-dim">Your draft profile is ready. Pair an NFC card now or come back later.</p>
           </header>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Link href="/cards/pair" className="card flex flex-col gap-2 border-ivory/10 p-4 hover:border-ivory/30" data-testid="pair-card-link">
+            <button
+              type="button"
+              onClick={handleGoToPair}
+              disabled={pending}
+              className="card flex flex-col gap-2 border-ivory/10 p-4 text-left hover:border-ivory/30 disabled:opacity-60"
+              data-testid="pair-card-link"
+            >
               <p className="text-sm font-medium text-ivory">I have a VoidCard</p>
               <p className="text-xs text-ivory-dim">Open the pairing flow and tap your card.</p>
-            </Link>
+            </button>
             <Link href="/shop" className="card flex flex-col gap-2 border-ivory/10 p-4 hover:border-ivory/30" data-testid="buy-card-link">
               <p className="text-sm font-medium text-ivory">Buy one later</p>
               <p className="text-xs text-ivory-dim">No problem — your profile works without a card.</p>

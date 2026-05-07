@@ -26,6 +26,8 @@ export default async function DashboardPage() {
           ) : (
             <span className="btn-ghost cursor-not-allowed opacity-60">View public page</span>
           )}
+          <Link href="/cards" className="btn-ghost">My cards</Link>
+          <Link href="/cards/pair" className="btn-ghost">Pair a card</Link>
           <Link href="/profiles" className="btn-ghost">Manage profiles</Link>
           <Link href="/share" className="btn-ghost">Share</Link>
         </div>
