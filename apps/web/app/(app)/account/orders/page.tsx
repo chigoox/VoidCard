@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { RefundButton } from "./client";
+import { FulfillButton, RefundButton } from "./client";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ type Order = {
   currency: string;
   items: Array<{ name?: string; quantity?: number; amount_total?: number }>;
   shipping_address: unknown;
+  metadata: { tracking_number?: string; carrier?: string } | null;
   created_at: string;
 };
 
@@ -36,7 +37,7 @@ export default async function OrdersPage() {
   const { data } = await admin
     .from("vcard_seller_orders")
     .select(
-      "id,buyer_email,status,subtotal_cents,total_cents,application_fee_cents,currency,items,shipping_address,created_at",
+      "id,buyer_email,status,subtotal_cents,total_cents,application_fee_cents,currency,items,shipping_address,metadata,created_at",
     )
     .eq("seller_user_id", u.id)
     .order("created_at", { ascending: false })
@@ -61,6 +62,15 @@ export default async function OrdersPage() {
             .
           </p>
         </div>
+        {orders.length > 0 ? (
+          <a
+            href="/api/seller/orders/export"
+            className="btn-ghost text-xs"
+            data-testid="orders-csv"
+          >
+            Export CSV
+          </a>
+        ) : null}
       </header>
 
       <div className="grid gap-3 md:grid-cols-3">
@@ -108,6 +118,10 @@ export default async function OrdersPage() {
                       className={`rounded-pill px-2 py-0.5 text-[10px] uppercase tracking-widest ${
                         o.status === "paid"
                           ? "border border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                          : o.status === "fulfilled"
+                          ? "border border-sky-400/30 bg-sky-500/10 text-sky-200"
+                          : o.status === "refunded"
+                          ? "border border-red-400/30 bg-red-500/10 text-red-200"
                           : "border border-onyx-700 bg-onyx-950/60 text-ivory-mute"
                       }`}
                     >
@@ -121,6 +135,12 @@ export default async function OrdersPage() {
                   {o.buyer_email ? (
                     <p className="text-xs text-ivory-mute">{o.buyer_email}</p>
                   ) : null}
+                  {o.metadata?.tracking_number ? (
+                    <p className="text-xs text-ivory-mute">
+                      Tracking: <span className="font-mono">{o.metadata.tracking_number}</span>
+                      {o.metadata.carrier ? ` (${o.metadata.carrier})` : ""}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-sm text-gold">
@@ -130,7 +150,8 @@ export default async function OrdersPage() {
                     fee {formatMoney(o.application_fee_cents, o.currency)}
                   </p>
                   {o.status === "paid" ? (
-                    <div className="pt-1">
+                    <div className="flex flex-col items-end gap-1 pt-1">
+                      <FulfillButton orderId={o.id} />
                       <RefundButton orderId={o.id} />
                     </div>
                   ) : null}

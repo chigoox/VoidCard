@@ -67,6 +67,33 @@ export async function POST(req: Request) {
       break;
     }
 
+    case "account.application.deauthorized": {
+      // Connected account deauthorized our platform. Mark as disabled.
+      const account = event.data.object as Stripe.Account;
+      await admin
+        .from("vcard_seller_accounts")
+        .update({
+          charges_enabled: false,
+          payouts_enabled: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("stripe_account_id", account.id);
+      break;
+    }
+
+    case "charge.refunded": {
+      // Reflect a refund issued from the Stripe Dashboard.
+      const charge = event.data.object as Stripe.Charge;
+      const piId = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+      if (piId) {
+        await admin
+          .from("vcard_seller_orders")
+          .update({ status: "refunded" })
+          .eq("stripe_payment_intent", piId);
+      }
+      break;
+    }
+
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const mode = session.mode;

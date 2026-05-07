@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 async function postJson(url: string, body: unknown = {}) {
   const res = await fetch(url, {
@@ -72,5 +73,59 @@ export function ManageStripeButton() {
       </button>
       {error ? <p className="text-xs text-red-300">{error}</p> : null}
     </div>
+  );
+}
+
+export function DisconnectStripeButton() {
+  const [confirming, setConfirming] = useState(false);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  function disconnect() {
+    setError(null);
+    start(async () => {
+      const data = await postJson("/api/stripe/connect/disconnect");
+      if (data.ok) {
+        router.refresh();
+        return;
+      }
+      setError(data.error ?? "Could not disconnect.");
+    });
+  }
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        className="btn-ghost text-xs text-ivory-mute"
+        onClick={() => setConfirming(true)}
+        data-testid="disconnect-stripe"
+      >
+        Disconnect Stripe
+      </button>
+    );
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      <button
+        type="button"
+        className="btn-ghost px-2 py-1 text-xs text-red-300"
+        disabled={pending}
+        onClick={disconnect}
+        data-testid="disconnect-confirm"
+      >
+        {pending ? "Disconnecting…" : "Confirm disconnect"}
+      </button>
+      <button
+        type="button"
+        className="btn-ghost px-2 py-1 text-xs"
+        disabled={pending}
+        onClick={() => setConfirming(false)}
+      >
+        Cancel
+      </button>
+      {error ? <p className="text-xs text-red-300">{error}</p> : null}
+    </span>
   );
 }

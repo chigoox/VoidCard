@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: order, error } = await admin
     .from("vcard_seller_orders")
-    .select("id, seller_user_id, stripe_payment_intent, stripe_account_id, status, total_cents")
+    .select("id, seller_user_id, stripe_payment_intent, stripe_account_id, status, total_cents, items")
     .eq("id", parsed.data.orderId)
     .maybeSingle();
 
@@ -60,6 +60,27 @@ export async function POST(req: Request) {
     .from("vcard_seller_orders")
     .update({ status: "refunded" })
     .eq("id", order.id);
+
+  // Restore inventory for tracked products (best-effort).
+  try {
+    const items = (order.items ?? []) as Array<{ product_id?: string; quantity?: number }>;
+    for (const it of items) {
+      if (!it?.product_id) continue;
+      const { data: prod } = await admin
+        .from("vcard_seller_products")
+        .select("inventory")
+        .eq("id", it.product_id)
+        .maybeSingle();
+      if (prod && typeof prod.inventory === "number") {
+        await admin
+          .from("vcard_seller_products")
+          .update({ inventory: prod.inventory + (it.quantity || 1) })
+          .eq("id", it.product_id);
+      }
+    }
+  } catch {
+    // best-effort
+  }
 
   return NextResponse.json({ ok: true });
 }

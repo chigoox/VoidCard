@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getSellerAccount, refreshSellerAccount } from "@/lib/stripe-connect";
 import { listSellerProducts } from "@/lib/seller-products";
-import { ConnectStripeButton, ManageStripeButton } from "./client";
+import { ConnectStripeButton, DisconnectStripeButton, ManageStripeButton } from "./client";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +67,7 @@ export default async function PaymentsPage({
               status === "pending" ? "Continue setup" :
               "Connect with Stripe"
             } />}
+            {account ? <DisconnectStripeButton /> : null}
           </div>
         </div>
 
