@@ -56,13 +56,10 @@ export function PairCardClient({
   const [scanError, setScanError] = useState<string | null>(null);
   const [scannedId, setScannedId] = useState<string | null>(prefillCardId ?? null);
   const [serial, setSerial] = useState(prefillCardId ?? "");
-  const [showManual, setShowManual] = useState(!prefillCardId);
+  const [showManual, setShowManual] = useState(!prefillCardId && !nfcSupported);
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [pending, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
-
-  const nfcSupported = typeof window !== "undefined" && "NDEFReader" in window;
-  const errorMsg = serverError ?? scanError;
 
   // Submit with cardId hidden + serial for double-check
   function doSubmit(id?: string) {
@@ -224,20 +221,6 @@ export function PairCardClient({
           </p>
         )}
       </div>
-
-      {/* Manual form — always shown on non-NFC, or after a successful scan */}
-      {(scanState === "read" || !nfcSupported) && (
-        <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }} className="space-y-4" data-testid="pair-form">
-          {scannedId && <input type="hidden" name="cardId" value={scannedId} />}
-          <div>
-            <label className="mb-1 block text-xs uppercase tracking-widest text-ivory-dim" htmlFor="serial">Serial or card ID</label>
-            <input id="serial" name="serial" data-testid="pair-serial" value={serial} onChange={(e) => setSerial(e.target.value)} className="w-full rounded-md border border-onyx-700 bg-onyx-950 px-3 py-2 font-mono text-ivory focus:border-gold focus:outline-none" autoComplete="off" required={!scannedId} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-          </div>
-          <button type="submit" disabled={pending} data-testid="pair-submit" className="w-full rounded-md bg-gold px-4 py-2 font-medium text-onyx-950 hover:brightness-110 disabled:opacity-60">
-            {pending ? "Pairing…" : "Pair card"}
-          </button>
-        </form>
-      )}
 
       <p className="text-center text-xs text-ivory-dim">
         <button

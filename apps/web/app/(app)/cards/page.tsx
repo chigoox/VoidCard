@@ -45,9 +45,9 @@ export default async function CardsPage() {
             data-testid="card-row"
             className="rounded-lg border border-onyx-700 bg-onyx-900 p-4"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="font-mono text-sm text-ivory">{c.serial}</div>
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate font-mono text-sm text-ivory">{c.serial}</div>
                 <div className="text-xs uppercase tracking-widest text-ivory-dim">
                   {c.sku} · {c.status}
                 </div>

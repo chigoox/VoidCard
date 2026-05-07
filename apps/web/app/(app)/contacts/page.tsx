@@ -101,9 +101,9 @@ export default async function ContactsPage({
               data-testid="contact-row"
               className="rounded-lg border border-onyx-700 bg-onyx-900 p-4"
             >
-              <div className="flex items-baseline justify-between gap-3">
-                <div>
-                  <div className="text-ivory">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-ivory">
                     {(payload.name as string) || s.email || s.phone || "Unknown"}
                   </div>
                   <div className="text-xs text-ivory-dim">
@@ -112,7 +112,7 @@ export default async function ContactsPage({
                     {s.phone && <span>{s.phone}</span>}
                   </div>
                 </div>
-                <div className="text-right text-xs text-ivory-dim">
+                <div className="shrink-0 text-xs text-ivory-dim sm:text-right">
                   <div>{new Date(s.created_at).toLocaleString()}</div>
                   {s.source ? <div>via {String(s.source)}</div> : null}
                 </div>
