@@ -27,9 +27,9 @@ export default async function DiscoverPage({
   });
 
   return (
-    <main className="min-h-screen bg-onyx-grad">
+    <main className="home-theme min-h-screen bg-onyx-grad">
       <div className="mx-auto max-w-6xl px-5 pb-20 pt-10">
-        <header className="card grid gap-6 overflow-hidden border-gold/15 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.16),transparent_36%),linear-gradient(135deg,rgba(8,8,10,0.96),rgba(16,16,18,0.92))] p-6 md:grid-cols-[1.4fr,0.8fr] md:p-8">
+        <header className="card grid gap-6 overflow-hidden border-paper-200 bg-[radial-gradient(circle_at_top_left,rgba(10,10,10,0.05),transparent_36%),linear-gradient(180deg,#ffffff,#fafafb)] p-6 md:grid-cols-[1.4fr,0.8fr] md:p-8">
           <div className="space-y-4">
             <p className="text-xs uppercase tracking-[0.3em] text-gold/80">Public discovery</p>
             <h1 className="font-display text-4xl text-gold-grad md:text-5xl">Find live profiles worth tapping.</h1>

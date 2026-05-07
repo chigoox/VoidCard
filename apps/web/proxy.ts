@@ -50,6 +50,26 @@ const CANONICAL_SITE_ROUTES = [
   /^\/(dashboard|edit|links|insights|account|cards|contacts|profiles|settings|share|team|variants|orders|fonts)(\/.*)?$/,
 ];
 
+// Routes that require completed onboarding. /onboarding, /account, /settings,
+// /api, /_next, /share are intentionally excluded so users can still log out,
+// finish setup, or access shared assets.
+const ONBOARDING_GATED_ROUTES = [
+  /^\/dashboard(\/.*)?$/,
+  /^\/edit(\/.*)?$/,
+  /^\/links(\/.*)?$/,
+  /^\/insights(\/.*)?$/,
+  /^\/cards(\/.*)?$/,
+  /^\/contacts(\/.*)?$/,
+  /^\/profiles(\/.*)?$/,
+  /^\/team(\/.*)?$/,
+  /^\/variants(\/.*)?$/,
+  /^\/orders(\/.*)?$/,
+];
+
+function isOnboardingGated(pathname: string) {
+  return ONBOARDING_GATED_ROUTES.some((re) => re.test(pathname));
+}
+
 function isPublic(pathname: string) {
   return PUBLIC_ROUTES.some((re) => re.test(pathname));
 }
@@ -203,6 +223,17 @@ export async function proxy(req: NextRequest) {
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
+  }
+
+  if (user && isOnboardingGated(pathname)) {
+    const onbCookie = req.cookies.get("vcard_onb")?.value;
+    const completed = onbCookie ? Number.parseInt(onbCookie, 10) >= 5 : false;
+    if (!completed) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/onboarding";
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
   }
 
   return res;

@@ -11,7 +11,7 @@ export const metadata = buildMetadata({
 
 export default function ApiDocsPage() {
   return (
-    <main className="min-h-screen bg-onyx-grad">
+    <main className="home-theme min-h-screen bg-onyx-grad">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={jsonLdScript(

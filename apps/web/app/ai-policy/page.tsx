@@ -10,7 +10,7 @@ export const metadata: Metadata = buildMetadata({
 
 export default function AiPolicyPage() {
   return (
-    <main className="min-h-screen bg-onyx-grad">
+    <main className="home-theme min-h-screen bg-onyx-grad">
       <div className="mx-auto max-w-3xl px-6 py-20">
         <p className="text-sm uppercase tracking-[0.2em] text-gold">Trust</p>
         <h1 className="mt-3 font-display text-5xl">AI Policy</h1>

@@ -8,10 +8,32 @@ export const SECTION_TYPES = [
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
+export const SECTION_ANIMATIONS = [
+  "none",
+  "fade",
+  "slide-up",
+  "slide-down",
+  "slide-left",
+  "slide-right",
+  "zoom",
+  "float",
+  "shimmer",
+] as const;
+export type SectionAnimation = (typeof SECTION_ANIMATIONS)[number];
+
+const Display = z
+  .object({
+    animation: z.enum(SECTION_ANIMATIONS).default("none"),
+    animationDelay: z.number().min(0).max(2000).default(0),
+  })
+  .partial()
+  .optional();
+
 const Base = z.object({
   id: z.string().uuid(),
   type: z.enum(SECTION_TYPES),
   visible: z.boolean().default(true),
+  display: Display,
 });
 
 const Header = Base.extend({
@@ -23,6 +45,7 @@ const Header = Base.extend({
     handle: z.string().optional(),
     tagline: z.string().optional(),
     showVerified: z.boolean().default(true),
+    coverFullBleed: z.boolean().default(false),
   }),
 });
 
@@ -45,7 +68,15 @@ const Video = Base.extend({ type: z.literal("video"), props: z.object({ src: z.s
 const Spotify = Base.extend({ type: z.literal("spotify"), props: z.object({ uri: z.string() }) });
 const YouTube = Base.extend({ type: z.literal("youtube"), props: z.object({ id: z.string() }) });
 const MapS = Base.extend({ type: z.literal("map"), props: z.object({ lat: z.number(), lng: z.number(), label: z.string().optional() }) });
-const Embed = Base.extend({ type: z.literal("embed"), props: z.object({ html: z.string(), height: z.number().int().positive().max(1200) }) });
+const Embed = Base.extend({
+  type: z.literal("embed"),
+  props: z.object({
+    html: z.string(),
+    height: z.number().int().positive().max(1200),
+    autoHeight: z.boolean().default(false),
+    allowDomains: z.array(z.string()).max(20).default([]),
+  }),
+});
 const Form = Base.extend({
   type: z.literal("form"),
   props: z.object({
@@ -53,9 +84,20 @@ const Form = Base.extend({
     fields: z.array(z.object({ name: z.string(), label: z.string(), required: z.boolean().default(false), type: z.enum(["text", "email", "phone", "textarea"]) })),
     successMessage: z.string().default("Thanks — we'll be in touch."),
     proLeadMode: z.boolean().default(false), // gated server-side
+    consentText: z.string().max(400).optional(),
+    requireConsent: z.boolean().default(false),
+    requireCaptcha: z.boolean().default(false),
   }),
 });
-const Gallery = Base.extend({ type: z.literal("gallery"), props: z.object({ images: z.array(z.object({ src: z.string().url(), alt: z.string().default("") })).max(20) }) });
+export const GALLERY_LAYOUTS = ["grid", "masonry", "carousel"] as const;
+const Gallery = Base.extend({
+  type: z.literal("gallery"),
+  props: z.object({
+    images: z.array(z.object({ src: z.string().url(), alt: z.string().default("") })).max(20),
+    layout: z.enum(GALLERY_LAYOUTS).default("grid"),
+    lightbox: z.boolean().default(true),
+  }),
+});
 const Markdown = Base.extend({ type: z.literal("markdown"), props: z.object({ md: z.string().max(8000) }) });
 const Divider = Base.extend({ type: z.literal("divider"), props: z.object({}).default({}) });
 const Spacer = Base.extend({ type: z.literal("spacer"), props: z.object({ height: z.number().int().positive().max(200).default(24) }) });

@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
+import { getManagedProfile } from "@/lib/profiles";
 import { formatBytes } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const u = await requireUser();
+  const profile = await getManagedProfile(u.id, null);
   const ent = entitlementsFor(u.plan, { extraStorageBytes: u.bonusStorageBytes });
+  const publicPath = profile?.published && profile.publicPath ? profile.publicPath : null;
 
   return (
     <div className="space-y-6">
@@ -18,10 +21,19 @@ export default async function DashboardPage() {
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link href="/edit" className="btn-gold">Open editor</Link>
-          <Link href={`/u/${u.username ?? ""}`} className="btn-ghost">View public page</Link>
+          {publicPath ? (
+            <Link href={publicPath} className="btn-ghost">View public page</Link>
+          ) : (
+            <span className="btn-ghost cursor-not-allowed opacity-60">View public page</span>
+          )}
           <Link href="/profiles" className="btn-ghost">Manage profiles</Link>
           <Link href="/share" className="btn-ghost">Share</Link>
         </div>
+        {!publicPath && (
+          <p className="mt-3 text-xs text-ivory-mute">
+            Set your username and publish your profile before opening the public page.
+          </p>
+        )}
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">

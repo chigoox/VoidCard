@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ensurePrimaryProfileRecord, loadPrimaryProfile, validateProfileUsername } from "@/lib/profiles";
+import { ONBOARDING_COOKIE, ONBOARDING_TOTAL_STEPS } from "@/lib/onboarding";
 
 function readMetadataString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -102,7 +103,21 @@ export async function GET(req: Request) {
   if (step < 5) {
     const onboardingUrl = new URL("/onboarding", req.url);
     if (nextPath) onboardingUrl.searchParams.set("next", nextPath);
-    return NextResponse.redirect(onboardingUrl);
+    const redirectResponse = NextResponse.redirect(onboardingUrl);
+    redirectResponse.cookies.set(ONBOARDING_COOKIE, String(step), {
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return redirectResponse;
   }
-  return NextResponse.redirect(new URL(nextPath ?? "/dashboard", req.url));
+  const completed = NextResponse.redirect(new URL(nextPath ?? "/dashboard", req.url));
+  completed.cookies.set(ONBOARDING_COOKIE, String(ONBOARDING_TOTAL_STEPS), {
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  return completed;
 }

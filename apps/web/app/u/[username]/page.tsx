@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import type { Metadata } from "next";
@@ -17,6 +18,11 @@ import { getThemePreset, themeToCss } from "@/lib/themes/presets";
 
 export const runtime = "edge";
 export const revalidate = 60;
+
+const profileShellStyle: CSSProperties = {
+  background: "linear-gradient(180deg, var(--vc-bg, #0a0a0a) 0%, color-mix(in srgb, var(--vc-bg-2, #141414) 72%, var(--vc-bg, #0a0a0a)) 100%)",
+  color: "var(--vc-fg, #f7f3ea)",
+};
 
 async function fetchPublicProfileMeta(username: string) {
   return findPublicProfileByUsername(username);
@@ -86,8 +92,8 @@ export default async function PublicProfilePage({
         ? resolvedSearchParams.unlock
         : null;
     return (
-      <main className="min-h-screen bg-onyx-grad">
-        <style dangerouslySetInnerHTML={{ __html: themeToCss(getThemePreset(themeId(profile.theme)), ".vc-profile") }} />
+      <main className="vc-profile-shell home-theme min-h-screen" style={profileShellStyle}>
+        <style dangerouslySetInnerHTML={{ __html: themeToCss(getThemePreset(themeId(profile.theme)), ".vc-profile-shell, .vc-profile") }} />
         <style dangerouslySetInnerHTML={{ __html: customFontCss(profile.customFontUrl) }} />
         <div className="mx-auto flex min-h-screen max-w-md items-center px-5 py-10 vc-profile">
           <section className="card w-full space-y-5 p-6">
@@ -165,8 +171,8 @@ export default async function PublicProfilePage({
   });
 
   return (
-    <main className="min-h-screen bg-onyx-grad">
-      <style dangerouslySetInnerHTML={{ __html: themeToCss(getThemePreset(themeId(variant?.theme ?? profile.theme)), ".vc-profile") }} />
+    <main className="vc-profile-shell home-theme min-h-screen" style={profileShellStyle}>
+      <style dangerouslySetInnerHTML={{ __html: themeToCss(getThemePreset(themeId(variant?.theme ?? profile.theme)), ".vc-profile-shell, .vc-profile") }} />
       <style dangerouslySetInnerHTML={{ __html: customFontCss(profile.customFontUrl) }} />
       {profile.customCss && (
         <style dangerouslySetInnerHTML={{ __html: sanitizeCss(profile.customCss) }} />
@@ -193,8 +199,8 @@ export default async function PublicProfilePage({
           ))}
         </div>
         {!profile.removeBranding && (
-          <p className="mt-12 text-center text-[10px] uppercase tracking-widest text-ivory-mute">
-            Powered by <a href="https://vcard.ed5enterprise.com" className="text-gold">VoidCard</a>
+          <p className="mt-12 text-center text-[10px] uppercase tracking-widest" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>
+            Powered by <a href="https://vcard.ed5enterprise.com" style={{ color: "var(--vc-accent, #d4af37)" }}>VoidCard</a>
           </p>
         )}
       </div>
@@ -216,7 +222,7 @@ function themeId(theme: unknown): string | null {
 
 function customFontCss(url: string | null) {
   if (!url || !/^https?:\/\/.+\.woff2(?:\?.*)?$/i.test(url)) return "";
-  return `@font-face { font-family: 'VCUserFont'; src: url('${url}') format('woff2'); font-display: swap; } .vc-profile { font-family: 'VCUserFont', inherit; }`;
+  return `@font-face { font-family: 'VCUserFont'; src: url('${url}') format('woff2'); font-display: swap; } .vc-profile-shell, .vc-profile { font-family: 'VCUserFont', inherit; }`;
 }
 
 async function recordTap(userId: string, source: string, ua: string, ref: string) {

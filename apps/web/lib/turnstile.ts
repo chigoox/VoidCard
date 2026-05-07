@@ -20,9 +20,13 @@ export async function verifyTurnstile(
   token: string | null | undefined,
   remoteIp?: string | null,
 ): Promise<TurnstileResult> {
-  // In dev / preview without secret, treat as success to avoid blocking local work.
-  const secret = process.env.TURNSTILE_SECRET_KEY;
+  // If Turnstile is not configured at all, don't block contact capture.
+  const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
   if (!secret) {
+    if (!siteKey) {
+      return { success: true };
+    }
     if (process.env.NODE_ENV === "production") {
       return { success: false, errorCodes: ["missing-secret"] };
     }

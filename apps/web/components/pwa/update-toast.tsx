@@ -54,15 +54,15 @@ export function UpdateToast() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-3 bottom-3 z-50 flex items-center gap-3 rounded-card border border-gold/30 bg-onyx-900/95 p-3 shadow-2xl backdrop-blur sm:inset-x-auto sm:right-4 sm:max-w-sm"
+      className="fixed inset-x-3 bottom-3 z-50 flex items-center gap-3 rounded-card border border-paper-200 bg-white/95 p-3 shadow-soft-lg backdrop-blur sm:inset-x-auto sm:right-4 sm:max-w-sm"
     >
       <div className="flex-1 text-sm">
-        <p className="font-medium text-ivory">Update available</p>
-        <p className="text-xs text-ivory-mute">Reload to get the latest version.</p>
+        <p className="font-medium text-ink">Update available</p>
+        <p className="text-xs text-ink-400">Reload to get the latest version.</p>
       </div>
       <button
         type="button"
-        className="btn-gold text-xs"
+        className="btn-primary text-xs"
         onClick={async () => {
           if (!("serviceWorker" in navigator)) return;
           const reg = await navigator.serviceWorker.ready;

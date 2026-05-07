@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0a0a0b;
-  --bg-2: #16161a;
-  --gold: #d4af37;
-  --gold-soft: #b89028;
-  --ivory: #f5f1e8;
-  --ivory-dim: #c7c2b5;
+  --bg: #ffffff;
+  --bg-2: #fafafb;
+  --gold: #0a0a0a;
+  --gold-soft: #1f1f1f;
+  --ivory: #0a0a0a;
+  --ivory-dim: #5f5f66;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
 }
@@ -21,7 +21,7 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
-::selection { background: var(--gold); color: #000; }
+::selection { background: var(--gold); color: #fff; }
 
 .text-gold-grad {
   background: linear-gradient(135deg, #f5e9b0 0%, #d4af37 50%, #8c6c1e 100%);
@@ -57,6 +57,9 @@ html, body {
 .btn-outline {
   @apply btn border border-paper-300 bg-white text-ink hover:border-ink hover:shadow-soft;
 }
+.btn-secondary {
+  @apply btn border border-paper-300 bg-paper-50 text-ink hover:border-ink hover:bg-white;
+}
 .surface {
   @apply rounded-card border border-paper-200 bg-white shadow-soft;
 }
@@ -86,6 +89,182 @@ html, body {
     inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
   overflow: hidden;
   position: relative;
+}
+
+.home-theme {
+  --home-bg: #ffffff;
+  --home-bg-soft: #fafafb;
+  --home-surface: rgba(255, 255, 255, 0.94);
+  --home-surface-muted: rgba(244, 244, 245, 0.94);
+  --home-border: rgba(10, 10, 10, 0.1);
+  --home-border-strong: rgba(10, 10, 10, 0.18);
+  --home-ink: #0a0a0a;
+  --home-ink-soft: #5f5f66;
+  --home-ink-mute: #8e8e93;
+  --home-shadow: 0 1px 2px rgba(10, 10, 10, 0.04), 0 18px 50px -20px rgba(10, 10, 10, 0.14);
+  background: radial-gradient(circle at top left, rgba(10, 10, 10, 0.06), transparent 30%), linear-gradient(180deg, #ffffff 0%, #fafafb 100%) !important;
+  color: var(--home-ink);
+}
+
+.home-theme :where(.card) {
+  border-color: var(--home-border) !important;
+  background: var(--home-surface) !important;
+  box-shadow: var(--home-shadow) !important;
+  color: var(--home-ink);
+}
+
+.home-theme :where(.btn-gold) {
+  border-color: transparent !important;
+  background-color: var(--home-ink) !important;
+  background-image: linear-gradient(180deg, #0a0a0a 0%, #1f1f1f 100%) !important;
+  box-shadow: 0 12px 32px -18px rgba(10, 10, 10, 0.4) !important;
+  color: #ffffff !important;
+}
+
+.home-theme :where(.btn-ghost, .btn-secondary) {
+  border-color: var(--home-border) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: var(--home-ink) !important;
+}
+
+.home-theme :where(.btn-ghost:hover, .btn-secondary:hover, .btn-outline:hover) {
+  border-color: var(--home-ink) !important;
+  color: var(--home-ink) !important;
+  box-shadow: 0 1px 2px rgba(10, 10, 10, 0.05), 0 12px 30px -20px rgba(10, 10, 10, 0.16);
+}
+
+.home-theme :where(.input) {
+  border-color: var(--home-border) !important;
+  background: #ffffff !important;
+  color: var(--home-ink) !important;
+}
+
+.home-theme :where(.input::placeholder) {
+  color: var(--home-ink-mute) !important;
+}
+
+.home-theme :where([class*="bg-onyx-"], [class*="bg-onyx/"]) {
+  background: var(--home-surface) !important;
+}
+
+.home-theme :where([class~="bg-onyx-grad"]) {
+  background: radial-gradient(circle at top left, rgba(10, 10, 10, 0.06), transparent 30%), linear-gradient(180deg, #ffffff 0%, #fafafb 100%) !important;
+}
+
+.home-theme :where([class*="bg-gold-grad"]) {
+  background-color: var(--home-ink) !important;
+  background-image: linear-gradient(180deg, #0a0a0a 0%, #1f1f1f 100%) !important;
+}
+
+.home-theme :where([class*="bg-gold/"]) {
+  background-color: rgba(10, 10, 10, 0.05) !important;
+}
+
+.home-theme :where([class*="border-onyx-"], [class*="border-gold/"], [class*="border-ivory-mute/"]) {
+  border-color: var(--home-border) !important;
+}
+
+.home-theme :where(.text-ivory) {
+  color: var(--home-ink) !important;
+}
+
+.home-theme :where(.text-ivory-dim) {
+  color: var(--home-ink-soft) !important;
+}
+
+.home-theme :where(.text-ivory-mute) {
+  color: var(--home-ink-mute) !important;
+}
+
+.home-theme :where(.text-gold, [class*="text-gold/"]) {
+  color: var(--home-ink) !important;
+}
+
+.home-theme :where(.text-gold-grad) {
+  background: none !important;
+  color: var(--home-ink) !important;
+  -webkit-text-fill-color: currentColor;
+}
+
+.home-theme :where(.text-onyx-950) {
+  color: #ffffff !important;
+}
+
+.home-theme :where([class*="hover:text-gold"]:hover, [class*="hover:text-ivory"]:hover) {
+  color: var(--home-ink) !important;
+}
+
+.home-theme :where([class*="hover:border-gold/"]:hover, [class*="hover:border-onyx-"]:hover) {
+  border-color: var(--home-border-strong) !important;
+}
+
+.home-theme :where([class*="focus:border-gold/"]:focus, [class*="focus-within:border-gold/"]:focus-within) {
+  border-color: var(--home-ink) !important;
+}
+
+.home-theme :where(.prose) {
+  --tw-prose-body: var(--home-ink-soft);
+  --tw-prose-headings: var(--home-ink);
+  --tw-prose-links: var(--home-ink);
+  --tw-prose-bold: var(--home-ink);
+  --tw-prose-counters: var(--home-ink-mute);
+  --tw-prose-bullets: var(--home-border-strong);
+  --tw-prose-hr: var(--home-border);
+  --tw-prose-quotes: var(--home-ink);
+  --tw-prose-quote-borders: var(--home-border-strong);
+  --tw-prose-captions: var(--home-ink-mute);
+  --tw-prose-code: var(--home-ink);
+  --tw-prose-pre-code: var(--home-ink-soft);
+  --tw-prose-pre-bg: var(--home-bg-soft);
+  --tw-prose-th-borders: var(--home-border-strong);
+  --tw-prose-td-borders: var(--home-border);
+}
+
+.home-theme .product-preview :where([class*="bg-onyx-"], [class*="bg-onyx/"]) {
+  background: #0a0a0b !important;
+}
+
+.home-theme .product-preview :where([class*="border-onyx-"], [class*="border-gold/"]) {
+  border-color: rgba(212, 175, 55, 0.18) !important;
+}
+
+.home-theme .product-preview :where(.card) {
+  border-color: #1f1f25 !important;
+  background: rgba(16, 16, 18, 0.8) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06) !important;
+  color: #f5f1e8 !important;
+}
+
+.home-theme .product-preview :where(.text-ivory) {
+  color: #f5f1e8 !important;
+}
+
+.home-theme .product-preview :where(.text-ivory-dim) {
+  color: #c7c2b5 !important;
+}
+
+.home-theme .product-preview :where(.text-ivory-mute) {
+  color: #8c887d !important;
+}
+
+.home-theme .product-preview :where(.text-gold, [class*="text-gold/"]) {
+  color: #d4af37 !important;
+}
+
+.home-theme .product-preview :where(.text-gold-grad) {
+  background: linear-gradient(135deg, #f5e9b0 0%, #d4af37 50%, #8c6c1e 100%) !important;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+}
+
+.home-theme .product-preview :where([class*="hover:text-gold"]:hover) {
+  color: #d4af37 !important;
+}
+
+.home-theme .product-preview :where([class*="hover:border-gold/"]:hover) {
+  border-color: rgba(212, 175, 55, 0.35) !important;
 }
 
 /* a11y: focus ring */

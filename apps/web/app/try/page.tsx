@@ -50,7 +50,7 @@ export default function TryEditorPage() {
   }
 
   return (
-    <main className="min-h-screen bg-onyx-grad">
+    <main className="home-theme min-h-screen bg-onyx-grad">
       <SiteHeader />
 
       <section className="mx-auto max-w-7xl px-6 pb-10 pt-16 text-center">
@@ -162,7 +162,7 @@ export default function TryEditorPage() {
 
         {/* Preview */}
         <div className="flex justify-center">
-          <div className="phone-frame">
+          <div className="product-preview phone-frame">
             <div className="flex h-full flex-col bg-onyx-950 p-6">
               <div className="flex flex-col items-center pt-12">
                 <div className={`size-24 rounded-full bg-gradient-to-br ${accentClass}`} />

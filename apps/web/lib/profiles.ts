@@ -61,7 +61,6 @@ type SharedProfileRow = {
   email: string | null;
   username: string | null;
   display_name: string | null;
-  origin_site: string | null;
   role: string | null;
   created_at: string | null;
 };
@@ -132,7 +131,7 @@ const PRIMARY_PROFILE_SELECT =
 const PRIMARY_PROFILE_STATE_SELECT = "user_id, username, origin_site, onboarding_state";
 const SECONDARY_PROFILE_SELECT =
   "id, owner_user_id, username, display_name, bio, avatar_url, theme, custom_css, custom_font_url, sections, sections_draft, links, published, password_hash, scheduled_publish_at, remove_branding, is_indexable, ai_indexing, updated_at, deleted_at";
-const SHARED_PROFILE_SELECT = "id, email, username, display_name, origin_site, role, created_at";
+const SHARED_PROFILE_SELECT = "id, email, username, display_name, role, created_at";
 const STORAGE_GRANTING_PREFIX = "card-";
 const ONE_GB = 1_000_000_000;
 const STORAGE_CAP = 25 * ONE_GB;
@@ -156,6 +155,73 @@ function profileOriginSite() {
   } catch {
     return DEFAULT_PROFILE_ORIGIN_SITE;
   }
+}
+
+async function syncSharedProfileIdentity(input: {
+  userId: string;
+  email?: string | null;
+  username?: string | null;
+  displayName?: string | null;
+}) {
+  const admin = createAdminClient();
+  const existing = await loadSharedProfileByUserId(input.userId);
+
+  if (!existing) {
+    let email = input.email ?? null;
+    if (!email) {
+      const { data: authUserData, error: authUserError } = await admin.auth.admin.getUserById(input.userId);
+      if (authUserError) {
+        return { error: authUserError, row: null as SharedProfileRow | null };
+      }
+      email = authUserData.user?.email ?? null;
+    }
+
+    const row = {
+      id: input.userId,
+      email,
+      username: input.username ?? null,
+      display_name: input.displayName ?? null,
+      role: "user",
+      created_at: new Date().toISOString(),
+    } satisfies SharedProfileRow;
+
+    const { error } = await admin.from("profiles").upsert(
+      {
+        id: row.id,
+        email: row.email,
+        username: row.username,
+        display_name: row.display_name,
+        role: row.role,
+      },
+      { onConflict: "id" },
+    );
+
+    return { error, row: error ? null : row };
+  }
+
+  const patch = Object.fromEntries(
+    Object.entries({
+      email: existing.email ?? input.email ?? undefined,
+      username:
+        input.username !== undefined && input.username !== existing.username
+          ? input.username
+          : undefined,
+      display_name:
+        input.displayName !== undefined && input.displayName !== existing.display_name
+          ? input.displayName
+          : undefined,
+    }).filter(([, value]) => value !== undefined),
+  );
+
+  if (Object.keys(patch).length === 0) {
+    return { error: null, row: existing };
+  }
+
+  const { error } = await admin.from("profiles").update(patch).eq("id", input.userId);
+  return {
+    error,
+    row: error ? existing : ({ ...existing, ...patch } as SharedProfileRow),
+  };
 }
 
 async function primaryProfileSource() {
@@ -467,8 +533,9 @@ export async function ensurePrimaryProfileRecord(input: {
 }) {
   const admin = createAdminClient();
   const originSite = profileOriginSite();
+  const sharedPrimary = await usesSharedProfilesAsPrimary();
 
-  if (await usesSharedProfilesAsPrimary()) {
+  if (sharedPrimary) {
     const existing = await loadSharedProfileByUserId(input.userId);
     if (!existing) {
       const { error } = await admin.from("profiles").upsert(
@@ -477,7 +544,6 @@ export async function ensurePrimaryProfileRecord(input: {
           email: input.email ?? null,
           username: input.username,
           display_name: input.displayName ?? null,
-          origin_site: originSite,
           role: "user",
         },
         { onConflict: "id" },
@@ -516,7 +582,6 @@ export async function ensurePrimaryProfileRecord(input: {
           existing.username || existing.display_name
             ? undefined
             : input.displayName ?? null,
-        origin_site: existing.origin_site ? undefined : originSite,
       }).filter(([, value]) => value !== undefined),
     );
 
@@ -542,7 +607,7 @@ export async function ensurePrimaryProfileRecord(input: {
         username: existing.username ?? input.username,
         display_name: existing.display_name ?? input.displayName ?? null,
         avatar_url: input.avatarUrl ?? null,
-        origin_site: existing.origin_site ?? originSite,
+        origin_site: originSite,
         plan: "free",
       });
       return { error, onboardingStep: 0 };
@@ -551,7 +616,7 @@ export async function ensurePrimaryProfileRecord(input: {
     const companionPatch = Object.fromEntries(
       Object.entries({
         username: companionResult.row.username ? undefined : existing.username ?? input.username,
-        origin_site: companionResult.row.origin_site ? undefined : existing.origin_site ?? originSite,
+        origin_site: companionResult.row.origin_site ? undefined : originSite,
       }).filter(([, value]) => value !== undefined),
     );
 
@@ -567,6 +632,16 @@ export async function ensurePrimaryProfileRecord(input: {
       error: null,
       onboardingStep: companionResult.row.onboarding_state?.step ?? 0,
     };
+  }
+
+  const sharedSync = await syncSharedProfileIdentity({
+    userId: input.userId,
+    email: input.email ?? null,
+    username: input.username,
+    displayName: input.displayName ?? null,
+  });
+  if (sharedSync.error) {
+    return { error: sharedSync.error, onboardingStep: 0 };
   }
 
   const { data: existing } = await admin
@@ -644,7 +719,28 @@ export async function updateManagedProfile(
 ) {
   const sb = await createClient();
   if (!profileId || profileId === PRIMARY_PROFILE_ID) {
-    if (await usesSharedProfilesAsPrimary()) {
+    const sharedPrimary = await usesSharedProfilesAsPrimary();
+
+    if (!sharedPrimary) {
+      const nextUsername = typeof patch.username === "string" ? patch.username : undefined;
+      const nextDisplayName =
+        typeof patch.display_name === "string" || patch.display_name === null
+          ? (patch.display_name as string | null)
+          : undefined;
+
+      if (nextUsername !== undefined || nextDisplayName !== undefined) {
+        const sharedSync = await syncSharedProfileIdentity({
+          userId,
+          username: nextUsername,
+          displayName: nextDisplayName,
+        });
+        if (sharedSync.error) {
+          return { data: null, error: sharedSync.error };
+        }
+      }
+    }
+
+    if (sharedPrimary) {
       const sharedPatch = Object.fromEntries(
         Object.entries({
           username: patch.username,

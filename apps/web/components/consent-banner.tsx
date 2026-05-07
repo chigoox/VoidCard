@@ -61,13 +61,13 @@ export function ConsentBanner() {
     <div
       role="dialog"
       aria-label="Cookie consent"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-ivory-mute/20 bg-onyx/95 backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-paper-200 bg-white/95 backdrop-blur-md shadow-soft"
     >
       <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-6">
-        <div className="text-sm text-ivory-dim">
+        <div className="text-sm text-ink-500">
           We use essential cookies to run VoidCard. With your permission, we also use analytics and marketing cookies to
           improve the product.{" "}
-          <a href="/legal/cookies" className="text-gold underline">
+          <a href="/legal/cookies" className="text-ink underline">
             Learn more
           </a>
           .
@@ -95,19 +95,19 @@ export function ConsentBanner() {
               />{" "}
               Marketing
             </label>
-            <button onClick={() => persist(analytics, marketing)} className="btn-gold ml-2">
+            <button onClick={() => persist(analytics, marketing)} className="btn-primary ml-2">
               Save
             </button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <button onClick={() => persist(false, false)} className="btn-secondary">
+            <button onClick={() => persist(false, false)} className="btn-outline">
               Reject all
             </button>
-            <button onClick={() => setCustomize(true)} className="btn-secondary">
+            <button onClick={() => setCustomize(true)} className="btn-outline">
               Customize
             </button>
-            <button onClick={() => persist(true, true)} className="btn-gold">
+            <button onClick={() => persist(true, true)} className="btn-primary">
               Accept all
             </button>
           </div>

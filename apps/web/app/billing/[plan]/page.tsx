@@ -70,7 +70,7 @@ export default async function BillingPlanPage({
   const cadence = isYear ? "/year" : "/month";
 
   return (
-    <main className="min-h-screen bg-onyx-grad">
+    <main className="home-theme min-h-screen bg-onyx-grad">
       <SiteHeader />
       <section className="mx-auto max-w-3xl px-6 pb-24 pt-20">
         <p className="text-sm uppercase tracking-[0.2em] text-gold">Upgrade</p>

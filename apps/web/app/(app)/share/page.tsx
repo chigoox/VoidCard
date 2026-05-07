@@ -1,13 +1,19 @@
 import { requireUser } from "@/lib/auth";
+import { getManagedProfile } from "@/lib/profiles";
+import { SITE_URL } from "@/lib/seo";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function SharePage() {
   const u = await requireUser();
+  const profile = await getManagedProfile(u.id, null);
   const hasUsername = !!u.username;
-  const url = `https://vcard.ed5enterprise.com/u/${u.username ?? "you"}`;
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&bgcolor=0a0a0b&color=d4af37&data=${encodeURIComponent(url)}`;
+  const publicPath = profile?.published && profile.publicPath ? profile.publicPath : null;
+  const url = publicPath ? new URL(publicPath, SITE_URL).toString() : null;
+  const qr = url
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&bgcolor=0a0a0b&color=d4af37&data=${encodeURIComponent(url)}`
+    : null;
 
   return (
     <div className="space-y-6">
@@ -18,19 +24,33 @@ export default async function SharePage() {
 
       <section className="card p-6">
         <p className="text-xs uppercase tracking-widest text-ivory-mute">Public URL</p>
-        <p className="mt-2 truncate font-mono text-gold">{url}</p>
+        <p className="mt-2 truncate font-mono text-gold">{url ?? "Publish your profile to generate a public URL."}</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <a href={url} target="_blank" rel="noreferrer" className="btn-ghost">Open</a>
+          {url ? (
+            <a href={url} target="_blank" rel="noreferrer" className="btn-ghost">Open</a>
+          ) : (
+            <span className="btn-ghost cursor-not-allowed opacity-60">Open</span>
+          )}
           <Link href="/edit" className="btn-ghost">Edit</Link>
-          <a className="btn-gold" href={`mailto:?subject=My%20card&body=${encodeURIComponent(url)}`}>Email this</a>
+          {url ? (
+            <a className="btn-gold" href={`mailto:?subject=My%20card&body=${encodeURIComponent(url)}`}>Email this</a>
+          ) : (
+            <span className="btn-gold cursor-not-allowed opacity-60">Email this</span>
+          )}
         </div>
       </section>
 
       <section className="card p-6">
         <p className="text-xs uppercase tracking-widest text-ivory-mute">QR code</p>
         <div className="mt-4 grid place-items-center rounded-card bg-onyx-900 p-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qr} alt="QR code" className="h-64 w-64 rounded-card" />
+          {qr ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={qr} alt="QR code" className="h-64 w-64 rounded-card" />
+          ) : (
+            <p className="max-w-xs text-center text-sm text-ivory-dim">
+              Publish your profile first, then come back to generate a QR code that won&apos;t send visitors to a 404 page.
+            </p>
+          )}
         </div>
         <p className="mt-3 text-xs text-ivory-mute">Print at 600 DPI for cards. Scan range ~30cm with phone camera.</p>
       </section>

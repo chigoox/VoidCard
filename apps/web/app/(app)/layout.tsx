@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <div className="min-h-screen bg-onyx-grad pb-24">
+    <div className="home-theme min-h-screen bg-onyx-grad pb-24">
       <header className="sticky top-0 z-30 border-b border-onyx-700/60 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <Link href="/dashboard" className="font-display text-lg text-gold-grad">VoidCard</Link>

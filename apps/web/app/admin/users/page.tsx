@@ -28,16 +28,15 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   if (sharedPrimary) {
     let q = sb
       .from("profiles")
-      .select("id, username, display_name, origin_site, created_at")
+      .select("id, username, display_name, created_at")
       .order("created_at", { ascending: false })
       .limit(200);
     if (sp.q) q = q.ilike("username", `%${sp.q}%`);
-    if (sp.origin) q = q.ilike("origin_site", `%${sp.origin}%`);
 
     const { data } = await q;
-    const baseRows = ((data as Array<{ id: string; username: string | null; display_name: string | null; origin_site: string | null; created_at: string | null }> | null) ?? []);
+    const baseRows = ((data as Array<{ id: string; username: string | null; display_name: string | null; created_at: string | null }> | null) ?? []);
     const userIds = baseRows.map((row) => row.id);
-    const [{ data: subscriptions }, { data: verifications }] = userIds.length
+    const [{ data: subscriptions }, { data: verifications }, companionResult] = userIds.length
       ? await Promise.all([
           sb
             .from("vcard_subscriptions")
@@ -49,8 +48,12 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
             .select("user_id, status, submitted_at")
             .in("user_id", userIds)
             .order("submitted_at", { ascending: false }),
+          sb
+            .from("vcard_profile_ext")
+            .select("user_id, origin_site")
+            .in("user_id", userIds),
         ])
-      : [{ data: [] }, { data: [] }];
+      : [{ data: [] }, { data: [] }, { data: [], error: null }];
 
     const planByUserId = new Map<string, Plan>();
     for (const plan of SHARED_PLAN_PRIORITY) {
@@ -68,17 +71,31 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
       }
     }
 
+    const originByUserId = new Map<string, string>();
+    if (!companionResult.error) {
+      for (const row of (companionResult.data as Array<{ user_id: string; origin_site: string | null }> | null) ?? []) {
+        if (row.origin_site && !originByUserId.has(row.user_id)) {
+          originByUserId.set(row.user_id, row.origin_site);
+        }
+      }
+    }
+
     rows = baseRows.map((row) => ({
       user_id: row.id,
       username: row.username,
       display_name: row.display_name,
-      origin_site: row.origin_site,
+      origin_site: originByUserId.get(row.id) ?? null,
       plan: planByUserId.get(row.id) ?? "free",
       verified: verificationByUserId.get(row.id) ?? false,
       published: !!row.username,
       bonus_storage_bytes: 0,
       created_at: row.created_at ?? new Date(0).toISOString(),
     }));
+
+    if (sp.origin) {
+      const normalizedOrigin = sp.origin.toLowerCase();
+      rows = rows.filter((row) => (row.origin_site ?? "").toLowerCase().includes(normalizedOrigin));
+    }
   } else {
     let q = sb
       .from("vcard_profile_ext")

@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function DomainNotFoundPage() {
   return (
-    <main className="grid min-h-screen place-items-center bg-onyx-grad px-6">
+    <main className="home-theme grid min-h-screen place-items-center bg-onyx-grad px-6">
       <div className="card w-full max-w-2xl p-8">
         <p className="text-xs uppercase tracking-widest text-ivory-mute">Custom domain</p>
         <h1 className="mt-3 font-display text-3xl text-gold-grad">This hostname is not live yet.</h1>

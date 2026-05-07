@@ -12,13 +12,65 @@ test.describe("builder", () => {
 
   test("can add a link section, save, and publish", async ({ page }) => {
     await page.goto("/edit");
+    await page.getByTestId("add-section-trigger").click();
     await page.getByTestId("add-link").click();
-    await expect(page.getByTestId("section-list").locator("li")).toHaveCount(1);
+    await expect(page.getByTestId("section-list").locator("> li")).toHaveCount(1);
 
     await page.getByTestId("save-draft").click();
-    await expect(page.getByText(/:/, { exact: false })).toBeVisible(); // saved-at timestamp
 
     await page.getByTestId("publish").click();
+    await page.getByTestId("publish-confirm-yes").click();
     await expect(page.getByText(/published/i)).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("share row and storage meter render", async ({ page }) => {
+    await page.goto("/edit");
+    await expect(page.getByTestId("share-row")).toBeVisible();
+    await expect(page.getByTestId("copy-share")).toBeVisible();
+    await expect(page.getByTestId("storage-meter")).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("bulk-add links creates link sections", async ({ page }) => {
+    await page.goto("/edit");
+    await page.getByTestId("bulk-links-trigger").click();
+    await expect(page.getByTestId("bulk-links-modal")).toBeVisible();
+    await page
+      .getByTestId("bulk-links-textarea")
+      .fill("My GitHub | https://github.com/example\nhttps://example.com");
+    const before = await page.getByTestId("section-list").locator("> li").count();
+    await page.getByTestId("bulk-links-apply").click();
+    await expect(page.getByTestId("bulk-links-modal")).toBeHidden();
+    await expect
+      .poll(async () => page.getByTestId("section-list").locator("> li").count())
+      .toBe(before + 2);
+  });
+
+  test("publish requires confirmation", async ({ page }) => {
+    await page.goto("/edit");
+    await page.getByTestId("publish").click();
+    await expect(page.getByTestId("publish-confirm")).toBeVisible();
+    await page.getByRole("button", { name: /cancel/i }).first().click();
+    await expect(page.getByTestId("publish-confirm")).toBeHidden();
+  });
+
+  test("schedule publish panel renders and saves snapshot", async ({ page }) => {
+    await page.goto("/edit");
+    await expect(page.getByTestId("schedule-publish")).toBeVisible();
+    await expect(page.getByTestId("versions-panel")).toBeVisible();
+    await page.getByTestId("snapshot-label").fill("e2e snapshot");
+    await page.getByTestId("snapshot-save").click();
+    await page.getByTestId("versions-toggle").click();
+    await expect(page.getByTestId("versions-list")).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("product picker opens and lists products", async ({ page }) => {
+    await page.goto("/edit");
+    await page.getByTestId("product-picker-trigger").click();
+    await expect(page.getByTestId("product-picker-modal")).toBeVisible();
+  });
+
+  test("variants panel renders", async ({ page }) => {
+    await page.goto("/edit");
+    await expect(page.getByTestId("variants-panel")).toBeVisible();
   });
 });

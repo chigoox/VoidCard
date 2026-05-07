@@ -33,15 +33,15 @@ export function InstallPrompt() {
     <div
       role="dialog"
       aria-label="Install VoidCard"
-      className="fixed inset-x-3 bottom-3 z-50 flex items-center gap-3 rounded-card border border-gold/30 bg-onyx-900/95 p-3 shadow-2xl backdrop-blur sm:inset-x-auto sm:right-4 sm:max-w-sm"
+      className="fixed inset-x-3 bottom-3 z-50 flex items-center gap-3 rounded-card border border-paper-200 bg-white/95 p-3 shadow-soft-lg backdrop-blur sm:inset-x-auto sm:right-4 sm:max-w-sm"
     >
       <div className="flex-1 text-sm">
-        <p className="font-medium text-ivory">Install VoidCard</p>
-        <p className="text-xs text-ivory-mute">Quick access from your home screen.</p>
+        <p className="font-medium text-ink">Install VoidCard</p>
+        <p className="text-xs text-ink-400">Quick access from your home screen.</p>
       </div>
       <button
         type="button"
-        className="rounded-md px-2 py-1 text-xs text-ivory-mute hover:text-ivory"
+        className="rounded-md px-2 py-1 text-xs text-ink-400 hover:text-ink"
         onClick={() => {
           localStorage.setItem(DISMISS_KEY, String(Date.now()));
           setVisible(false);
@@ -51,7 +51,7 @@ export function InstallPrompt() {
       </button>
       <button
         type="button"
-        className="btn-gold text-xs"
+        className="btn-primary text-xs"
         onClick={async () => {
           await evt.prompt();
           const { outcome } = await evt.userChoice;

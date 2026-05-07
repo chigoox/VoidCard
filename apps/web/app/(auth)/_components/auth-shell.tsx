@@ -28,11 +28,11 @@ const NOTES = [
 
 export function AuthShell({ eyebrow, title, description, children, footer }: AuthShellProps) {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-onyx-grad">
+    <main className="home-theme relative min-h-screen overflow-hidden bg-onyx-grad">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-12rem] top-[-12rem] h-[26rem] w-[26rem] rounded-full bg-gold/12 blur-3xl" />
-        <div className="absolute bottom-[-16rem] right-[-10rem] h-[32rem] w-[32rem] rounded-full bg-[#6a5217]/20 blur-3xl" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/70 to-transparent" />
+        <div className="absolute left-[-12rem] top-[-12rem] h-[26rem] w-[26rem] rounded-full bg-ink/5 blur-3xl" />
+        <div className="absolute bottom-[-16rem] right-[-10rem] h-[32rem] w-[32rem] rounded-full bg-ink/8 blur-3xl" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-ink/30 to-transparent" />
       </div>
 
       <div className="relative mx-auto grid min-h-screen max-w-6xl gap-10 px-6 py-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:py-12">

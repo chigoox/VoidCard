@@ -10,7 +10,7 @@ export const metadata: Metadata = buildMetadata({
 
 export default function OfflinePage() {
   return (
-    <main className="min-h-screen bg-onyx-grad">
+    <main className="home-theme min-h-screen bg-onyx-grad">
       <div className="mx-auto flex max-w-md flex-col items-center px-6 pt-32 text-center">
         <p className="text-sm uppercase tracking-[0.2em] text-gold">VoidCard</p>
         <h1 className="mt-3 font-display text-4xl">You&rsquo;re offline.</h1>
