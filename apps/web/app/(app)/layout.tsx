@@ -1,15 +1,9 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { BottomNav } from "./BottomNav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const tabs = [
-    { href: "/dashboard", label: "Home", testid: "tab-home" },
-    { href: "/edit", label: "Edit", testid: "tab-edit" },
-    { href: "/links", label: "Links", testid: "tab-links" },
-    { href: "/insights", label: "Insights", testid: "tab-insights" },
-    { href: "/account", label: "You", testid: "tab-account" },
-  ];
 
   return (
     <div className="home-theme min-h-screen bg-onyx-grad pb-24">
@@ -30,20 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
 
-      {/* Bottom tab bar (mobile-first per mockups) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-onyx-700/60 bg-onyx-950/95 backdrop-blur-md"
-           style={{ paddingBottom: "var(--safe-bottom)" }}>
-        <ul className="mx-auto flex max-w-md justify-around py-2">
-          {tabs.map((t) => (
-            <li key={t.href}>
-              <Link href={t.href} data-testid={t.testid}
-                    className="px-4 py-2 text-xs uppercase tracking-widest text-ivory-dim hover:text-gold">
-                {t.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <BottomNav />
     </div>
   );
 }
