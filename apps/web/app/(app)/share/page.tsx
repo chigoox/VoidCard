@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { getManagedProfile } from "@/lib/profiles";
 import { SITE_URL } from "@/lib/seo";
 import { BrandedQR } from "@/components/BrandedQR";
+import { ShareChannels } from "@/components/ShareChannels";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function SharePage() {
   const hasUsername = !!u.username;
   const publicPath = profile?.published && profile.publicPath ? profile.publicPath : null;
   const url = publicPath ? new URL(publicPath, SITE_URL).toString() : null;
+  const shareTitle = profile?.displayName?.trim() || (u.username ? `@${u.username} on VoidCard` : "My VoidCard");
 
   return (
     <div className="space-y-6">
@@ -30,13 +32,18 @@ export default async function SharePage() {
             <span className="btn-ghost cursor-not-allowed opacity-60">Open</span>
           )}
           <Link href="/edit" className="btn-ghost">Edit</Link>
-          {url ? (
-            <a className="btn-gold" href={`mailto:?subject=My%20card&body=${encodeURIComponent(url)}`}>Email this</a>
-          ) : (
-            <span className="btn-gold cursor-not-allowed opacity-60">Email this</span>
-          )}
         </div>
       </section>
+
+      {url ? (
+        <section className="card p-6" data-testid="share-channels">
+          <p className="text-xs uppercase tracking-widest text-ivory-mute">Share to</p>
+          <p className="mt-1 text-sm text-ivory-dim">Pick a channel — we&apos;ll prefill your link and a short caption.</p>
+          <div className="mt-4">
+            <ShareChannels url={url} title={shareTitle} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="card p-6">
         <p className="text-xs uppercase tracking-widest text-ivory-mute">QR code</p>
