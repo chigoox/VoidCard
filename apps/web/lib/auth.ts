@@ -51,14 +51,17 @@ export async function requireAdmin() {
   const u = await requireUser();
   if (u.role !== "admin" && u.role !== "superadmin") redirect("/dashboard");
 
-  const sb = await createClient();
-  const [{ data: assurance }, { data: factors }] = await Promise.all([
-    sb.auth.mfa.getAuthenticatorAssuranceLevel(),
-    sb.auth.mfa.listFactors(),
-  ]);
-  const hasVerifiedTotp = !!factors?.totp?.some((factor) => factor.status === "verified");
-  if (!hasVerifiedTotp || assurance?.currentLevel !== "aal2") {
-    redirect("/account/security?next=/admin");
+  // superadmin bypasses MFA requirement
+  if (u.role !== "superadmin") {
+    const sb = await createClient();
+    const [{ data: assurance }, { data: factors }] = await Promise.all([
+      sb.auth.mfa.getAuthenticatorAssuranceLevel(),
+      sb.auth.mfa.listFactors(),
+    ]);
+    const hasVerifiedTotp = !!factors?.totp?.some((factor) => factor.status === "verified");
+    if (!hasVerifiedTotp || assurance?.currentLevel !== "aal2") {
+      redirect("/account/security?next=/admin");
+    }
   }
 
   return u;
