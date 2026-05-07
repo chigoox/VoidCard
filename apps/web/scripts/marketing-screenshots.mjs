@@ -5,7 +5,7 @@
 //
 // Output: <repo-root>/screenshots/{desktop,mobile}/<slug>.png
 
-import { chromium, devices } from "playwright";
+import { chromium, devices } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
