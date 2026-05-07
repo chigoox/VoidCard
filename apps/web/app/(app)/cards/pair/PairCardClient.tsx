@@ -58,7 +58,7 @@ export function PairCardClient({
   const [scanError, setScanError] = useState<string | null>(null);
   const [scannedId, setScannedId] = useState<string | null>(prefillCardId ?? null);
   const [serial, setSerial] = useState(prefillCardId ?? "");
-  const [showManual, setShowManual] = useState(!prefillCardId && !nfcSupported);
+  const [showManual, setShowManual] = useState(false);
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [pending, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
@@ -104,6 +104,7 @@ export function PairCardClient({
             setScannedId(id);
             setSerial(id);
             setScanState("read");
+            doSubmit(id);
             return;
           }
         }
@@ -233,7 +234,7 @@ export function PairCardClient({
           className="underline underline-offset-2 hover:text-ivory"
           data-testid="toggle-manual"
         >
-          {showManual ? (nfcSupported ? "Use NFC scan instead" : "Hide manual entry") : "Enter serial manually"}
+          {showManual ? "Hide manual entry" : "Enter serial manually"}
         </button>
       </p>
 
