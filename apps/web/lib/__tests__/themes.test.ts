@@ -35,11 +35,25 @@ describe("theme presets", () => {
   });
 
   it("rewrites Supabase public assets to Bunny CDN when configured", () => {
-    const original = process.env.NEXT_PUBLIC_BUNNY_CDN_HOST;
+    const originalHost = process.env.NEXT_PUBLIC_BUNNY_CDN_HOST;
+    const originalEnabled = process.env.NEXT_PUBLIC_BUNNY_CDN_ENABLED;
     process.env.NEXT_PUBLIC_BUNNY_CDN_HOST = "cdn.vcard.ed5enterprise.com";
+    process.env.NEXT_PUBLIC_BUNNY_CDN_ENABLED = "true";
     expect(publicAssetUrl("https://abc.supabase.co/storage/v1/object/public/vcard-public/user/file.png")).toBe(
       "https://cdn.vcard.ed5enterprise.com/storage/v1/object/public/vcard-public/user/file.png",
     );
-    process.env.NEXT_PUBLIC_BUNNY_CDN_HOST = original;
+    process.env.NEXT_PUBLIC_BUNNY_CDN_HOST = originalHost;
+    process.env.NEXT_PUBLIC_BUNNY_CDN_ENABLED = originalEnabled;
+  });
+
+  it("does NOT rewrite when CDN host is set but enabled flag is missing", () => {
+    const originalHost = process.env.NEXT_PUBLIC_BUNNY_CDN_HOST;
+    const originalEnabled = process.env.NEXT_PUBLIC_BUNNY_CDN_ENABLED;
+    process.env.NEXT_PUBLIC_BUNNY_CDN_HOST = "cdn.vcard.ed5enterprise.com";
+    delete process.env.NEXT_PUBLIC_BUNNY_CDN_ENABLED;
+    const original = "https://abc.supabase.co/storage/v1/object/public/vcard-public/user/file.png";
+    expect(publicAssetUrl(original)).toBe(original);
+    process.env.NEXT_PUBLIC_BUNNY_CDN_HOST = originalHost;
+    process.env.NEXT_PUBLIC_BUNNY_CDN_ENABLED = originalEnabled;
   });
 });
