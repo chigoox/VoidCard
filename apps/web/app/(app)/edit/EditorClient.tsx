@@ -383,7 +383,7 @@ function SortableSectionRow({
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
       className={[
-        "card space-y-4 p-4 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
+        "card min-w-0 space-y-4 p-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:p-4",
         isDragging ? "border-gold/60 shadow-[0_8px_24px_-12px_rgba(212,168,83,0.35)]" : "",
       ].join(" ")}
       data-testid={`section-row-${section.id}`}
@@ -391,8 +391,8 @@ function SortableSectionRow({
       tabIndex={-1}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
               aria-label={`Drag ${section.type} section`}
@@ -447,7 +447,7 @@ function SortableSectionRow({
           ) : null}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex shrink-0 flex-wrap justify-end gap-1 sm:gap-2">
           <button type="button" onClick={onDuplicate} className="btn-ghost px-2 py-1 text-xs" aria-label="Duplicate" data-testid={`duplicate-${section.id}`}>⧉</button>
           <button type="button" onClick={onCopyJson} className="btn-ghost px-2 py-1 text-xs" aria-label="Copy JSON" title="Copy section JSON" data-testid={`copy-json-${section.id}`}>⧉JSON</button>
           <button type="button" onClick={() => onMove(index, -1)} className="btn-ghost px-2 py-1 text-xs" aria-label="Move up">↑</button>
@@ -1898,10 +1898,10 @@ export default function EditorClient({
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid min-w-0 gap-4 md:grid-cols-2 md:gap-6">
       <div
         className={[
-          "order-2 md:order-2 md:sticky md:top-24 md:self-start",
+          "order-2 min-w-0 md:order-2 md:sticky md:top-24 md:self-start",
           mobilePreviewOpen
             ? "fixed inset-0 z-40 flex flex-col overflow-y-auto bg-onyx-950/95 p-4 backdrop-blur-md md:static md:bg-transparent md:p-0"
             : "hidden md:block",
@@ -1935,7 +1935,7 @@ export default function EditorClient({
         </div>
       </div>
 
-      <div className="order-1 space-y-4 pb-24 md:order-1 md:pb-0">
+      <div className="order-1 min-w-0 space-y-4 pb-24 md:order-1 md:pb-0">
         <button
           type="button"
           onClick={() => setMobilePreviewOpen(true)}
@@ -2306,7 +2306,7 @@ export default function EditorClient({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="card mt-3 grid grid-cols-2 gap-2 p-3 sm:grid-cols-3"
+                className="card mt-3 grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3"
                 data-testid="add-section-menu"
               >
                 {SECTION_TYPES.map((type) => (
@@ -2315,7 +2315,7 @@ export default function EditorClient({
                     type="button"
                     onClick={() => addSection(type)}
                     data-testid={`add-${type}`}
-                    className="flex items-center gap-2 rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
+                    className="flex min-w-0 items-center gap-2 truncate rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
                   >
                     <span aria-hidden className="text-gold">+</span>
                     {type}
