@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Section } from "@/lib/sections/types";
+import { BrandedQR } from "@/components/BrandedQR";
 import { LeadFormSectionClient } from "./LeadFormSectionClient";
 import { SectionMotion } from "./SectionMotion";
 import { GallerySectionClient } from "./GallerySectionClient";
@@ -224,15 +225,14 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
     case "qr":
       return (
         <div className="flex flex-col items-center p-4" style={cardStyle}>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(section.props.url)}`}
-            alt={section.props.label ?? "QR"}
-            width={200}
-            height={200}
-            className="rounded-card bg-white p-2"
-            style={{ borderRadius: "var(--vc-radius, 14px)" }}
+          <BrandedQR
+            value={section.props.url}
+            size={220}
+            variant="onyx"
+            ariaLabel={section.props.label ?? "QR"}
+            className="rounded-card"
           />
-          {section.props.label ? <p className="mt-2 text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{section.props.label}</p> : null}
+          {section.props.label ? <p className="mt-3 text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{section.props.label}</p> : null}
         </div>
       );
     case "schedule":

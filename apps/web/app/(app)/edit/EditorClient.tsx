@@ -33,6 +33,7 @@ import {
   type Sections,
 } from "@/lib/sections/types";
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
+import { BrandedQR } from "@/components/BrandedQR";
 import { THEME_PRESETS, getThemePreset, themeToCss } from "@/lib/themes/presets";
 import { SECTION_TEMPLATES } from "@/lib/editor/templates";
 import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/editor/styleStudio";
@@ -1958,12 +1959,12 @@ export default function EditorClient({
             <details className="relative">
               <summary className="btn-ghost cursor-pointer list-none px-3 py-2 text-xs">QR</summary>
               <div className="absolute right-0 z-10 mt-2 rounded-card border border-onyx-700 bg-onyx-950 p-3 shadow-xl">
-                <img
-                  alt={`QR for /u/${username}`}
-                  width={180}
-                  height={180}
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(`https://vcard.ed5enterprise.com/u/${username}`)}`}
-                  className="rounded-card bg-white p-2"
+                <BrandedQR
+                  value={`https://vcard.ed5enterprise.com/u/${username}`}
+                  size={200}
+                  variant="onyx"
+                  ariaLabel={`QR for /u/${username}`}
+                  className="rounded-card"
                 />
               </div>
             </details>

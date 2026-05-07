@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getManagedProfile } from "@/lib/profiles";
 import { SITE_URL } from "@/lib/seo";
+import { BrandedQR } from "@/components/BrandedQR";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +12,6 @@ export default async function SharePage() {
   const hasUsername = !!u.username;
   const publicPath = profile?.published && profile.publicPath ? profile.publicPath : null;
   const url = publicPath ? new URL(publicPath, SITE_URL).toString() : null;
-  const qr = url
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&bgcolor=0a0a0b&color=d4af37&data=${encodeURIComponent(url)}`
-    : null;
 
   return (
     <div className="space-y-6">
@@ -43,9 +41,8 @@ export default async function SharePage() {
       <section className="card p-6">
         <p className="text-xs uppercase tracking-widest text-ivory-mute">QR code</p>
         <div className="mt-4 grid place-items-center rounded-card bg-onyx-900 p-6">
-          {qr ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={qr} alt="QR code" className="h-64 w-64 rounded-card" />
+          {url ? (
+            <BrandedQR value={url} size={288} variant="onyx" className="rounded-card shadow-[0_8px_32px_-12px_rgba(212,168,83,0.35)]" />
           ) : (
             <p className="max-w-xs text-center text-sm text-ivory-dim">
               Publish your profile first, then come back to generate a QR code that won&apos;t send visitors to a 404 page.
