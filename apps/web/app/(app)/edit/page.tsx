@@ -60,29 +60,28 @@ export default async function EditPage({
 
   return (
     <div className="space-y-6">
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {profiles.map((profile) => (
-            <Link
-              key={profile.id}
-              href={profileAppPath("/edit", profile.id)}
-              className={[
-                "rounded-pill border px-3 py-1.5 text-xs uppercase tracking-widest",
-                profile.id === activeProfile.id
-                  ? "border-gold/60 bg-onyx-900 text-gold"
-                  : "border-onyx-700 text-ivory-dim hover:border-gold/40 hover:text-gold",
-              ].join(" ")}
-            >
-              {profile.displayName?.trim() || (profile.username ? `@${profile.username}` : "Profile")}
-            </Link>
-          ))}
-          <Link href="/profiles" className="btn-ghost">Manage profiles</Link>
-          <Link href={profileAppPath("/settings", activeProfile.id)} className="btn-ghost">Profile settings</Link>
-        </div>
-        <p className="text-sm text-ivory-dim">
-          Editing {activeProfile.displayName?.trim() || (activeProfile.username ? `@${activeProfile.username}` : "profile")}.
-        </p>
-      </header>
+      {profiles.length > 1 ? (
+        <header className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {profiles.map((profile) => (
+              <Link
+                key={profile.id}
+                href={profileAppPath("/edit", profile.id)}
+                className={[
+                  "rounded-pill border px-3 py-1.5 text-xs uppercase tracking-widest",
+                  profile.id === activeProfile.id
+                    ? "border-gold/60 bg-onyx-900 text-gold"
+                    : "border-onyx-700 text-ivory-dim hover:border-gold/40 hover:text-gold",
+                ].join(" ")}
+              >
+                {profile.displayName?.trim() || (profile.username ? `@${profile.username}` : "Profile")}
+              </Link>
+            ))}
+            <Link href="/profiles" className="btn-ghost">Manage profiles</Link>
+            <Link href={profileAppPath("/settings", activeProfile.id)} className="btn-ghost">Profile settings</Link>
+          </div>
+        </header>
+      ) : null}
 
       <EditorClient
         initial={sections}

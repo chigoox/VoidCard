@@ -14,6 +14,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DraggableAttributes,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -23,6 +24,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
 import {
   Section as SectionSchema,
@@ -338,6 +340,174 @@ function AutosaveStatus({
 
 
 
+function SectionRowHeader({
+  section,
+  index,
+  collapsed,
+  summary,
+  validationMessage,
+  onToggleCollapsed,
+  onToggleVisible,
+  onDuplicate,
+  onCopyJson,
+  onMove,
+  onRemove,
+  dragAttributes,
+  dragListeners,
+}: {
+  section: SectionRecord;
+  index: number;
+  collapsed: boolean;
+  summary: string;
+  validationMessage: string | null;
+  onToggleCollapsed: () => void;
+  onToggleVisible: () => void;
+  onDuplicate: () => void;
+  onCopyJson: () => void;
+  onMove: (index: number, dir: -1 | 1) => void;
+  onRemove: (index: number) => void;
+  dragAttributes: DraggableAttributes;
+  dragListeners: SyntheticListenerMap | undefined;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <button
+        type="button"
+        aria-label={`Drag ${section.type} section`}
+        className="btn-ghost cursor-grab px-2 py-1 text-xs active:cursor-grabbing"
+        data-testid={`drag-handle-${section.id}`}
+        {...dragAttributes}
+        {...(dragListeners ?? {})}
+      >
+        ⋮⋮
+      </button>
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? "Expand section" : "Collapse section"}
+        className="btn-ghost px-2 py-1 text-xs"
+        data-testid={`toggle-collapsed-${section.id}`}
+      >
+        {collapsed ? "▸" : "▾"}
+      </button>
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        className="flex min-w-0 flex-1 items-center gap-2 truncate text-left"
+        aria-label={collapsed ? "Expand section" : "Collapse section"}
+      >
+        <span className="shrink-0 text-xs uppercase tracking-widest text-ivory-mute">{section.type}</span>
+        {summary ? (
+          <span className="truncate text-xs text-ivory-mute" title={summary}>— {summary}</span>
+        ) : null}
+        {validationMessage ? (
+          <span
+            className="ml-1 rounded-pill border border-red-400/40 bg-red-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-red-200"
+            title={validationMessage}
+            data-testid={`validation-badge-${section.id}`}
+          >
+            !
+          </span>
+        ) : null}
+      </button>
+      <button
+        type="button"
+        onClick={onToggleVisible}
+        className="btn-ghost shrink-0 px-2 py-1 text-xs"
+        aria-pressed={section.visible}
+        title={section.visible ? "Hide section" : "Show section"}
+        aria-label={section.visible ? "Hide section" : "Show section"}
+        data-testid={`toggle-visible-${section.id}`}
+      >
+        <span aria-hidden>{section.visible ? "👁" : "🚫"}</span>
+      </button>
+      <div className="relative shrink-0" ref={menuRef}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          aria-label="More actions"
+          className="btn-ghost px-2 py-1 text-xs"
+          data-testid={`row-more-${section.id}`}
+        >
+          ⋯
+        </button>
+        {menuOpen ? (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-card border border-onyx-700 bg-onyx-950 shadow-lg"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setMenuOpen(false); onMove(index, -1); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
+            >
+              <span aria-hidden>↑</span> Move up
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setMenuOpen(false); onMove(index, 1); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
+            >
+              <span aria-hidden>↓</span> Move down
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setMenuOpen(false); onDuplicate(); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
+              data-testid={`duplicate-${section.id}`}
+            >
+              <span aria-hidden>⧉</span> Duplicate
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setMenuOpen(false); onCopyJson(); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
+              data-testid={`copy-json-${section.id}`}
+            >
+              <span aria-hidden>⧉</span> Copy JSON
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setMenuOpen(false); onRemove(index); }}
+              className="flex w-full items-center gap-2 border-t border-onyx-800 px-3 py-2 text-left text-xs text-red-300 hover:bg-onyx-900"
+            >
+              <span aria-hidden>×</span> Remove
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function SortableSectionRow({
   index,
   section,
@@ -384,78 +554,29 @@ function SortableSectionRow({
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
       className={[
-        "card min-w-0 space-y-4 p-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:p-4",
+        "card min-w-0 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
+        collapsed ? "p-2 sm:p-2.5" : "space-y-4 p-3 sm:p-4",
         isDragging ? "border-gold/60 shadow-[0_8px_24px_-12px_rgba(212,168,83,0.35)]" : "",
       ].join(" ")}
       data-testid={`section-row-${section.id}`}
       data-section-row={section.id}
       tabIndex={-1}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              aria-label={`Drag ${section.type} section`}
-              className="btn-ghost cursor-grab px-2 py-1 text-xs active:cursor-grabbing"
-              data-testid={`drag-handle-${section.id}`}
-              {...attributes}
-              {...listeners}
-            >
-              ⋮⋮
-            </button>
-            <button
-              type="button"
-              onClick={onToggleCollapsed}
-              aria-expanded={!collapsed}
-              aria-label={collapsed ? "Expand section" : "Collapse section"}
-              className="btn-ghost px-2 py-1 text-xs"
-              data-testid={`toggle-collapsed-${section.id}`}
-            >
-              {collapsed ? "▸" : "▾"}
-            </button>
-            <span className="uppercase tracking-widest text-ivory-mute">{section.type}</span>
-            {validationMessage ? (
-              <span
-                className="rounded-pill border border-red-400/40 bg-red-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-red-200"
-                title={validationMessage}
-                data-testid={`validation-badge-${section.id}`}
-              >
-                Needs fix
-              </span>
-            ) : null}
-            {!section.visible ? (
-              <span className="rounded-pill border border-onyx-700 bg-onyx-950/60 px-2 py-0.5 text-[10px] uppercase tracking-widest text-ivory-mute">
-                Hidden
-              </span>
-            ) : null}
-            {summary ? (
-              <span className="truncate text-xs text-ivory-mute" title={summary}>
-                — {summary}
-              </span>
-            ) : null}
-          </div>
-          {!collapsed ? (
-            <label className="flex items-center gap-2 text-xs uppercase tracking-widest text-ivory-mute">
-              <input
-                type="checkbox"
-                checked={section.visible}
-                onChange={(event) => onChange({ ...section, visible: event.target.checked })}
-                className="size-4 rounded border-onyx-700 bg-onyx-950"
-              />
-              Visible
-            </label>
-          ) : null}
-        </div>
-
-        <div className="flex shrink-0 flex-wrap justify-end gap-1 sm:gap-2">
-          <button type="button" onClick={onDuplicate} className="btn-ghost px-2 py-1 text-xs" aria-label="Duplicate" data-testid={`duplicate-${section.id}`}>⧉</button>
-          <button type="button" onClick={onCopyJson} className="btn-ghost px-2 py-1 text-xs" aria-label="Copy JSON" title="Copy section JSON" data-testid={`copy-json-${section.id}`}>⧉JSON</button>
-          <button type="button" onClick={() => onMove(index, -1)} className="btn-ghost px-2 py-1 text-xs" aria-label="Move up">↑</button>
-          <button type="button" onClick={() => onMove(index, 1)} className="btn-ghost px-2 py-1 text-xs" aria-label="Move down">↓</button>
-          <button type="button" onClick={() => onRemove(index)} className="btn-ghost px-2 py-1 text-xs" aria-label="Remove">×</button>
-        </div>
-      </div>
+      <SectionRowHeader
+        section={section}
+        index={index}
+        collapsed={collapsed}
+        summary={summary}
+        validationMessage={validationMessage}
+        onToggleCollapsed={onToggleCollapsed}
+        onToggleVisible={() => onChange({ ...section, visible: !section.visible })}
+        onDuplicate={onDuplicate}
+        onCopyJson={onCopyJson}
+        onMove={onMove}
+        onRemove={onRemove}
+        dragAttributes={attributes}
+        dragListeners={listeners}
+      />
 
       {validationMessage && !collapsed && (
         <p className="rounded-card border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
@@ -1946,10 +2067,10 @@ export default function EditorClient({
         <button
           type="button"
           onClick={() => setMobilePreviewOpen(true)}
-          className="btn-gold w-full px-3 py-3 text-xs uppercase tracking-widest md:hidden"
+          className="btn-ghost mx-auto inline-flex items-center gap-2 rounded-pill border border-onyx-700 px-4 py-2 text-xs uppercase tracking-widest text-ivory-dim hover:border-gold/40 hover:text-gold md:hidden"
           data-testid="mobile-preview-open"
         >
-          Show live preview
+          <span aria-hidden>👁</span> Live preview
         </button>
 
         {/* ─── Tab bar ─── */}
@@ -2269,13 +2390,13 @@ export default function EditorClient({
 
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-ivory-mute">Sections</p>
-              <p className="mt-1 text-sm text-ivory-dim">
-                {sections.length === 0
-                  ? "Your profile is empty — add your first section below."
-                  : "Tap a row to expand it. Drag the handle to reorder. Use ↑/↓ keys after focusing the handle."}
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-widest text-ivory-mute">
+                Sections {sections.length > 0 ? <span className="ml-1 text-ivory-dim/70 normal-case tracking-normal">· {sections.length}</span> : null}
               </p>
+              {sections.length === 0 ? (
+                <p className="mt-1 text-sm text-ivory-dim">Your profile is empty — add your first section below.</p>
+              ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -2285,7 +2406,7 @@ export default function EditorClient({
                 aria-expanded={templatesOpen}
                 data-testid="templates-trigger"
               >
-                Templates…
+                Templates
               </button>
               <button
                 type="button"
@@ -2304,16 +2425,26 @@ export default function EditorClient({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter sections…"
-              className={`${INPUT_CLASS_NAME} max-w-xs`}
+              className={`${INPUT_CLASS_NAME} max-w-xs flex-1`}
               data-testid="section-filter"
             />
-            <button type="button" onClick={expandAll} className="btn-ghost px-3 py-2 text-xs">Expand all</button>
-            <button type="button" onClick={collapseAll} className="btn-ghost px-3 py-2 text-xs">Collapse all</button>
-            <button type="button" onClick={hideAll} className="btn-ghost px-3 py-2 text-xs">Hide all</button>
-            <button type="button" onClick={showAll} className="btn-ghost px-3 py-2 text-xs">Show all</button>
-            <button type="button" onClick={pasteSectionJson} className="btn-ghost px-3 py-2 text-xs" data-testid="paste-section">Paste section</button>
-            <button type="button" onClick={() => setBulkLinksOpen(true)} className="btn-ghost px-3 py-2 text-xs" data-testid="bulk-links-trigger">Bulk add links</button>
-            <button type="button" onClick={openProductPicker} className="btn-ghost px-3 py-2 text-xs" data-testid="product-picker-trigger">Add product link</button>
+            <details className="relative" data-testid="sections-more-menu">
+              <summary
+                className="btn-ghost cursor-pointer list-none px-3 py-2 text-xs [&::-webkit-details-marker]:hidden"
+                aria-label="More section tools"
+              >
+                More ⋯
+              </summary>
+              <div className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-card border border-onyx-700 bg-onyx-950 shadow-lg">
+                <button type="button" onClick={expandAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Expand all</button>
+                <button type="button" onClick={collapseAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Collapse all</button>
+                <button type="button" onClick={hideAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Hide all</button>
+                <button type="button" onClick={showAll} className="block w-full border-b border-onyx-800 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Show all</button>
+                <button type="button" onClick={pasteSectionJson} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="paste-section">Paste section JSON</button>
+                <button type="button" onClick={() => setBulkLinksOpen(true)} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="bulk-links-trigger">Bulk add links</button>
+                <button type="button" onClick={openProductPicker} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="product-picker-trigger">Add product link</button>
+              </div>
+            </details>
           </div>
           <AnimatePresence>
             {templatesOpen ? (

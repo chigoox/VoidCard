@@ -32,6 +32,7 @@ test.describe("builder", () => {
 
   test("bulk-add links creates link sections", async ({ page }) => {
     await page.goto("/edit");
+    await page.getByTestId("sections-more-menu").locator("summary").click();
     await page.getByTestId("bulk-links-trigger").click();
     await expect(page.getByTestId("bulk-links-modal")).toBeVisible();
     await page
@@ -65,6 +66,7 @@ test.describe("builder", () => {
 
   test("product picker opens and lists products", async ({ page }) => {
     await page.goto("/edit");
+    await page.getByTestId("sections-more-menu").locator("summary").click();
     await page.getByTestId("product-picker-trigger").click();
     await expect(page.getByTestId("product-picker-modal")).toBeVisible();
   });
