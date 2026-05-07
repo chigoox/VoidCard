@@ -52,6 +52,8 @@ export function PairCardClient({
   prefillCardId?: string;
   serverError?: string | null;
 }) {
+  const nfcSupported = typeof window !== "undefined" && "NDEFReader" in window;
+
   const [scanState, setScanState] = useState<WriteState>("idle");
   const [scanError, setScanError] = useState<string | null>(null);
   const [scannedId, setScannedId] = useState<string | null>(prefillCardId ?? null);
@@ -60,6 +62,8 @@ export function PairCardClient({
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [pending, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
+
+  const errorMsg = serverError ?? scanError;
 
   // Submit with cardId hidden + serial for double-check
   function doSubmit(id?: string) {

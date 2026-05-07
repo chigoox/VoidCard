@@ -76,6 +76,7 @@ const config: Config = {
       animation: {
         "shine": "shine 2.4s linear infinite",
         "fade-in": "fadeIn 240ms ease-out",
+        scan: "scan 2s ease-in-out infinite",
       },
       keyframes: {
         shine: {
@@ -83,6 +84,7 @@ const config: Config = {
           "100%": { backgroundPosition: "200% 0" },
         },
         fadeIn: { "0%": { opacity: "0", transform: "translateY(4px)" }, "100%": { opacity: "1", transform: "translateY(0)" } },
+        scan: { "0%, 100%": { top: "0%" }, "50%": { top: "calc(100% - 2px)" } },
       },
     },
   },

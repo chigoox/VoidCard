@@ -2,6 +2,8 @@
 
 import { useRef, useState, useTransition } from "react";
 import { markProvisioned } from "./actions";
+import { BrandedQR } from "@/components/BrandedQR";
+import QRCodeLib from "qrcode";
 
 type WriteState = "idle" | "waiting" | "success" | "error";
 
@@ -58,6 +60,18 @@ export function AdminNfcWriter({
     }
   }
 
+  async function downloadQr() {
+    const dataUrl = await QRCodeLib.toDataURL(tapUrl, {
+      width: 512,
+      margin: 2,
+      color: { dark: "#f7f3ea", light: "#0a0a0b" },
+    });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `voidcard-qr-${serial}.png`;
+    a.click();
+  }
+
   function cancelWrite() {
     abortRef.current?.abort();
     setWriteState("idle");
@@ -105,6 +119,26 @@ export function AdminNfcWriter({
               >
                 ✕
               </button>
+            </div>
+
+            {/* QR code */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-widest text-ivory-mute">Card QR code</p>
+                <button
+                  type="button"
+                  onClick={downloadQr}
+                  className="text-xs text-gold hover:underline"
+                >
+                  ↓ Download PNG
+                </button>
+              </div>
+              <div className="flex justify-center rounded-xl border border-onyx-700 bg-onyx-900 p-4">
+                <BrandedQR value={tapUrl} size={180} variant="onyx" withLogo logoText="V" />
+              </div>
+              <p className="text-center text-[10px] text-ivory-mute">
+                Print and attach to card packaging · same URL as NFC tag
+              </p>
             </div>
 
             {/* URL to write */}
