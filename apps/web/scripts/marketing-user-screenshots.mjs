@@ -68,16 +68,25 @@ async function capture(browser, vp, usernames) {
   });
   const page = await context.newPage();
 
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("vc.consent.v1", JSON.stringify({ analytics: false, marketing: false, ts: Date.now() }));
+      localStorage.setItem("vc.cookie_id", "marketing-user-screenshot");
+    } catch {}
+  });
+
   for (const u of usernames) {
     const url = `${BASE_URL}/u/${u}`;
     const file = path.join(dir, `${u}.png`);
     try {
-      const resp = await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+      const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
       const status = resp?.status() ?? 0;
       if (status >= 400) {
         console.warn(`[${vp.name}] ${u} -> HTTP ${status} (skipped)`);
         continue;
       }
+      await page.getByRole("button", { name: "Reject all" }).click({ timeout: 1_000 }).catch(() => null);
+      await loadLazyContent(page);
       await page.waitForTimeout(900);
       await page.screenshot({ path: file, fullPage: true });
       console.log(`[${vp.name}] ${u} -> ${path.relative(repoRoot, file)}`);
@@ -89,6 +98,27 @@ async function capture(browser, vp, usernames) {
   await context.close();
 }
 
+async function loadLazyContent(page) {
+  await page.evaluate(async () => {
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const step = Math.max(400, Math.floor(window.innerHeight * 0.75));
+    const maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    for (let y = 0; y <= maxY; y += step) {
+      window.scrollTo(0, y);
+      await delay(120);
+    }
+    window.scrollTo(0, maxY);
+    await delay(180);
+    window.scrollTo(0, 0);
+  });
+
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForFunction(() =>
+    Array.from(document.images).every((img) => img.complete && img.naturalWidth > 0),
+    { timeout: 10_000 },
+  ).catch(() => null);
+}
+
 (async () => {
   console.log(`Base URL: ${BASE_URL}`);
   console.log(`Output:   ${outRoot}`);
@@ -96,7 +126,7 @@ async function capture(browser, vp, usernames) {
   const browser = await chromium.launch();
   try {
     const usernames = USERNAMES.length > 0 ? USERNAMES.slice(0, LIMIT) : await discoverUsernames(browser);
-    console.log(`Discovered ${usernames.length} usernames: ${usernames.join(", ") || "(none)"}`);
+    console.log(`${USERNAMES.length > 0 ? "Using" : "Discovered"} ${usernames.length} usernames: ${usernames.join(", ") || "(none)"}`);
     if (!usernames.length) {
       console.warn("No public profiles found on /discover. Nothing to capture.");
       return;

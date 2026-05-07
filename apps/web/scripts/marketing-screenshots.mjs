@@ -62,6 +62,8 @@ async function capture(browser, vp) {
   // Best-effort cookie banner / animation suppression.
   await page.addInitScript(() => {
     try {
+      localStorage.setItem("vc.consent.v1", JSON.stringify({ analytics: false, marketing: false, ts: Date.now() }));
+      localStorage.setItem("vc.cookie_id", "marketing-screenshot");
       localStorage.setItem("cookie-consent", "accepted");
       localStorage.setItem("vcard-cookie-consent", "accepted");
     } catch {}
@@ -77,6 +79,7 @@ async function capture(browser, vp) {
         console.warn(`[${vp.name}] ${slug} ${url} -> HTTP ${status} (skipped)`);
         continue;
       }
+      await page.getByRole("button", { name: "Reject all" }).click({ timeout: 1_000 }).catch(() => null);
       // Let lazy content settle.
       await page.waitForTimeout(800);
       await page.screenshot({ path: file, fullPage: true });

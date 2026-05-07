@@ -205,14 +205,6 @@ function social(items) {
 async function findUserByEmail(email) {
   const { data: profile } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
   if (profile?.id) return profile.id;
-
-  for (let page = 1; page <= 20; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) throw error;
-    const match = data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
-    if (match?.id) return match.id;
-    if (data.users.length < 1000) break;
-  }
   return null;
 }
 
@@ -226,7 +218,9 @@ async function ensureDemoUser() {
     email_confirm: true,
     user_metadata: { display_name: "VoidCard Marketing Demo" },
   });
-  if (error) throw error;
+  if (error) {
+    throw new Error(`Could not create ${EMAIL}. If the Auth user already exists, add its id to public.profiles.email first. ${error.message}`);
+  }
   if (!data.user?.id) throw new Error("Supabase did not return a demo user id.");
   return data.user.id;
 }
@@ -246,20 +240,28 @@ async function upsertSharedProfile(userId, primary) {
 }
 
 async function upsertEntitlements(userId) {
-  const { error: subscriptionError } = await admin.from("vcard_subscriptions").upsert(
-    {
-      user_id: userId,
-      stripe_customer_id: "cus_marketing_demo",
-      stripe_subscription_id: "sub_marketing_demo",
-      plan: "pro",
-      interval: "month",
-      status: "active",
-      current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      seats: 1,
-    },
-    { onConflict: "user_id" },
-  );
-  if (subscriptionError) throw subscriptionError;
+  const subscriptionPayload = {
+    user_id: userId,
+    stripe_customer_id: "cus_marketing_demo",
+    stripe_subscription_id: "sub_marketing_demo",
+    plan: "pro",
+    interval: "month",
+    status: "active",
+    current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    seats: 1,
+  };
+  const { data: existingSubscription, error: subscriptionLookupError } = await admin
+    .from("vcard_subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .is("team_id", null)
+    .limit(1)
+    .maybeSingle();
+  if (subscriptionLookupError) throw subscriptionLookupError;
+  const subscriptionResult = existingSubscription?.id
+    ? await admin.from("vcard_subscriptions").update(subscriptionPayload).eq("id", existingSubscription.id)
+    : await admin.from("vcard_subscriptions").insert(subscriptionPayload);
+  if (subscriptionResult.error) throw subscriptionResult.error;
 
   const { data: existingVerification, error: lookupError } = await admin
     .from("vcard_verifications")
