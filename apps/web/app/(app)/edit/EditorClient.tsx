@@ -23,7 +23,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listShopProductsForPicker, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
+import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
 import {
   Section as SectionSchema,
   SECTION_ANIMATIONS,
@@ -1331,7 +1331,7 @@ export default function EditorClient({
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [versionLabel, setVersionLabel] = useState("");
   const [productPickerOpen, setProductPickerOpen] = useState(false);
-  const [productList, setProductList] = useState<Array<{ sku: string; name: string; blurb: string | null; priceCents: number; currency: string }>>([]);
+  const [productList, setProductList] = useState<Array<{ id: string; name: string; priceCents: number; currency: string; active: boolean; imageUrl: string | null }>>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [variantsOpen, setVariantsOpen] = useState(false);
   const [variantList, setVariantList] = useState<Array<{ id: string; name: string; weight: number; enabled: boolean; sections: unknown; views: number; conversions: number; updated_at: string }>>([]);
@@ -1542,23 +1542,27 @@ export default function EditorClient({
     if (productList.length > 0) return;
     setProductsLoading(true);
     try {
-      const r = await listShopProductsForPicker();
-      if (r.ok) setProductList(r.products);
+      const r = await listOwnedSellerProducts();
+      if (r.ok) setProductList(r.products.filter((p) => p.active));
     } finally {
       setProductsLoading(false);
     }
   }
 
-  function insertProductLink(p: { sku: string; name: string }) {
-    const id = crypto.randomUUID();
-    const url = `${typeof window !== "undefined" ? window.location.origin : "https://vcard.ed5enterprise.com"}/shop/${encodeURIComponent(p.sku)}`;
-    const nextSection: SectionRecord = { id, type: "link", visible: true, props: { label: p.name, url, style: "card" } };
+  function insertProductLink(p: { id: string; name: string }) {
+    const sectionId = crypto.randomUUID();
+    const nextSection: SectionRecord = {
+      id: sectionId,
+      type: "store",
+      visible: true,
+      props: { title: p.name, productIds: [p.id], layout: "grid", showPrice: true, buttonLabel: "Buy now" },
+    };
     pushHistory();
     markDirty();
     setSections((prev) => [...prev, nextSection]);
-    setCollapsed((prev) => ({ ...prev, [id]: false }));
+    setCollapsed((prev) => ({ ...prev, [sectionId]: false }));
     setProductPickerOpen(false);
-    setAnnouncement(`Added link for ${p.name}`);
+    setAnnouncement(`Added store section for ${p.name}`);
   }
 
   function applyTemplate(templateId: string) {
@@ -1927,8 +1931,9 @@ export default function EditorClient({
         {previewCustomCss ? <style dangerouslySetInnerHTML={{ __html: previewCustomCss }} /> : null}
         <div className="phone-frame mx-auto">
           <div
-            className="vc-profile vc-profile-preview pointer-events-none flex h-full flex-col p-5 select-none"
+            className="vc-profile vc-profile-preview flex h-full flex-col overflow-y-auto overscroll-contain p-5 select-none [&_a]:pointer-events-none [&_button]:pointer-events-none"
             style={{ background: "var(--vc-bg, #0a0a0a)", color: "var(--vc-fg, #f7f3ea)" }}
+            data-testid="preview-scroll"
           >
             <div className="space-y-3">
               {sections.map((section) => <PreviewSection key={section.id} section={section} />)}
@@ -2489,27 +2494,26 @@ export default function EditorClient({
           >
             <div className="card w-full max-w-lg space-y-3 p-5 text-sm">
               <div className="flex items-center justify-between">
-                <p className="font-display text-lg text-ivory">Add a product link</p>
+                <p className="font-display text-lg text-ivory">Add a product</p>
                 <button type="button" className="text-ivory-dim hover:text-ivory" onClick={() => setProductPickerOpen(false)} aria-label="Close">×</button>
               </div>
-              <p className="text-xs text-ivory-mute">Inserts a link section pointing to your shop product page.</p>
+              <p className="text-xs text-ivory-mute">Inserts a Store section for one of your products. Manage your catalog at <a className="text-gold underline" href="/account/products">/account/products</a>.</p>
               {productsLoading ? (
                 <p className="text-xs text-ivory-dim">Loading products…</p>
               ) : productList.length === 0 ? (
-                <p className="text-xs text-ivory-dim">No products available.</p>
+                <p className="text-xs text-ivory-dim">You haven&apos;t added any products yet. <a className="text-gold underline" href="/account/products">Add one →</a></p>
               ) : (
                 <ul className="max-h-80 space-y-1 overflow-auto" data-testid="product-picker-list">
                   {productList.map((p) => (
-                    <li key={p.sku}>
+                    <li key={p.id}>
                       <button
                         type="button"
                         className="flex w-full items-center justify-between gap-3 rounded border border-ivory/10 px-3 py-2 text-left hover:border-gold/40"
                         onClick={() => insertProductLink(p)}
-                        data-testid={`product-pick-${p.sku}`}
+                        data-testid={`product-pick-${p.id}`}
                       >
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-ivory">{p.name}</span>
-                          {p.blurb ? <span className="block truncate text-xs text-ivory-dim">{p.blurb}</span> : null}
                         </span>
                         <span className="text-xs text-gold">${(p.priceCents / 100).toFixed(2)}</span>
                       </button>
