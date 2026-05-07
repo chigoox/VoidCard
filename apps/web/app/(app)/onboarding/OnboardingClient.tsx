@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { capture } from "@/lib/posthog-browser";
-import { ONBOARDING_TOTAL_STEPS } from "@/lib/onboarding";
+import { ONBOARDING_TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { BLANK_VIBE_ID, VIBES } from "@/lib/onboarding-vibes";
 import {
   addInitialLinks,

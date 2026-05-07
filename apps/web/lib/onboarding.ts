@@ -1,9 +1,9 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ONBOARDING_COOKIE, ONBOARDING_TOTAL_STEPS } from "@/lib/onboarding-constants";
 
-export const ONBOARDING_TOTAL_STEPS = 5;
-export const ONBOARDING_COOKIE = "vcard_onb";
+export { ONBOARDING_COOKIE, ONBOARDING_TOTAL_STEPS };
 
 /**
  * Read the current onboarding step from `vcard_profile_ext.onboarding_state`.
