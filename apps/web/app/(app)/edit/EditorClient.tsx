@@ -1944,37 +1944,64 @@ export default function EditorClient({
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            {THEME_PRESETS.map((theme) => (
-              <button
-                key={theme.id}
-                type="button"
-                onClick={() => {
-                  pushHistory();
-                  markDirty();
-                  setThemeId(theme.id);
-                }}
-                aria-pressed={themeId === theme.id}
-                className={[
-                  "rounded-card border px-3 py-3 text-left transition",
-                  themeId === theme.id
-                    ? "border-gold/60 bg-onyx-900/80 shadow-[0_0_0_1px_rgba(212,168,83,0.25)]"
-                    : "border-onyx-700 bg-onyx-900/40 hover:border-gold/30",
-                ].join(" ")}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-display text-sm text-ivory">{theme.name}</p>
-                    <p className="mt-1 text-xs text-ivory-mute">{theme.description}</p>
-                  </div>
-                  <div className="flex gap-1">
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.bg }} />
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.fg }} />
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.accent }} />
-                  </div>
+          <div className="space-y-2">
+            <Field label="Theme">
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className={`${INPUT_CLASS_NAME} sm:max-w-xs`}
+                  value={studio.customColors ? "__custom__" : themeId}
+                  data-testid="theme-select"
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    pushHistory();
+                    markDirty();
+                    if (next === "__custom__") {
+                      // Seed custom palette from the currently active theme.
+                      const preset = getThemePreset(themeId);
+                      setStudio({
+                        ...studio,
+                        customColors: true,
+                        bg: preset.vars["--vc-bg"] ?? studio.bg,
+                        bg2: preset.vars["--vc-bg-2"] ?? studio.bg2,
+                        fg: preset.vars["--vc-fg"] ?? studio.fg,
+                        fgMute: preset.vars["--vc-fg-mute"] ?? studio.fgMute,
+                        accent: preset.vars["--vc-accent"] ?? studio.accent,
+                        accent2: preset.vars["--vc-accent-2"] ?? studio.accent2,
+                      });
+                      return;
+                    }
+                    if (studio.customColors) setStudio({ ...studio, customColors: false });
+                    setThemeId(next);
+                  }}
+                >
+                  {THEME_PRESETS.map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name} — {theme.description}
+                    </option>
+                  ))}
+                  <option value="__custom__">Custom colors (pick your own palette)</option>
+                </select>
+                <div className="flex gap-1" aria-hidden="true">
+                  <span
+                    className="size-5 rounded-full border border-white/10"
+                    style={{ backgroundColor: studio.customColors ? studio.bg : getThemePreset(themeId).preview.bg }}
+                  />
+                  <span
+                    className="size-5 rounded-full border border-white/10"
+                    style={{ backgroundColor: studio.customColors ? studio.fg : getThemePreset(themeId).preview.fg }}
+                  />
+                  <span
+                    className="size-5 rounded-full border border-white/10"
+                    style={{ backgroundColor: studio.customColors ? studio.accent : getThemePreset(themeId).preview.accent }}
+                  />
                 </div>
-              </button>
-            ))}
+              </div>
+            </Field>
+            <p className="text-xs text-ivory-mute">
+              {studio.customColors
+                ? "Using custom colors. Edit the palette in Style studio below, or pick a preset to switch back."
+                : `Active: ${getThemePreset(themeId).name}. Choose “Custom colors” to override the palette with your own picks.`}
+            </p>
           </div>
 
           <Field label="Custom CSS">
@@ -1993,7 +2020,7 @@ export default function EditorClient({
           </Field>
         </section>
 
-        <StyleStudioPanel studio={studio} onChange={setStudio} />
+        <StyleStudioPanel studio={studio} onChange={setStudio} themeId={themeId} />
 
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-2">

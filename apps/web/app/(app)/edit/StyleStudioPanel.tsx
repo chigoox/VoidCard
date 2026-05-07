@@ -1,6 +1,7 @@
 "use client";
 import type { ReactNode } from "react";
 import { DEFAULT_STYLE_STUDIO, type StyleStudio } from "@/lib/editor/styleStudio";
+import { getThemePreset } from "@/lib/themes/presets";
 
 const INPUT_CLASS_NAME =
   "w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2.5 text-sm text-ivory outline-none transition focus:border-gold/60";
@@ -22,9 +23,62 @@ function Field({
   );
 }
 
-export default function StyleStudioPanel({ studio, onChange }: { studio: StyleStudio; onChange: (next: StyleStudio) => void }) {
+function ColorInput({
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  ariaLabel: string;
+}) {
+  // <input type="color"> requires a 6-char hex; coerce shorthand and reject bad values silently.
+  const safe = /^#[0-9a-f]{6}$/i.test(value) ? value : "#000000";
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={safe}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-14 cursor-pointer rounded border border-onyx-700 bg-onyx-950"
+        aria-label={ariaLabel}
+      />
+      <input
+        className={INPUT_CLASS_NAME}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        spellCheck={false}
+        maxLength={9}
+        placeholder="#000000"
+      />
+    </div>
+  );
+}
+
+export default function StyleStudioPanel({
+  studio,
+  onChange,
+  themeId,
+}: {
+  studio: StyleStudio;
+  onChange: (next: StyleStudio) => void;
+  themeId?: string;
+}) {
   function patch<K extends keyof StyleStudio>(key: K, value: StyleStudio[K]) {
     onChange({ ...studio, [key]: value });
+  }
+  function seedFromTheme() {
+    const preset = getThemePreset(themeId ?? null);
+    onChange({
+      ...studio,
+      customColors: true,
+      bg: preset.vars["--vc-bg"] ?? studio.bg,
+      bg2: preset.vars["--vc-bg-2"] ?? studio.bg2,
+      fg: preset.vars["--vc-fg"] ?? studio.fg,
+      fgMute: preset.vars["--vc-fg-mute"] ?? studio.fgMute,
+      accent: preset.vars["--vc-accent"] ?? studio.accent,
+      accent2: preset.vars["--vc-accent-2"] ?? studio.accent2,
+    });
   }
   return (
     <section className="card space-y-3 p-4" data-testid="style-studio">
@@ -41,19 +95,68 @@ export default function StyleStudioPanel({ studio, onChange }: { studio: StyleSt
           Reset
         </button>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Accent color">
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={studio.accent}
-              onChange={(e) => patch("accent", e.target.value)}
-              className="h-10 w-14 cursor-pointer rounded border border-onyx-700 bg-onyx-950"
-              aria-label="Accent color picker"
-            />
-            <input className={INPUT_CLASS_NAME} value={studio.accent} onChange={(e) => patch("accent", e.target.value)} />
+
+      <div className="rounded-card border border-onyx-700 bg-onyx-950/60 p-3">
+        <label className="flex items-start gap-2 text-sm text-ivory">
+          <input
+            type="checkbox"
+            checked={studio.customColors}
+            onChange={(e) => {
+              if (e.target.checked) {
+                seedFromTheme();
+              } else {
+                patch("customColors", false);
+              }
+            }}
+            className="mt-1 size-4 rounded border-onyx-700 bg-onyx-950"
+            data-testid="style-studio-custom-toggle"
+          />
+          <span>
+            <span className="font-medium">Customize colors</span>
+            <span className="block text-xs text-ivory-mute">
+              Override the theme palette with your own picks. Toggle off to revert to the selected theme.
+            </span>
+          </span>
+        </label>
+
+        {studio.customColors ? (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2" data-testid="style-studio-color-grid">
+            <Field label="Background">
+              <ColorInput value={studio.bg} onChange={(v) => patch("bg", v)} ariaLabel="Background color" />
+            </Field>
+            <Field label="Surface (cards)">
+              <ColorInput value={studio.bg2} onChange={(v) => patch("bg2", v)} ariaLabel="Surface color" />
+            </Field>
+            <Field label="Text">
+              <ColorInput value={studio.fg} onChange={(v) => patch("fg", v)} ariaLabel="Text color" />
+            </Field>
+            <Field label="Muted text">
+              <ColorInput value={studio.fgMute} onChange={(v) => patch("fgMute", v)} ariaLabel="Muted text color" />
+            </Field>
+            <Field label="Accent">
+              <ColorInput value={studio.accent} onChange={(v) => patch("accent", v)} ariaLabel="Accent color" />
+            </Field>
+            <Field label="Accent (highlight)">
+              <ColorInput value={studio.accent2} onChange={(v) => patch("accent2", v)} ariaLabel="Accent highlight color" />
+            </Field>
+            <button
+              type="button"
+              className="btn-ghost text-xs sm:col-span-2"
+              onClick={seedFromTheme}
+            >
+              Reseed from current theme
+            </button>
           </div>
-        </Field>
+        ) : (
+          <div className="mt-3">
+            <Field label="Accent color">
+              <ColorInput value={studio.accent} onChange={(v) => patch("accent", v)} ariaLabel="Accent color" />
+            </Field>
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label={`Corner radius — ${studio.radius}px`}>
           <input type="range" min={0} max={32} value={studio.radius} onChange={(e) => patch("radius", Number(e.target.value))} className="w-full" />
         </Field>
