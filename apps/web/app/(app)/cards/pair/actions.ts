@@ -19,16 +19,6 @@ export async function pairCardAction(formData: FormData): Promise<void> {
 
   const ent = entitlementsFor(user.plan, { extraStorageBytes: user.bonusStorageBytes });
   const sb = await createClient();
-
-  // Enforce paired-cards-max for plan.
-  const { count } = await sb
-    .from("vcard_cards")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
-  if ((count ?? 0) >= ent.pairedCardsMax) {
-    redirect("/cards/pair?err=plan_limit");
-  }
-
   const admin = createAdminClient();
   const lookup = cardIdParam || serialOrId;
 
@@ -51,8 +41,23 @@ export async function pairCardAction(formData: FormData): Promise<void> {
   if (card.user_id && card.user_id !== user.id) {
     redirect("/cards/pair?err=already_paired");
   }
+  if (card.status === "unprovisioned") {
+    redirect("/cards/pair?err=not_ready");
+  }
   if (card.status === "lost" || card.status === "replaced") {
     redirect("/cards/pair?err=deactivated");
+  }
+
+  // Enforce plan limit only when claiming a NEW card (not re-linking their own).
+  // If card.user_id is already this user, they're just re-confirming — skip the count.
+  if (!card.user_id) {
+    const { count } = await sb
+      .from("vcard_cards")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    if ((count ?? 0) >= ent.pairedCardsMax) {
+      redirect("/cards/pair?err=plan_limit");
+    }
   }
 
   const { error } = await admin
@@ -68,6 +73,43 @@ export async function pairCardAction(formData: FormData): Promise<void> {
 
   await audit({
     action: "card.pair",
+    actorId: user.id,
+    actorRole: user.role,
+    targetKind: "vcard_cards",
+    targetId: card.id,
+    diff: { serial: card.serial },
+  });
+
+  revalidatePath("/cards");
+  redirect("/cards");
+}
+
+export async function unpairCardAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const cardId = String(formData.get("cardId") ?? "").trim();
+  if (!cardId) redirect("/cards?err=missing");
+
+  const admin = createAdminClient();
+
+  // Verify the card belongs to this user before unlinking.
+  const { data: card } = await admin
+    .from("vcard_cards")
+    .select("id, serial, status")
+    .eq("id", cardId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!card) redirect("/cards?err=not_found");
+
+  const { error } = await admin
+    .from("vcard_cards")
+    .update({ user_id: null, status: "sold", paired_at: null })
+    .eq("id", card.id);
+
+  if (error) redirect("/cards?err=internal");
+
+  await audit({
+    action: "card.unpair",
     actorId: user.id,
     actorRole: user.role,
     targetKind: "vcard_cards",

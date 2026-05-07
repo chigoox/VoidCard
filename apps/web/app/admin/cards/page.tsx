@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { batchCreateCards, disableCard } from "./actions";
+import { AdminNfcWriter } from "./AdminNfcWriter";
 
 export const dynamic = "force-dynamic";
 
@@ -72,12 +73,13 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
               <th className="px-4 py-3">Owner</th>
               <th className="px-4 py-3">Taps</th>
               <th className="px-4 py-3">Last tap</th>
+              <th className="px-4 py-3">NFC</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-onyx-700/60">
             {cards.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-ivory-mute">No cards.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-ivory-mute">No cards.</td></tr>
             )}
             {cards.map((c) => (
               <tr key={c.id}>
@@ -92,6 +94,9 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
                 <td className="px-4 py-3 tabular-nums">{c.total_taps}</td>
                 <td className="px-4 py-3 text-xs text-ivory-mute">
                   {c.last_tap_at ? new Date(c.last_tap_at).toLocaleString() : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <AdminNfcWriter cardId={c.id} serial={c.serial} currentStatus={c.status} />
                 </td>
                 <td className="px-4 py-3">
                   <form action={disableCard}>

@@ -67,3 +67,20 @@ export async function disableCard(formData: FormData) {
   await audit({ action: "admin.cards.disable", actorId: u.id, targetKind: "vcard_cards", targetId: id });
   revalidatePath("/admin/cards");
 }
+
+/** Mark a card as provisioned (NFC URL written, ready to ship). status: unprovisioned → sold */
+export async function markProvisioned(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const u = await requireAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "Invalid card ID." };
+  const sb = createAdminClient();
+  const { error } = await sb
+    .from("vcard_cards")
+    .update({ status: "sold" })
+    .eq("id", id)
+    .eq("status", "unprovisioned"); // Only advance from unprovisioned
+  if (error) return { ok: false, error: error.message };
+  await audit({ action: "admin.cards.provisioned", actorId: u.id, targetKind: "vcard_cards", targetId: id });
+  revalidatePath("/admin/cards");
+  return { ok: true };
+}

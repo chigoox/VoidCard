@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { unpairCardAction } from "./pair/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -44,18 +45,35 @@ export default async function CardsPage() {
             data-testid="card-row"
             className="rounded-lg border border-onyx-700 bg-onyx-900 p-4"
           >
-            <div className="flex items-baseline justify-between gap-3">
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="font-mono text-sm text-ivory">{c.serial}</div>
                 <div className="text-xs uppercase tracking-widest text-ivory-dim">
                   {c.sku} · {c.status}
                 </div>
-              </div>
-              <div className="text-right text-xs text-ivory-dim">
-                <div>{Number(c.total_taps).toLocaleString()} taps</div>
-                {c.last_tap_at && (
-                  <div>last {new Date(c.last_tap_at).toLocaleString()}</div>
+                {c.paired_at && (
+                  <div className="mt-1 text-[11px] text-ivory-mute">
+                    Paired {new Date(c.paired_at).toLocaleDateString()}
+                  </div>
                 )}
+              </div>
+              <div className="flex flex-col items-end gap-2 text-xs text-ivory-dim">
+                <div className="text-right">
+                  <div>{Number(c.total_taps).toLocaleString()} taps</div>
+                  {c.last_tap_at && (
+                    <div>last {new Date(c.last_tap_at).toLocaleDateString()}</div>
+                  )}
+                </div>
+                <form action={unpairCardAction}>
+                  <input type="hidden" name="cardId" value={c.id} />
+                  <button
+                    type="submit"
+                    className="text-[11px] text-red-400/70 hover:text-red-400 underline underline-offset-2"
+                    data-testid="card-unpair"
+                  >
+                    Remove
+                  </button>
+                </form>
               </div>
             </div>
           </li>

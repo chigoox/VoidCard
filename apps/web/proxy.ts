@@ -221,7 +221,8 @@ export async function proxy(req: NextRequest) {
   if (!user && !isPublic(pathname)) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", pathname);
+    // Preserve search params (e.g. cardId from NFC tap) so they survive the login round-trip.
+    url.searchParams.set("next", pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
 
