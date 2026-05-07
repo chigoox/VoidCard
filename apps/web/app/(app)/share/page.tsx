@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getManagedProfile } from "@/lib/profiles";
 import { SITE_URL } from "@/lib/seo";
-import { BrandedQR } from "@/components/BrandedQR";
+import { QRCustomizer } from "@/components/QRCustomizer";
 import { ShareChannels } from "@/components/ShareChannels";
 import Link from "next/link";
 
@@ -46,17 +46,24 @@ export default async function SharePage() {
       ) : null}
 
       <section className="card p-6">
-        <p className="text-xs uppercase tracking-widest text-ivory-mute">QR code</p>
-        <div className="mt-4 grid place-items-center rounded-card bg-onyx-900 p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-ivory-mute">QR code</p>
+            <p className="mt-1 text-sm text-ivory-dim">Make it yours — pick a theme, shapes, and colors. Download as SVG or hi-res PNG.</p>
+          </div>
+        </div>
+        <div className="mt-4">
           {url ? (
-            <BrandedQR value={url} size={288} variant="onyx" className="rounded-card shadow-[0_8px_32px_-12px_rgba(212,168,83,0.35)]" />
+            <QRCustomizer url={url} />
           ) : (
-            <p className="max-w-xs text-center text-sm text-ivory-dim">
-              Publish your profile first, then come back to generate a QR code that won&apos;t send visitors to a 404 page.
-            </p>
+            <div className="grid place-items-center rounded-card bg-onyx-900 p-6">
+              <p className="max-w-xs text-center text-sm text-ivory-dim">
+                Publish your profile first, then come back to generate a QR code that won&apos;t send visitors to a 404 page.
+              </p>
+            </div>
           )}
         </div>
-        <p className="mt-3 text-xs text-ivory-mute">Print at 600 DPI for cards. Scan range ~30cm with phone camera.</p>
+        <p className="mt-3 text-xs text-ivory-mute">Tip: PNG 2048 is print-ready at 600 DPI for business cards.</p>
       </section>
 
       <section className="card p-6">
