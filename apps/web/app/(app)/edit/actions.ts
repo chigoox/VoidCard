@@ -220,6 +220,23 @@ export async function listShopProductsForPicker() {
   };
 }
 
+export async function listOwnedSellerProducts() {
+  const u = await requireUser();
+  const { listSellerProducts } = await import("@/lib/seller-products");
+  const products = await listSellerProducts(u.id);
+  return {
+    ok: true as const,
+    products: products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      priceCents: p.price_cents,
+      currency: p.currency,
+      active: p.active,
+      imageUrl: p.image_url,
+    })),
+  };
+}
+
 export async function getVariantB(profileId?: string) {
   const u = await requireUser();
   const profile = await getManagedProfile(u.id, profileId ?? null);

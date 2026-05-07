@@ -27,6 +27,7 @@ export type Entitlements = {
   analytics: true;
   contactCapture1Way: true;
   allSectionTypes: true;
+  sellerStorefront: true;
 };
 
 const FREE_FOR_ALL = {
@@ -37,6 +38,7 @@ const FREE_FOR_ALL = {
   analytics: true as const,
   contactCapture1Way: true as const,
   allSectionTypes: true as const,
+  sellerStorefront: true as const,
 };
 
 const STORAGE_BONUS_CAP = 25_000_000_000; // +25 GB cap

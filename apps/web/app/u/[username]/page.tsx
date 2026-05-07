@@ -16,7 +16,7 @@ import {
 import { queueWebhookEvent } from "@/lib/webhook-queue";
 import { getThemePreset, themeToCss } from "@/lib/themes/presets";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 export const revalidate = 60;
 
 const profileShellStyle: CSSProperties = {
@@ -195,7 +195,7 @@ export default async function PublicProfilePage({
       <div className="mx-auto max-w-md px-5 pb-24 pt-10 vc-profile" data-testid="profile-public-content">
         <div className="space-y-3">
           {sections.map((section) => (
-            <SectionRenderer key={section.id} section={section} verified={profile.verified} />
+            <SectionRenderer key={section.id} section={section} verified={profile.verified} username={handle} />
           ))}
         </div>
         {!profile.removeBranding && (

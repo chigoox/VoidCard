@@ -23,7 +23,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listShopProductsForPicker, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
+import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listShopProductsForPicker, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
 import {
   Section as SectionSchema,
   SECTION_ANIMATIONS,
@@ -525,6 +525,8 @@ function sectionSummary(section: SectionRecord): string {
       return `${section.props.amounts.length} amount${section.props.amounts.length === 1 ? "" : "s"}`;
     case "schedule":
       return section.props.url;
+    case "store":
+      return `${section.props.productIds.length} product${section.props.productIds.length === 1 ? "" : "s"}`;
   }
 }
 
@@ -979,6 +981,9 @@ function SectionEditorFields({
         </div>
       );
     }
+    case "store": {
+      return <StoreSectionEditorRow section={section} onChange={onChange} />;
+    }
   }
 }
 
@@ -1049,6 +1054,202 @@ function toLocalDatetime(iso: string): string {
   if (Number.isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+type OwnedSellerProduct = {
+  id: string;
+  name: string;
+  priceCents: number;
+  currency: string;
+  active: boolean;
+  imageUrl: string | null;
+};
+
+let ownedSellerProductsCache: OwnedSellerProduct[] | null = null;
+
+function StoreSectionEditorRow({
+  section,
+  onChange,
+}: {
+  section: Extract<SectionRecord, { type: "store" }>;
+  onChange: (next: SectionRecord) => void;
+}) {
+  const p = section.props;
+  const [products, setProducts] = useState<OwnedSellerProduct[] | null>(ownedSellerProductsCache);
+  const [loading, setLoading] = useState(ownedSellerProductsCache === null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (ownedSellerProductsCache !== null) return;
+    let cancelled = false;
+    setLoading(true);
+    listOwnedSellerProducts()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) {
+          ownedSellerProductsCache = res.products;
+          setProducts(res.products);
+        } else {
+          setError("Could not load products.");
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError("Could not load products.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function toggle(id: string) {
+    const has = p.productIds.includes(id);
+    const next = has
+      ? p.productIds.filter((x) => x !== id)
+      : [...p.productIds, id].slice(0, 24);
+    onChange({ ...section, props: { ...p, productIds: next } });
+  }
+
+  function move(id: string, dir: -1 | 1) {
+    const ids = [...p.productIds];
+    const idx = ids.indexOf(id);
+    if (idx < 0) return;
+    const to = idx + dir;
+    if (to < 0 || to >= ids.length) return;
+    [ids[idx], ids[to]] = [ids[to]!, ids[idx]!];
+    onChange({ ...section, props: { ...p, productIds: ids } });
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Title">
+          <input
+            className={INPUT_CLASS_NAME}
+            value={p.title}
+            onChange={(e) => onChange({ ...section, props: { ...p, title: e.target.value } })}
+            data-testid={`store-title-${section.id}`}
+          />
+        </Field>
+        <Field label="Button label">
+          <input
+            className={INPUT_CLASS_NAME}
+            value={p.buttonLabel}
+            onChange={(e) => onChange({ ...section, props: { ...p, buttonLabel: e.target.value } })}
+          />
+        </Field>
+        <Field label="Layout">
+          <select
+            className={INPUT_CLASS_NAME}
+            value={p.layout}
+            onChange={(e) => onChange({ ...section, props: { ...p, layout: e.target.value as "grid" | "list" } })}
+          >
+            <option value="grid">grid</option>
+            <option value="list">list</option>
+          </select>
+        </Field>
+        <label className="flex items-center gap-2 self-end text-sm text-ivory">
+          <input
+            type="checkbox"
+            checked={p.showPrice}
+            onChange={(e) => onChange({ ...section, props: { ...p, showPrice: e.target.checked } })}
+            className="size-4 rounded border-onyx-700 bg-onyx-950"
+          />
+          Show prices
+        </label>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">
+          Selected products ({p.productIds.length}/24)
+        </p>
+        {loading ? (
+          <p className="text-xs text-ivory-mute">Loading your products…</p>
+        ) : error ? (
+          <p className="text-xs text-red-300">{error}</p>
+        ) : !products || products.length === 0 ? (
+          <p className="rounded-card border border-onyx-800 bg-onyx-950/40 p-3 text-xs text-ivory-mute">
+            You haven&apos;t created any products yet.{" "}
+            <Link href="/account/products/new" className="text-gold underline-offset-2 hover:underline">
+              Create your first product
+            </Link>
+            , then return here to add it to this store.
+          </p>
+        ) : (
+          <ul className="space-y-2" data-testid={`store-products-${section.id}`}>
+            {products.map((prod) => {
+              const checked = p.productIds.includes(prod.id);
+              const orderIdx = p.productIds.indexOf(prod.id);
+              return (
+                <li
+                  key={prod.id}
+                  className="flex items-center gap-2 rounded-card border border-onyx-800 bg-onyx-950/60 p-2"
+                >
+                  <label className="flex flex-1 items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(prod.id)}
+                      className="size-4 rounded border-onyx-700 bg-onyx-950"
+                    />
+                    {prod.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={prod.imageUrl} alt="" className="size-8 rounded-card object-cover" />
+                    ) : (
+                      <div className="size-8 rounded-card border border-onyx-700 bg-onyx-900" />
+                    )}
+                    <span className="flex-1 truncate text-sm text-ivory">
+                      {prod.name}
+                      {!prod.active ? <span className="ml-2 text-[10px] uppercase tracking-widest text-ivory-mute">inactive</span> : null}
+                    </span>
+                    <span className="font-mono text-xs text-gold">
+                      ${(prod.priceCents / 100).toFixed(2)} {prod.currency.toUpperCase()}
+                    </span>
+                  </label>
+                  {checked ? (
+                    <span className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => move(prod.id, -1)}
+                        className="btn-ghost px-2 py-1 text-xs"
+                        disabled={orderIdx <= 0}
+                        aria-label="Move up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(prod.id, 1)}
+                        className="btn-ghost px-2 py-1 text-xs"
+                        disabled={orderIdx === p.productIds.length - 1}
+                        aria-label="Move down"
+                      >
+                        ↓
+                      </button>
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="text-xs text-ivory-mute">
+          Manage products in{" "}
+          <Link href="/account/products" className="text-gold underline-offset-2 hover:underline">
+            Account → Products
+          </Link>
+          . Connect Stripe in{" "}
+          <Link href="/account/payments" className="text-gold underline-offset-2 hover:underline">
+            Payments
+          </Link>{" "}
+          before going live.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function EditorClient({
@@ -1295,6 +1496,7 @@ export default function EditorClient({
       case "map": nextSection = { ...base, type, props: { lat: 40.7128, lng: -74.006, label: "NYC" } }; break;
       case "embed": nextSection = { ...base, type, props: { html: "<p>Embed</p>", height: 300, autoHeight: false, allowDomains: [] } }; break;
       case "gallery": nextSection = { ...base, type, props: { images: [{ src: "https://placehold.co/600", alt: "" }], layout: "grid", lightbox: true } }; break;
+      case "store": nextSection = { ...base, type, props: { title: "Shop", productIds: [], layout: "grid", showPrice: true, buttonLabel: "Buy now" } }; break;
     }
 
     pushHistory();
@@ -1944,64 +2146,37 @@ export default function EditorClient({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Field label="Theme">
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className={`${INPUT_CLASS_NAME} sm:max-w-xs`}
-                  value={studio.customColors ? "__custom__" : themeId}
-                  data-testid="theme-select"
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    pushHistory();
-                    markDirty();
-                    if (next === "__custom__") {
-                      // Seed custom palette from the currently active theme.
-                      const preset = getThemePreset(themeId);
-                      setStudio({
-                        ...studio,
-                        customColors: true,
-                        bg: preset.vars["--vc-bg"] ?? studio.bg,
-                        bg2: preset.vars["--vc-bg-2"] ?? studio.bg2,
-                        fg: preset.vars["--vc-fg"] ?? studio.fg,
-                        fgMute: preset.vars["--vc-fg-mute"] ?? studio.fgMute,
-                        accent: preset.vars["--vc-accent"] ?? studio.accent,
-                        accent2: preset.vars["--vc-accent-2"] ?? studio.accent2,
-                      });
-                      return;
-                    }
-                    if (studio.customColors) setStudio({ ...studio, customColors: false });
-                    setThemeId(next);
-                  }}
-                >
-                  {THEME_PRESETS.map((theme) => (
-                    <option key={theme.id} value={theme.id}>
-                      {theme.name} — {theme.description}
-                    </option>
-                  ))}
-                  <option value="__custom__">Custom colors (pick your own palette)</option>
-                </select>
-                <div className="flex gap-1" aria-hidden="true">
-                  <span
-                    className="size-5 rounded-full border border-white/10"
-                    style={{ backgroundColor: studio.customColors ? studio.bg : getThemePreset(themeId).preview.bg }}
-                  />
-                  <span
-                    className="size-5 rounded-full border border-white/10"
-                    style={{ backgroundColor: studio.customColors ? studio.fg : getThemePreset(themeId).preview.fg }}
-                  />
-                  <span
-                    className="size-5 rounded-full border border-white/10"
-                    style={{ backgroundColor: studio.customColors ? studio.accent : getThemePreset(themeId).preview.accent }}
-                  />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {THEME_PRESETS.map((theme) => (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => {
+                  pushHistory();
+                  markDirty();
+                  setThemeId(theme.id);
+                }}
+                aria-pressed={themeId === theme.id}
+                className={[
+                  "rounded-card border px-3 py-3 text-left transition",
+                  themeId === theme.id
+                    ? "border-gold/60 bg-onyx-900/80 shadow-[0_0_0_1px_rgba(212,168,83,0.25)]"
+                    : "border-onyx-700 bg-onyx-900/40 hover:border-gold/30",
+                ].join(" ")}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-display text-sm text-ivory">{theme.name}</p>
+                    <p className="mt-1 text-xs text-ivory-mute">{theme.description}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.bg }} />
+                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.fg }} />
+                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.accent }} />
+                  </div>
                 </div>
-              </div>
-            </Field>
-            <p className="text-xs text-ivory-mute">
-              {studio.customColors
-                ? "Using custom colors. Edit the palette in Style studio below, or pick a preset to switch back."
-                : `Active: ${getThemePreset(themeId).name}. Choose “Custom colors” to override the palette with your own picks.`}
-            </p>
+              </button>
+            ))}
           </div>
 
           <Field label="Custom CSS">
@@ -2020,7 +2195,7 @@ export default function EditorClient({
           </Field>
         </section>
 
-        <StyleStudioPanel studio={studio} onChange={setStudio} themeId={themeId} />
+        <StyleStudioPanel studio={studio} onChange={setStudio} />
 
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-2">

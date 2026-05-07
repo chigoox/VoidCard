@@ -49,11 +49,105 @@ export async function POST(req: Request) {
   }
 
   switch (event.type) {
+    case "account.updated": {
+      const account = event.data.object as Stripe.Account;
+      await admin
+        .from("vcard_seller_accounts")
+        .update({
+          country: account.country ?? null,
+          default_currency: account.default_currency ?? null,
+          details_submitted: account.details_submitted ?? false,
+          charges_enabled: account.charges_enabled ?? false,
+          payouts_enabled: account.payouts_enabled ?? false,
+          capabilities: (account.capabilities ?? {}) as Record<string, unknown>,
+          requirements: (account.requirements ?? {}) as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("stripe_account_id", account.id);
+      break;
+    }
+
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const mode = session.mode;
       const userId = (session.metadata?.user_id as string) ?? null;
 
+      // ----- Seller storefront sale (destination charge to a connected account) -----
+      if (mode === "payment" && session.metadata?.kind === "seller") {
+        const sellerUserId = (session.metadata?.seller_user_id as string) ?? null;
+        const productId = (session.metadata?.product_id as string) ?? null;
+        const buyerUserId = (session.metadata?.buyer_user_id as string) || null;
+
+        let sellerAccountId = "";
+        if (sellerUserId) {
+          const { data: acct } = await admin
+            .from("vcard_seller_accounts")
+            .select("stripe_account_id")
+            .eq("user_id", sellerUserId)
+            .maybeSingle();
+          sellerAccountId = acct?.stripe_account_id ?? "";
+        }
+
+        const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+          expand: ["data.price.product"],
+        });
+        const items = lineItems.data.map((li) => {
+          const product = li.price?.product as Stripe.Product | null;
+          return {
+            product_id: product?.metadata?.product_id ?? productId ?? "",
+            name: product?.name ?? "",
+            quantity: li.quantity ?? 1,
+            amount_total: li.amount_total ?? 0,
+          };
+        });
+
+        let applicationFee = 0;
+        if (typeof session.payment_intent === "string") {
+          try {
+            const pi = await stripe.paymentIntents.retrieve(session.payment_intent);
+            if (typeof pi.application_fee_amount === "number") {
+              applicationFee = pi.application_fee_amount;
+            }
+          } catch {
+            // ignore — fee will reconcile via charge.updated.
+          }
+        }
+
+        await admin.from("vcard_seller_orders").insert({
+          seller_user_id: sellerUserId,
+          buyer_user_id: buyerUserId,
+          buyer_email: session.customer_details?.email ?? null,
+          stripe_session_id: session.id,
+          stripe_payment_intent: session.payment_intent as string,
+          stripe_account_id: sellerAccountId,
+          status: "paid",
+          subtotal_cents: session.amount_subtotal ?? session.amount_total ?? 0,
+          total_cents: session.amount_total ?? 0,
+          application_fee_cents: applicationFee,
+          currency: session.currency ?? "usd",
+          items,
+          shipping_address: session.shipping_details ?? null,
+        });
+
+        // Decrement inventory if tracked.
+        if (productId) {
+          const { data: prod } = await admin
+            .from("vcard_seller_products")
+            .select("inventory")
+            .eq("id", productId)
+            .maybeSingle();
+          if (prod && typeof prod.inventory === "number") {
+            const qty = items.reduce((acc, it) => acc + (it.quantity || 1), 0);
+            await admin
+              .from("vcard_seller_products")
+              .update({ inventory: Math.max(0, prod.inventory - qty) })
+              .eq("id", productId);
+          }
+        }
+        break;
+      }
+
+      // ----- First-party shop / subscription flows (existing behavior) -----
       if (mode === "subscription") {
         // Subscription started.
         const sub = await stripe.subscriptions.retrieve(session.subscription as string);

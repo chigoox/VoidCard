@@ -4,6 +4,7 @@ import { LeadFormSectionClient } from "./LeadFormSectionClient";
 import { SectionMotion } from "./SectionMotion";
 import { GallerySectionClient } from "./GallerySectionClient";
 import { EmbedSectionClient } from "./EmbedSectionClient";
+import { StoreSectionClient } from "./StoreSectionClient";
 
 const SURFACE_BORDER = "color-mix(in srgb, var(--vc-accent, #d4af37) 24%, transparent)";
 
@@ -67,20 +68,20 @@ function renderLinkStyle(style: "pill" | "card" | "ghost") {
   }
 }
 
-export function SectionRenderer({ section, verified }: { section: Section; verified?: boolean }) {
+export function SectionRenderer({ section, verified, username }: { section: Section; verified?: boolean; username?: string }) {
   if (!section.visible) return null;
   const animation = section.display?.animation ?? "none";
   const delay = section.display?.animationDelay ?? 0;
   return (
     <SectionMotion animation={animation} delay={delay}>
       <div data-vc-section data-section-type={section.type}>
-        {renderSectionInner(section, verified)}
+        {renderSectionInner(section, verified, username)}
       </div>
     </SectionMotion>
   );
 }
 
-function renderSectionInner(section: Section, verified?: boolean) {
+function renderSectionInner(section: Section, verified?: boolean, username?: string) {
   switch (section.type) {
     case "header": {
       const p = section.props;
@@ -283,6 +284,17 @@ function renderSectionInner(section: Section, verified?: boolean) {
       );
     case "form":
       return <LeadFormSectionClient section={section} />;
+    case "store":
+      return (
+        <StoreSectionClient
+          title={section.props.title}
+          productIds={section.props.productIds}
+          layout={section.props.layout}
+          showPrice={section.props.showPrice}
+          buttonLabel={section.props.buttonLabel}
+          username={username}
+        />
+      );
     case "map":
       return (
         <div style={cardStyle}>

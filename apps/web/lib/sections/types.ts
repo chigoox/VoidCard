@@ -1,11 +1,13 @@
 import { z } from "zod";
 
-// 17 section types per BUILD_PLAN.md §11
+// 18 section types: 17 per BUILD_PLAN.md §11 + 'store' (seller storefront, Stripe Connect).
 export const SECTION_TYPES = [
   "header", "link", "image", "video", "spotify", "youtube",
   "map", "embed", "form", "gallery", "markdown", "divider",
-  "spacer", "social", "qr", "tip", "schedule",
+  "spacer", "social", "qr", "tip", "schedule", "store",
 ] as const;
+
+export const STORE_LAYOUTS = ["grid", "list"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
 export const SECTION_ANIMATIONS = [
@@ -113,9 +115,19 @@ const Social = Base.extend({
 const QR = Base.extend({ type: z.literal("qr"), props: z.object({ url: z.string().url(), label: z.string().optional() }) });
 const Tip = Base.extend({ type: z.literal("tip"), props: z.object({ stripeAccountId: z.string(), amounts: z.array(z.number().int().positive()).default([200, 500, 1000]) }) });
 const Schedule = Base.extend({ type: z.literal("schedule"), props: z.object({ provider: z.enum(["calcom", "calendly", "ed5"]), url: z.string().url() }) });
+const Store = Base.extend({
+  type: z.literal("store"),
+  props: z.object({
+    title: z.string().max(80).default("Shop"),
+    productIds: z.array(z.string().uuid()).max(24).default([]),
+    layout: z.enum(STORE_LAYOUTS).default("grid"),
+    showPrice: z.boolean().default(true),
+    buttonLabel: z.string().max(40).default("Buy now"),
+  }),
+});
 
 export const Section = z.discriminatedUnion("type", [
-  Header, Link, Image, Video, Spotify, YouTube, MapS, Embed, Form, Gallery, Markdown, Divider, Spacer, Social, QR, Tip, Schedule,
+  Header, Link, Image, Video, Spotify, YouTube, MapS, Embed, Form, Gallery, Markdown, Divider, Spacer, Social, QR, Tip, Schedule, Store,
 ]);
 export type Section = z.infer<typeof Section>;
 export const Sections = z.array(Section);
