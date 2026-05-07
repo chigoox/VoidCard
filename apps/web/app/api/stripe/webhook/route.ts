@@ -69,7 +69,9 @@ export async function POST(req: Request) {
 
     case "account.application.deauthorized": {
       // Connected account deauthorized our platform. Mark as disabled.
-      const account = event.data.object as Stripe.Account;
+      const application = event.data.object as Stripe.Application;
+      // For deauthorize events, the connected account id is on the event itself.
+      const accountId = (event as unknown as { account?: string }).account ?? application.id;
       await admin
         .from("vcard_seller_accounts")
         .update({
@@ -77,7 +79,7 @@ export async function POST(req: Request) {
           payouts_enabled: false,
           updated_at: new Date().toISOString(),
         })
-        .eq("stripe_account_id", account.id);
+        .eq("stripe_account_id", accountId);
       break;
     }
 
