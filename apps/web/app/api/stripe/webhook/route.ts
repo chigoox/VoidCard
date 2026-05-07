@@ -129,6 +129,33 @@ export async function POST(req: Request) {
           shipping_address: session.shipping_details ?? null,
         });
 
+        // Notify the seller by email (best-effort).
+        if (sellerUserId) {
+          try {
+            const { data: sellerAuth } = await admin.auth.admin.getUserById(sellerUserId);
+            const sellerEmail = sellerAuth?.user?.email ?? null;
+            if (sellerEmail) {
+              const { sendEmail } = await import("@/lib/email");
+              const totalDisplay = `$${((session.amount_total ?? 0) / 100).toFixed(2)} ${(session.currency ?? "usd").toUpperCase()}`;
+              const itemsList = items
+                .map((i) => `${i.quantity ?? 1}× ${i.name || "item"}`)
+                .join(", ");
+              await sendEmail({
+                to: sellerEmail,
+                subject: `New sale: ${totalDisplay}`,
+                html: `<p>You just made a sale on VoidCard.</p>
+                       <p><strong>${itemsList}</strong></p>
+                       <p>Total: ${totalDisplay}</p>
+                       <p>Buyer: ${session.customer_details?.email ?? "—"}</p>
+                       <p><a href="https://vcard.ed5enterprise.com/account/orders">View order →</a></p>`,
+                text: `New sale: ${totalDisplay}\n${itemsList}\nBuyer: ${session.customer_details?.email ?? "—"}\nhttps://vcard.ed5enterprise.com/account/orders`,
+              });
+            }
+          } catch {
+            // best-effort; never fail the webhook on email errors.
+          }
+        }
+
         // Decrement inventory if tracked.
         if (productId) {
           const { data: prod } = await admin

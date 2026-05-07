@@ -8,6 +8,7 @@ export default async function AccountIndex() {
     { href: "/account/billing", label: "Billing", desc: "Plan, invoices, orders." },
     { href: "/account/payments", label: "Payments & selling", desc: "Connect Stripe and accept payments on your profile." },
     { href: "/account/products", label: "Products", desc: "Manage items you sell from Store sections." },
+    { href: "/account/orders", label: "Sales & orders", desc: "Orders customers placed from your Store sections." },
     { href: "/variants", label: "A/B variants", desc: "Weighted profile experiments for Pro and Team." },
     { href: "/fonts", label: "Custom fonts", desc: "Upload WOFF2 fonts for your public profile." },
     { href: "/account/domains", label: "Custom domains", desc: "Connect your own hostname to your public profile." },

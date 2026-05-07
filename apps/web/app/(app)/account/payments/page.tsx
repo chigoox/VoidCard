@@ -93,6 +93,11 @@ export default async function PaymentsPage({
             Manage products →
           </Link>
         </div>
+        <div>
+          <Link href="/account/orders" className="text-xs text-gold underline-offset-2 hover:underline">
+            View sales & orders →
+          </Link>
+        </div>
       </section>
 
       <section className="card space-y-2 p-5">
