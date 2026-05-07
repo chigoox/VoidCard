@@ -31,6 +31,15 @@ const SHOP_FALLBACK: Record<
   "team-5pack": { name: "Team 5-pack", cents: 7900, currency: "usd", shippable: true },
   "card-replacement": { name: "Card Replacement", cents: 1500, currency: "usd", shippable: true },
   "verified-badge": { name: "Verified Badge", cents: 500, currency: "usd", shippable: false },
+  "credits-25": { name: "25 AI Credits", cents: 500, currency: "usd", shippable: false },
+  "credits-100": { name: "100 AI Credits", cents: 1500, currency: "usd", shippable: false },
+  "credits-500": { name: "500 AI Credits", cents: 5000, currency: "usd", shippable: false },
+};
+
+const CREDITS_PACK_AMOUNT: Record<string, number> = {
+  "credits-25": 25,
+  "credits-100": 100,
+  "credits-500": 500,
 };
 
 async function planLineItem(plan: string): Promise<Stripe.Checkout.SessionCreateParams.LineItem | null> {
@@ -139,8 +148,17 @@ export async function POST(req: Request) {
     if (body.kind === "shop" && body.sku) {
       const result = await shopLineItem(body.sku);
       if (!result) return NextResponse.json({ error: "unknown_sku" }, { status: 400 });
-      const successUrl = body.sku === "verified-badge" ? `${origin}/account/verify?checkout=1` : `${origin}/shop?ok=1`;
-      const cancelUrl = body.sku === "verified-badge" ? `${origin}/account/verify` : `${origin}/shop`;
+      const isCreditsPack = body.sku in CREDITS_PACK_AMOUNT;
+      const successUrl = isCreditsPack
+        ? `${origin}/account/credits?ok=1`
+        : body.sku === "verified-badge"
+          ? `${origin}/account/verify?checkout=1`
+          : `${origin}/shop?ok=1`;
+      const cancelUrl = isCreditsPack
+        ? `${origin}/account/credits`
+        : body.sku === "verified-badge"
+          ? `${origin}/account/verify`
+          : `${origin}/shop`;
       const allowedCountries =
         ((await getSetting<string[]>("shop.shipping_countries")) ?? ["US", "CA", "GB", "AU"]) as Array<
           "US" | "CA" | "GB" | "AU"
@@ -156,6 +174,7 @@ export async function POST(req: Request) {
           user_id: u?.id ?? "",
           sku: body.sku,
           referral_code: body.referral ?? "",
+          ...(isCreditsPack ? { kind: "credits", credits: String(CREDITS_PACK_AMOUNT[body.sku] ?? 0) } : {}),
         },
         ...(result.shippable
           ? { shipping_address_collection: { allowed_countries: allowedCountries } }

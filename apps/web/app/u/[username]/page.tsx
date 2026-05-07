@@ -24,6 +24,17 @@ const profileShellStyle: CSSProperties = {
   color: "var(--vc-fg, #f7f3ea)",
 };
 
+// Inner profile column: honors the Style Studio `--vc-max-width` and applies
+// the theme background variable so gradient/mesh modes match the editor
+// preview exactly. Width clamps so mobile fills the viewport and desktop
+// keeps the user's chosen column width centered.
+const profileColumnStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: "min(100%, var(--vc-max-width, 28rem))",
+  background: "var(--vc-bg, #0a0a0a)",
+  color: "var(--vc-fg, #f7f3ea)",
+};
+
 async function fetchPublicProfileMeta(username: string) {
   return findPublicProfileByUsername(username);
 }
@@ -95,7 +106,7 @@ export default async function PublicProfilePage({
       <main className="vc-profile-shell home-theme min-h-screen" style={profileShellStyle}>
         <style dangerouslySetInnerHTML={{ __html: themeToCss(getThemePreset(themeId(profile.theme)), ".vc-profile-shell, .vc-profile") }} />
         <style dangerouslySetInnerHTML={{ __html: customFontCss(profile.customFontUrl) }} />
-        <div className="mx-auto flex min-h-screen max-w-md items-center px-5 py-10 vc-profile">
+        <div className="mx-auto flex min-h-screen items-center px-4 py-10 sm:px-6 vc-profile" style={profileColumnStyle}>
           <section className="card w-full space-y-5 p-6">
             <div className="space-y-2 text-center">
               <p className="text-xs uppercase tracking-[0.35em] text-gold/80">Protected profile</p>
@@ -192,7 +203,11 @@ export default async function PublicProfilePage({
         <p>@{handle}</p>
         {profile.bio ? <p>{profile.bio}</p> : null}
       </section>
-      <div className="mx-auto max-w-md px-5 pb-24 pt-10 vc-profile" data-testid="profile-public-content">
+      <div
+        className="mx-auto px-4 pb-24 pt-8 sm:px-6 sm:pt-10 vc-profile"
+        style={profileColumnStyle}
+        data-testid="profile-public-content"
+      >
         <div className="space-y-3">
           {sections.map((section) => (
             <SectionRenderer key={section.id} section={section} verified={profile.verified} username={handle} />

@@ -37,4 +37,5 @@ export const rateLimits = {
   webhookDelivery: makeLimiter("webhook_delivery", 100, "1 m"),
   cspReport: makeLimiter("csp_report", 100, "1 m"),
   passwordReset: makeLimiter("password_reset", 5, "1 h"),
+  aiGenerate: makeLimiter("ai_generate", 8, "1 m"),
 };

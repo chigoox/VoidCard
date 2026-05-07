@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/audit";
 import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { queueWebhookEvent } from "@/lib/webhook-queue";
+import { grantCredits, getAiSettings } from "@/lib/credits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,11 @@ const VERIFIED_GRANTING_SKUS = new Set(["card-metal", "card-custom", "bundle-sta
 const STORAGE_GRANTING_PREFIX = "card-";
 const ONE_GB = 1_000_000_000;
 const STORAGE_CAP = 25 * ONE_GB;
+const CREDITS_PACK_SKUS: Record<string, number> = {
+  "credits-25": 25,
+  "credits-100": 100,
+  "credits-500": 500,
+};
 
 export async function POST(req: Request) {
   const sig = req.headers.get("stripe-signature");
@@ -267,10 +273,26 @@ export async function POST(req: Request) {
         if (userId) {
           let storageDelta = 0;
           let grantsVerified = false;
+          let aiCreditsDelta = 0;
+          let cardBonusGiven = false;
+
+          const aiSettings = await getAiSettings();
 
           for (const sku of skus) {
-            if (sku.startsWith(STORAGE_GRANTING_PREFIX)) storageDelta += ONE_GB;
+            if (sku.startsWith(STORAGE_GRANTING_PREFIX)) {
+              storageDelta += ONE_GB;
+              if (!cardBonusGiven && aiSettings.cardBonus > 0) {
+                aiCreditsDelta += aiSettings.cardBonus;
+                cardBonusGiven = true;
+              }
+            }
             if (VERIFIED_GRANTING_SKUS.has(sku)) grantsVerified = true;
+            if (CREDITS_PACK_SKUS[sku]) aiCreditsDelta += CREDITS_PACK_SKUS[sku] ?? 0;
+          }
+
+          if (aiCreditsDelta > 0) {
+            const reason = cardBonusGiven && !CREDITS_PACK_SKUS[skus[0] ?? ""] ? "card_bonus" : "purchase";
+            await grantCredits(userId, aiCreditsDelta, reason, session.id, { skus });
           }
 
           if (storageDelta > 0 && !sharedPrimary) {

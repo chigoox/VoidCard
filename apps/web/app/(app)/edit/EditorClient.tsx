@@ -42,6 +42,10 @@ const StyleStudioPanel = dynamic(() => import("./StyleStudioPanel"), {
   loading: () => <section className="card space-y-3 p-4 text-xs text-ivory-dim" data-testid="style-studio-loading">Loading style studio…</section>,
 });
 
+const MediaManagerModal = dynamic(() => import("./MediaManagerModal").then((m) => m.MediaManagerModal), {
+  ssr: false,
+});
+
 const LINK_STYLES = ["pill", "card", "ghost"] as const;
 const SOCIAL_PLATFORMS = [
   "instagram",
@@ -154,9 +158,8 @@ function MediaField({
   onMediaAdded: (asset: MediaLibraryItem) => void;
 }) {
   const [message, setMessage] = useState<string | null>(null);
-  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [uploading, startUpload] = useTransition();
-  const matchingMedia = recentMedia.filter((asset) => asset.kind === kind);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
@@ -170,7 +173,6 @@ function MediaField({
         const asset = await uploadMediaAsset(file, kind);
         onMediaAdded(asset);
         onChange(asset.url);
-        setLibraryOpen(false);
         setMessage("Uploaded and selected.");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Upload failed. Try again.");
@@ -213,15 +215,32 @@ function MediaField({
 
   return (
     <Field label={label} className="space-y-2">
-      <input className={INPUT_CLASS_NAME} value={value} onChange={(event) => onChange(event.target.value)} />
+      {value && kind === "image" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={value} alt="" className="h-20 w-20 rounded-card border border-onyx-800 object-cover" />
+      ) : null}
+      <input className={INPUT_CLASS_NAME} value={value} onChange={(event) => onChange(event.target.value)} placeholder="https://… or pick from library" />
       <div className="flex flex-wrap gap-2">
         <label className="btn-ghost cursor-pointer px-3 py-2 text-xs">
           {uploading ? "Uploading…" : "Upload"}
           <input type="file" accept={accept} className="hidden" onChange={handleFileChange} />
         </label>
-        {matchingMedia.length > 0 ? (
-          <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={() => setLibraryOpen((current) => !current)}>
-            {libraryOpen ? "Hide recent" : `Recent ${kind}s`}
+        <button
+          type="button"
+          className="btn-ghost px-3 py-2 text-xs"
+          onClick={() => setModalOpen(true)}
+          data-testid={`browse-library-${kind}`}
+        >
+          Browse library
+        </button>
+        {kind === "image" ? (
+          <button
+            type="button"
+            className="btn-ghost px-3 py-2 text-xs"
+            onClick={() => setModalOpen(true)}
+            data-testid="open-ai-gen"
+          >
+            ✨ Generate with AI
           </button>
         ) : null}
         {kind === "image" && value ? (
@@ -229,30 +248,39 @@ function MediaField({
             Rotate 90°
           </button>
         ) : null}
+        {value ? (
+          <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={() => onChange("")}>
+            Clear
+          </button>
+        ) : null}
       </div>
-      {libraryOpen ? (
-        <div className="grid gap-2 rounded-card border border-onyx-800 bg-onyx-950/60 p-3 sm:grid-cols-2">
-          {matchingMedia.map((asset) => (
-            <button
-              key={asset.id}
-              type="button"
-              className="overflow-hidden rounded-card border border-onyx-800 bg-onyx-950/80 text-left"
-              onClick={() => {
-                onChange(asset.url);
-                setMessage("Selected from library.");
-              }}
-            >
-              {asset.kind === "image" ? (
-                <img src={asset.url} alt="Recent upload" className="h-24 w-full object-cover" />
-              ) : (
-                <video src={asset.url} className="h-24 w-full object-cover" muted />
-              )}
-              <span className="block px-3 py-2 text-xs text-ivory-mute">{new Date(asset.createdAt).toLocaleString()}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
       {message ? <p className="text-xs text-ivory-mute">{message}</p> : null}
+      <MediaManagerModal
+        open={modalOpen}
+        kind={kind}
+        onClose={() => setModalOpen(false)}
+        onSelect={(asset) => {
+          onMediaAdded({
+            id: asset.id,
+            kind: asset.kind === "image" ? "image" : "video",
+            mime: asset.mime,
+            url: asset.url,
+            createdAt: asset.createdAt,
+          });
+          onChange(asset.url);
+          setModalOpen(false);
+          setMessage("Selected from library.");
+        }}
+        onAssetAdded={(asset) =>
+          onMediaAdded({
+            id: asset.id,
+            kind: asset.kind === "image" ? "image" : "video",
+            mime: asset.mime,
+            url: asset.url,
+            createdAt: asset.createdAt,
+          })
+        }
+      />
     </Field>
   );
 }
@@ -2490,6 +2518,14 @@ export default function EditorClient({
         <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-2 rounded-full border border-onyx-700 bg-onyx-950/95 px-3 py-2 shadow-2xl backdrop-blur">
           <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost px-3 py-2 text-xs" aria-label="Undo">↶</button>
           <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost px-3 py-2 text-xs" aria-label="Redo">↷</button>
+          <button
+            type="button"
+            onClick={() => setMobilePreviewOpen(true)}
+            className="btn-ghost px-3 py-2 text-xs"
+            data-testid="mobile-preview-open"
+          >
+            👁 Preview
+          </button>
           <button type="button" onClick={onSave} disabled={pending} className="btn-ghost px-3 py-2 text-xs">Save</button>
           <button type="button" onClick={onPublish} disabled={pending} className="btn-gold px-3 py-2 text-xs">Publish</button>
         </div>
