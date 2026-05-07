@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { pairCardAction } from "./actions";
+import { QrScannerModal } from "@/components/QrScannerModal";
 
 type WriteState = "idle" | "scanning" | "read" | "error";
 
@@ -56,6 +57,7 @@ export function PairCardClient({
   const [scannedId, setScannedId] = useState<string | null>(prefillCardId ?? null);
   const [serial, setSerial] = useState(prefillCardId ?? "");
   const [showManual, setShowManual] = useState(!prefillCardId);
+  const [showQrScanner, setShowQrScanner] = useState(false);
   const [pending, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -121,6 +123,13 @@ export function PairCardClient({
   }
 
   function stopScan() { abortRef.current?.abort(); setScanState("idle"); }
+
+  function handleQrScan(id: string) {
+    setShowQrScanner(false);
+    setScannedId(id);
+    setSerial(id);
+    doSubmit(id);
+  }
 
   // ── If we arrived from a physical tap, show the confirm screen ──────────────
   if (prefillCardId && !serverError) {
@@ -188,12 +197,33 @@ export function PairCardClient({
         </div>
       )}
 
-      {!nfcSupported && (
-        <div className="rounded-md border border-onyx-700 bg-onyx-900 p-4 text-center text-sm">
-          <p className="font-medium text-ivory">NFC reader available in Chrome on Android</p>
-          <p className="mt-1 text-xs text-ivory-dim">On iOS or desktop, enter your card's serial number printed on the back instead.</p>
-        </div>
-      )}
+      {/* QR code scan — works on iOS, Android, desktop */}
+      <div className="flex flex-col items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowQrScanner(true)}
+          data-testid="qr-scan-btn"
+          className={[
+            "flex items-center gap-2.5 rounded-full border px-6 py-3 text-sm font-medium transition-colors",
+            nfcSupported
+              ? "border-onyx-600 bg-onyx-900 text-ivory-dim hover:border-gold/60 hover:text-ivory"
+              : "border-gold/50 bg-gold/10 text-gold hover:border-gold hover:bg-gold/20",
+          ].join(" ")}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <path d="M14 14h3v3M17 20v1M20 14v3M20 20h1" />
+          </svg>
+          Scan QR code
+        </button>
+        {!nfcSupported && (
+          <p className="text-xs text-ivory-mute">
+            Point your camera at the QR code on your card
+          </p>
+        )}
+      </div>
 
       {/* Manual form — always shown on non-NFC, or after a successful scan */}
       {(scanState === "read" || !nfcSupported) && (
@@ -209,15 +239,18 @@ export function PairCardClient({
         </form>
       )}
 
-      {nfcSupported && (
-        <p className="text-center text-xs text-ivory-dim">
-          <button type="button" onClick={() => { setShowManual(!showManual); stopScan(); }} className="underline underline-offset-2 hover:text-ivory" data-testid="toggle-manual">
-            {showManual ? "Use NFC scan instead" : "Enter serial manually"}
-          </button>
-        </p>
-      )}
+      <p className="text-center text-xs text-ivory-dim">
+        <button
+          type="button"
+          onClick={() => { setShowManual(!showManual); stopScan(); }}
+          className="underline underline-offset-2 hover:text-ivory"
+          data-testid="toggle-manual"
+        >
+          {showManual ? (nfcSupported ? "Use NFC scan instead" : "Hide manual entry") : "Enter serial manually"}
+        </button>
+      </p>
 
-      {showManual && nfcSupported && (
+      {showManual && (
         <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }} className="space-y-4" data-testid="pair-form-manual">
           {scannedId && <input type="hidden" name="cardId" value={scannedId} />}
           <div>
@@ -228,6 +261,10 @@ export function PairCardClient({
             {pending ? "Pairing…" : "Pair card"}
           </button>
         </form>
+      )}
+
+      {showQrScanner && (
+        <QrScannerModal onScan={handleQrScan} onClose={() => setShowQrScanner(false)} />
       )}
     </div>
   );

@@ -71,7 +71,7 @@ export default async function SettingsPage({
       <section className="card p-6">
         <p className="text-xs uppercase tracking-widest text-ivory-mute">Plan</p>
         <p className="mt-2 font-display text-xl">{u.plan.toUpperCase()}</p>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           <Link href="/profiles" className="btn-ghost">Profiles</Link>
           <Link href="/pricing" className="btn-ghost">Compare plans</Link>
           <Link href="/account/billing" className="btn-ghost">Billing portal</Link>
@@ -83,7 +83,7 @@ export default async function SettingsPage({
       <section className="card p-6">
         <p className="text-xs uppercase tracking-widest text-ivory-mute">Account</p>
         <p className="mt-2 text-sm text-ivory-dim">Email: {u.email}</p>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           <Link href="/account/security" className="btn-ghost">Security</Link>
           <form action="/api/auth/signout" method="POST">
             <button type="submit" className="btn-ghost">Sign out</button>

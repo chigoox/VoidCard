@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { MobileNav } from "./mobile-nav";
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -10,7 +11,7 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-paper-200 bg-white/80 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link href="/" className="font-display text-xl font-semibold tracking-tight text-ink">
           VoidCard
         </Link>
@@ -28,11 +29,7 @@ export async function SiteHeader() {
             </>
           )}
         </nav>
-        {isLoggedIn ? (
-          <Link href="/dashboard" className="btn-primary md:hidden">Dashboard</Link>
-        ) : (
-          <Link href="/shop" className="btn-primary md:hidden">Get yours</Link>
-        )}
+        <MobileNav isLoggedIn={isLoggedIn} />
       </div>
     </header>
   );

@@ -13,7 +13,7 @@ export type AppUser = {
   plan: Plan;
   bonusStorageBytes: number;
   verified: boolean;
-  role: "user" | "admin";
+  role: "user" | "admin" | "superadmin";
 };
 
 /**
@@ -37,7 +37,7 @@ export async function getUser(): Promise<AppUser | null> {
     plan: primaryProfile?.plan ?? "free",
     bonusStorageBytes: Number(primaryProfile?.bonusStorageBytes ?? 0),
     verified: primaryProfile?.verified === true,
-    role: (profile?.role as "user" | "admin") ?? "user",
+    role: (profile?.role as "user" | "admin" | "superadmin") ?? "user",
   };
 }
 
@@ -49,7 +49,7 @@ export async function requireUser() {
 
 export async function requireAdmin() {
   const u = await requireUser();
-  if (u.role !== "admin") redirect("/dashboard");
+  if (u.role !== "admin" && u.role !== "superadmin") redirect("/dashboard");
 
   const sb = await createClient();
   const [{ data: assurance }, { data: factors }] = await Promise.all([

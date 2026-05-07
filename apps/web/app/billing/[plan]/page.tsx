@@ -78,7 +78,7 @@ export default async function BillingPlanPage({
         <p className="mt-3 text-lg text-ivory-dim">{data.blurb}</p>
 
         <div className="card mt-8 p-7">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <span className="font-display text-5xl text-gold-grad">{formatPrice(cents)}</span>
               <span className="ml-2 text-sm text-ivory-mute">{cadence}</span>

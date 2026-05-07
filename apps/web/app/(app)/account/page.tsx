@@ -22,8 +22,11 @@ export default async function AccountIndex() {
   ];
   return (
     <div className="space-y-4">
-      <header>
+      <header className="flex items-center justify-between">
         <h1 className="font-display text-2xl text-gold-grad">You · @{u.username ?? "you"}</h1>
+        <form action="/api/auth/signout" method="POST">
+          <button type="submit" className="btn-ghost text-sm">Sign out</button>
+        </form>
       </header>
       <ul className="space-y-2">
         {items.map((i) => (
