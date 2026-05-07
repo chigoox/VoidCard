@@ -16,7 +16,7 @@ import {
 import { queueWebhookEvent } from "@/lib/webhook-queue";
 import { getThemePreset, themeToCss } from "@/lib/themes/presets";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 export const revalidate = 60;
 
 const profileShellStyle: CSSProperties = {
