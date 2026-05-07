@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -49,6 +49,14 @@ function SignupPageContent() {
   const [pending, start] = useTransition();
 
   const nextPath = normalizeInternalPath(searchParams.get("next"));
+
+  useEffect(() => {
+    const client = createClient();
+    void client.auth.getUser().then(({ data: { user } }) => {
+      if (user) router.replace(nextPath ?? "/dashboard");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function validateUsername(value: string) {
     return USERNAME_RE.test(value.trim().toLowerCase());

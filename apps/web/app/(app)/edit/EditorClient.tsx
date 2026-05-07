@@ -2209,37 +2209,39 @@ export default function EditorClient({
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            {THEME_PRESETS.map((theme) => (
-              <button
-                key={theme.id}
-                type="button"
-                onClick={() => {
+          {/* Theme picker — compact dropdown with swatch preview */}
+          <div className="space-y-2">
+            <label className="block space-y-1">
+              <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Theme</span>
+              <select
+                value={themeId ?? ""}
+                onChange={(e) => {
                   pushHistory();
                   markDirty();
-                  setThemeId(theme.id);
+                  setThemeId(e.target.value);
                 }}
-                aria-pressed={themeId === theme.id}
-                className={[
-                  "rounded-card border px-3 py-3 text-left transition",
-                  themeId === theme.id
-                    ? "border-gold/60 bg-onyx-900/80 shadow-[0_0_0_1px_rgba(212,168,83,0.25)]"
-                    : "border-onyx-700 bg-onyx-900/40 hover:border-gold/30",
-                ].join(" ")}
+                className="w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2.5 text-sm text-ivory outline-none transition focus:border-gold/60"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-display text-sm text-ivory">{theme.name}</p>
-                    <p className="mt-1 text-xs text-ivory-mute">{theme.description}</p>
+                {THEME_PRESETS.map((theme) => (
+                  <option key={theme.id} value={theme.id}>{theme.name}</option>
+                ))}
+              </select>
+            </label>
+            {/* Color swatches + description for selected theme */}
+            {(() => {
+              const active = THEME_PRESETS.find((t) => t.id === themeId);
+              if (!active) return null;
+              return (
+                <div className="flex items-center gap-3 rounded-card border border-onyx-700 bg-onyx-950/60 px-3 py-2">
+                  <div className="flex gap-1.5">
+                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: active.preview.bg }} />
+                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: active.preview.fg }} />
+                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: active.preview.accent }} />
                   </div>
-                  <div className="flex gap-1">
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.bg }} />
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.fg }} />
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.accent }} />
-                  </div>
+                  <p className="text-xs text-ivory-mute">{active.description}</p>
                 </div>
-              </button>
-            ))}
+              );
+            })()}
           </div>
 
           <Field label="Custom CSS">

@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -53,6 +53,14 @@ function LoginPageContent() {
 
   const nextPath = normalizeInternalPath(searchParams.get("next"));
   const routeError = searchParams.get("error");
+
+  useEffect(() => {
+    const client = createClient();
+    void client.auth.getUser().then(({ data: { user } }) => {
+      if (user) router.replace(nextPath ?? "/dashboard");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const feedback = msg ?? (routeError ? { kind: "err", text: ERROR_MESSAGES[routeError] ?? routeError.replace(/_/g, " ") } : null);
 
   function submitMagicLink(e: React.FormEvent) {

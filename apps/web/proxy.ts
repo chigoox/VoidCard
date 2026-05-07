@@ -223,7 +223,13 @@ export async function proxy(req: NextRequest) {
     url.pathname = "/login";
     // Preserve search params (e.g. cardId from NFC tap) so they survive the login round-trip.
     url.searchParams.set("next", pathname + req.nextUrl.search);
-    return NextResponse.redirect(url);
+    const loginRedirect = NextResponse.redirect(url);
+    // Carry any refreshed auth cookies (set on `res` by the Supabase client) forward
+    // so the browser has the latest tokens even when redirected to /login.
+    for (const cookie of res.cookies.getAll()) {
+      loginRedirect.cookies.set(cookie);
+    }
+    return loginRedirect;
   }
 
   if (user && isOnboardingGated(pathname)) {
