@@ -826,7 +826,23 @@ function Field({
   );
 }
 
-function PreviewSection({ section, isTop }: { section: SectionRecord; isTop?: boolean }) {
+function sectionIsVisible(section: SectionRecord) {
+  return section.visible !== false;
+}
+
+function sectionWantsTopBleed(section: SectionRecord) {
+  if (!sectionIsVisible(section)) return false;
+  switch (section.type) {
+    case "header":
+      return !!section.props.coverUrl;
+    case "image":
+      return section.props.fullWidth === true && !!section.props.src;
+    default:
+      return false;
+  }
+}
+
+function PreviewSection({ section, isTop, topBleedOffset }: { section: SectionRecord; isTop?: boolean; topBleedOffset?: "page" | "none" }) {
   const parsed = SectionSchema.safeParse(section);
   if (!parsed.success) {
     return (
@@ -837,7 +853,7 @@ function PreviewSection({ section, isTop }: { section: SectionRecord; isTop?: bo
     );
   }
 
-  return <SectionRenderer section={parsed.data} isTop={isTop} />;
+  return <SectionRenderer section={parsed.data} isTop={isTop} topBleedOffset={topBleedOffset} />;
 }
 
 function SectionEditorFields({
@@ -1736,7 +1752,9 @@ export default function EditorClient({
   const isDirty = currentSnapshot !== lastSavedSnapshot;
   const previewTheme = getThemePreset(themeId);
   const previewCustomCss = sanitizeCss(customCss);
-  const firstVisibleSectionId = sections.find((section) => section.visible)?.id;
+  const firstVisibleSection = sections.find(sectionIsVisible);
+  const firstVisibleSectionId = firstVisibleSection?.id;
+  const previewStartsWithTopBleed = firstVisibleSection ? sectionWantsTopBleed(firstVisibleSection) : false;
 
   // Style studio: parsed from customCss prefix, persisted back into it.
   const { studio, rest: customCssRest } = readStyleStudio(customCss);
@@ -2296,12 +2314,22 @@ export default function EditorClient({
         {previewCustomCss ? <style dangerouslySetInnerHTML={{ __html: previewCustomCss }} /> : null}
         <div className="phone-frame mx-auto">
           <div
-            className="vc-profile vc-profile-preview flex h-full flex-col overflow-y-auto overscroll-contain px-4 pb-16 pt-8 select-none [&_a]:pointer-events-none [&_button]:pointer-events-none"
+            className={[
+              "vc-profile vc-profile-preview flex h-full flex-col overflow-y-auto overscroll-contain px-4 pb-16 select-none [&_a]:pointer-events-none [&_button]:pointer-events-none",
+              previewStartsWithTopBleed ? "pt-0" : "pt-8",
+            ].join(" ")}
             style={{ background: "var(--vc-bg, #0a0a0a)", color: "var(--vc-fg, #f7f3ea)" }}
             data-testid="preview-scroll"
           >
             <div className="space-y-3">
-              {sections.map((section) => <PreviewSection key={section.id} section={section} isTop={section.id === firstVisibleSectionId} />)}
+              {sections.map((section) => (
+                <PreviewSection
+                  key={section.id}
+                  section={section}
+                  isTop={section.id === firstVisibleSectionId}
+                  topBleedOffset={previewStartsWithTopBleed ? "none" : "page"}
+                />
+              ))}
             </div>
           </div>
         </div>

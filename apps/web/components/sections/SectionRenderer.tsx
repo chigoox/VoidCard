@@ -55,7 +55,19 @@ function renderLinkStyle(style: "pill" | "card" | "ghost") {
   }
 }
 
-export function SectionRenderer({ section, verified, username, isTop }: { section: Section; verified?: boolean; username?: string; isTop?: boolean }) {
+export function SectionRenderer({
+  section,
+  verified,
+  username,
+  isTop,
+  topBleedOffset = "page",
+}: {
+  section: Section;
+  verified?: boolean;
+  username?: string;
+  isTop?: boolean;
+  topBleedOffset?: "page" | "none";
+}) {
   if (!section.visible) return null;
   const animation = section.display?.animation ?? "none";
   const delay = section.display?.animationDelay ?? 0;
@@ -63,18 +75,19 @@ export function SectionRenderer({ section, verified, username, isTop }: { sectio
   // (px-4/sm:px-6 + pt-8/sm:pt-10) and cover the top safe-area inset so cover/header images go
   // edge-to-edge and reach the very top of the viewport (under the notch on iOS).
   const wantsTopBleed = !!isTop && (
-    (section.type === "header" && (section.props as { coverFullBleed?: boolean }).coverFullBleed === true) ||
+    (section.type === "header" && !!section.props.coverUrl) ||
     (section.type === "image" && (section.props as { fullWidth?: boolean }).fullWidth === true)
   );
   if (wantsTopBleed) {
+    const topBleedClassName = topBleedOffset === "none" ? "-mx-4 sm:-mx-6" : "-mx-4 -mt-8 sm:-mx-6 sm:-mt-10";
     return (
       <SectionMotion animation={animation} delay={delay}>
         <div
           data-vc-section
           data-section-type={section.type}
           data-vc-top-bleed="1"
-          className="-mx-4 -mt-8 sm:-mx-6 sm:-mt-10"
-          style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+          className={topBleedClassName}
+          style={topBleedOffset === "none" ? undefined : { paddingTop: "env(safe-area-inset-top, 0px)" }}
         >
           {renderSectionInner(section, verified, username, true)}
         </div>
@@ -94,8 +107,8 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
   switch (section.type) {
     case "header": {
       const p = section.props;
-      const fullBleedTopHeader = !!topBleed && p.coverFullBleed;
-      const fullBleedStyle: CSSProperties | undefined = p.coverFullBleed
+      const fullBleedTopHeader = !!topBleed && !!p.coverUrl;
+      const fullBleedStyle: CSSProperties | undefined = p.coverFullBleed || fullBleedTopHeader
         ? (topBleed
             ? { width: "100%", marginLeft: 0, marginRight: 0, borderRadius: 0, border: "none" }
             : { width: "calc(100% + 40px)", marginLeft: "-20px", marginRight: "-20px", borderRadius: 0, border: "none" })
