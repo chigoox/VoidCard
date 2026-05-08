@@ -63,7 +63,7 @@ const Link = Base.extend({
 
 const Image = Base.extend({
   type: z.literal("image"),
-  props: z.object({ src: z.string().url(), alt: z.string().default(""), rounded: z.boolean().default(true) }),
+  props: z.object({ src: z.string().url(), alt: z.string().default(""), rounded: z.boolean().default(true), fullWidth: z.boolean().default(false) }),
 });
 
 const Video = Base.extend({ type: z.literal("video"), props: z.object({ src: z.string().url(), poster: z.string().url().optional() }) });

@@ -899,6 +899,10 @@ function SectionEditorFields({
             <input type="checkbox" checked={p.rounded} onChange={(event) => onChange({ ...section, props: { ...p, rounded: event.target.checked } })} className="size-4 rounded border-onyx-700 bg-onyx-950" />
             Rounded corners
           </label>
+          <label className="flex items-center gap-2 text-sm text-ivory md:col-span-2">
+            <input type="checkbox" checked={p.fullWidth ?? false} onChange={(event) => onChange({ ...section, props: { ...p, fullWidth: event.target.checked } })} className="size-4 rounded border-onyx-700 bg-onyx-950" />
+            Fill width (edge-to-edge — when this is the first section, also covers the top safe area)
+          </label>
         </div>
       );
     }
@@ -1852,7 +1856,7 @@ export default function EditorClient({
     switch (type) {
       case "header": nextSection = { ...base, type, props: { name: "Your name", showVerified: true, coverFullBleed: false } }; break;
       case "link": nextSection = { ...base, type, props: { label: "New link", url: "https://example.com", style: "pill" } }; break;
-      case "image": nextSection = { ...base, type, props: { src: "https://placehold.co/600x600", alt: "", rounded: true } }; break;
+      case "image": nextSection = { ...base, type, props: { src: "https://placehold.co/600x600", alt: "", rounded: true, fullWidth: false } }; break;
       case "spotify": nextSection = { ...base, type, props: { uri: "spotify:track:11dFghVXANMlKmJXsNCbNl" } }; break;
       case "youtube": nextSection = { ...base, type, props: { id: "dQw4w9WgXcQ" } }; break;
       case "social": nextSection = { ...base, type, props: { items: [{ platform: "instagram", handle: "voidluxury" }] } }; break;
@@ -2940,9 +2944,6 @@ export default function EditorClient({
                 <Redo2 className="size-4" aria-hidden />
               </button>
               <div className="mx-1 h-5 w-px bg-onyx-700" />
-              <button type="button" onClick={onSave} disabled={pending} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Save draft" data-testid="save-draft">
-                <Save className="size-4" aria-hidden />
-              </button>
               {/* Centered eye — tap = preview, long-press = collapse toolbar */}
               <motion.button
                 type="button"
@@ -2960,6 +2961,10 @@ export default function EditorClient({
               >
                 <Eye className="size-5" aria-hidden />
               </motion.button>
+              <div className="mx-1 h-5 w-px bg-onyx-700" />
+              <button type="button" onClick={onSave} disabled={pending} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Save draft" data-testid="save-draft">
+                <Save className="size-4" aria-hidden />
+              </button>
               <button type="button" onClick={onPublish} disabled={pending} className="rounded-full bg-gold/10 p-2.5 text-gold hover:bg-gold/20 disabled:opacity-40" aria-label="Publish" data-testid="publish">
                 <Globe className="size-4" aria-hidden />
               </button>

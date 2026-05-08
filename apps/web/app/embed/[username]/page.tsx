@@ -147,8 +147,8 @@ export default async function EmbedProfilePage({
           </div>
         </header>
         <div className="space-y-2">
-          {visibleSections.map((section) => (
-            <SectionRenderer key={section.id} section={section} verified={profile.verified} />
+          {visibleSections.map((section, idx) => (
+            <SectionRenderer key={section.id} section={section} verified={profile.verified} isTop={idx === 0} />
           ))}
         </div>
         {mode === "card" && sections.length > 4 ? (

@@ -55,10 +55,32 @@ function renderLinkStyle(style: "pill" | "card" | "ghost") {
   }
 }
 
-export function SectionRenderer({ section, verified, username }: { section: Section; verified?: boolean; username?: string }) {
+export function SectionRenderer({ section, verified, username, isTop }: { section: Section; verified?: boolean; username?: string; isTop?: boolean }) {
   if (!section.visible) return null;
   const animation = section.display?.animation ?? "none";
   const delay = section.display?.animationDelay ?? 0;
+  // Top-of-page full-bleed: when this is the first section AND it opts in, escape page padding
+  // (px-4/sm:px-6 + pt-8/sm:pt-10) and cover the top safe-area inset so cover/header images go
+  // edge-to-edge and reach the very top of the viewport (under the notch on iOS).
+  const wantsTopBleed = !!isTop && (
+    (section.type === "header" && (section.props as { coverFullBleed?: boolean }).coverFullBleed === true) ||
+    (section.type === "image" && (section.props as { fullWidth?: boolean }).fullWidth === true)
+  );
+  if (wantsTopBleed) {
+    return (
+      <SectionMotion animation={animation} delay={delay}>
+        <div
+          data-vc-section
+          data-section-type={section.type}
+          data-vc-top-bleed="1"
+          className="-mx-4 -mt-8 sm:-mx-6 sm:-mt-10"
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+        >
+          {renderSectionInner(section, verified, username, true)}
+        </div>
+      </SectionMotion>
+    );
+  }
   return (
     <SectionMotion animation={animation} delay={delay}>
       <div data-vc-section data-section-type={section.type}>
@@ -68,18 +90,20 @@ export function SectionRenderer({ section, verified, username }: { section: Sect
   );
 }
 
-function renderSectionInner(section: Section, verified?: boolean, username?: string) {
+function renderSectionInner(section: Section, verified?: boolean, username?: string, topBleed?: boolean) {
   switch (section.type) {
     case "header": {
       const p = section.props;
       const fullBleedStyle: CSSProperties | undefined = p.coverFullBleed
-        ? { width: "calc(100% + 40px)", marginLeft: "-20px", marginRight: "-20px", borderRadius: 0, border: "none" }
+        ? (topBleed
+            ? { width: "100%", marginLeft: 0, marginRight: 0, borderRadius: 0, border: "none" }
+            : { width: "calc(100% + 40px)", marginLeft: "-20px", marginRight: "-20px", borderRadius: 0, border: "none" })
         : undefined;
       return (
         <header className="flex flex-col items-center pt-6 text-center" style={{ color: "var(--vc-fg, #f7f3ea)" }}>
           {p.coverUrl ? (
             <div className="mb-4 w-full overflow-hidden" style={{ ...cardStyle, ...fullBleedStyle }}>
-              <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className="h-32 w-full object-cover" />
+              <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className={topBleed && p.coverFullBleed ? "h-48 w-full object-cover sm:h-64" : "h-32 w-full object-cover"} />
             </div>
           ) : null}
           {p.avatarUrl ? (
@@ -133,14 +157,15 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
     }
     case "image": {
       const p = section.props;
+      const fullWidth = (p as { fullWidth?: boolean }).fullWidth === true;
       return (
         <img
           src={p.src}
           alt={p.alt}
           loading="lazy"
           decoding="async"
-          className="h-auto w-full object-cover"
-          style={{ borderRadius: p.rounded ? "var(--vc-radius, 14px)" : undefined }}
+          className={topBleed && fullWidth ? "h-auto w-full object-cover" : "h-auto w-full object-cover"}
+          style={{ borderRadius: (topBleed && fullWidth) ? 0 : (p.rounded ? "var(--vc-radius, 14px)" : undefined) }}
         />
       );
     }

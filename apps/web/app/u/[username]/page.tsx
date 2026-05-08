@@ -209,8 +209,8 @@ export default async function PublicProfilePage({
         data-testid="profile-public-content"
       >
         <div className="space-y-3">
-          {sections.map((section) => (
-            <SectionRenderer key={section.id} section={section} verified={profile.verified} username={handle} />
+          {sections.map((section, idx) => (
+            <SectionRenderer key={section.id} section={section} verified={profile.verified} username={handle} isTop={idx === 0} />
           ))}
         </div>
         {!profile.removeBranding && (
