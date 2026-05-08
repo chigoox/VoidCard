@@ -99,6 +99,7 @@ export default async function EmbedProfilePage({
     return (
       <main className="vc-embed-shell vc-profile min-h-[180px] p-4" style={shellStyle}>
         <style dangerouslySetInnerHTML={{ __html: themeCss }} />
+        {profile.customCss ? <style dangerouslySetInnerHTML={{ __html: sanitizeCss(profile.customCss) }} /> : null}
         <a
           href={profileUrl}
           target="_top"
@@ -117,6 +118,7 @@ export default async function EmbedProfilePage({
     return (
       <main className="vc-embed-shell vc-profile p-2" style={shellStyle} data-testid="embed-button">
         <style dangerouslySetInnerHTML={{ __html: themeCss }} />
+        {profile.customCss ? <style dangerouslySetInnerHTML={{ __html: sanitizeCss(profile.customCss) }} /> : null}
         <a
           href={profileUrl}
           target="_top"
@@ -136,6 +138,7 @@ export default async function EmbedProfilePage({
     <main className="vc-embed-shell min-h-[120px]" style={shellStyle} data-testid={`embed-${mode}`}>
       <style dangerouslySetInnerHTML={{ __html: themeCss }} />
       <style dangerouslySetInnerHTML={{ __html: customFontCss(profile.customFontUrl) }} />
+      {profile.customCss ? <style dangerouslySetInnerHTML={{ __html: sanitizeCss(profile.customCss) }} /> : null}
       <div className="mx-auto max-w-md p-4 vc-profile">
         <header className="mb-4 flex items-center gap-3">
           {profile.avatarUrl ? (
@@ -161,7 +164,7 @@ export default async function EmbedProfilePage({
             <span className="block truncate text-xs opacity-70">@{handle}</span>
           </div>
         </header>
-        <div className="space-y-2">
+        <div className="vc-profile-stack">
           {visibleSections.map((section, idx) => (
             <SectionRenderer key={section.id} section={section} verified={profile.verified} isTop={idx === 0} />
           ))}
@@ -188,4 +191,8 @@ export default async function EmbedProfilePage({
       <script dangerouslySetInnerHTML={{ __html: resizeScript }} />
     </main>
   );
+}
+
+function sanitizeCss(css: string) {
+  return css.replace(/@import[^;]+;/gi, "").replace(/javascript:/gi, "").replace(/expression\s*\(/gi, "");
 }

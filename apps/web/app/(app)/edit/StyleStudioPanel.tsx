@@ -1,5 +1,5 @@
 "use client";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { DEFAULT_STYLE_STUDIO, type StyleStudio } from "@/lib/editor/styleStudio";
 import { getThemePreset } from "@/lib/themes/presets";
 
@@ -8,9 +8,27 @@ const INPUT_CLASS_NAME =
 
 const QUICK_LOOKS: Array<{ label: string; value: Partial<StyleStudio> }> = [
   { label: "Classic", value: { radius: 14, gap: 12, maxWidth: 480, fontWeight: 500, background: "solid", buttonShadow: false } },
-  { label: "Soft", value: { radius: 24, gap: 16, maxWidth: 520, fontWeight: 400, background: "gradient", buttonShadow: true } },
+  { label: "Soft", value: { radius: 24, gap: 16, maxWidth: 520, fontWeight: 400, background: "gradient", gradientType: "radial", gradientPosition: "top", gradientStrength: 18, buttonShadow: true } },
   { label: "Sharp", value: { radius: 6, gap: 10, maxWidth: 460, fontWeight: 600, background: "solid", buttonShadow: false } },
-  { label: "Wide", value: { radius: 16, gap: 14, maxWidth: 680, fontWeight: 500, background: "mesh", buttonShadow: true } },
+  { label: "Wide", value: { radius: 16, gap: 14, maxWidth: 680, fontWeight: 500, background: "mesh", gradientPosition: "top-left", gradientStrength: 22, buttonShadow: true } },
+];
+
+const GRADIENT_TYPES: Array<{ label: string; value: StyleStudio["gradientType"] }> = [
+  { label: "Radial", value: "radial" },
+  { label: "Linear", value: "linear" },
+  { label: "Conic", value: "conic" },
+];
+
+const GRADIENT_POSITIONS: Array<{ label: string; value: StyleStudio["gradientPosition"] }> = [
+  { label: "Top", value: "top" },
+  { label: "Center", value: "center" },
+  { label: "Bottom", value: "bottom" },
+  { label: "Left", value: "left" },
+  { label: "Right", value: "right" },
+  { label: "Top left", value: "top-left" },
+  { label: "Top right", value: "top-right" },
+  { label: "Bottom left", value: "bottom-left" },
+  { label: "Bottom right", value: "bottom-right" },
 ];
 
 function Field({
@@ -62,6 +80,77 @@ function ColorInput({
   );
 }
 
+function gradientPositionCss(value: StyleStudio["gradientPosition"]) {
+  switch (value) {
+    case "top":
+      return "50% 0%";
+    case "bottom":
+      return "50% 100%";
+    case "left":
+      return "0% 50%";
+    case "right":
+      return "100% 50%";
+    case "top-left":
+      return "0% 0%";
+    case "top-right":
+      return "100% 0%";
+    case "bottom-left":
+      return "0% 100%";
+    case "bottom-right":
+      return "100% 100%";
+    default:
+      return "50% 50%";
+  }
+}
+
+function oppositeGradientPosition(value: StyleStudio["gradientPosition"]) {
+  switch (value) {
+    case "top":
+      return "bottom";
+    case "bottom":
+      return "top";
+    case "left":
+      return "right";
+    case "right":
+      return "left";
+    case "top-left":
+      return "bottom-right";
+    case "top-right":
+      return "bottom-left";
+    case "bottom-left":
+      return "top-right";
+    case "bottom-right":
+      return "top-left";
+    default:
+      return "center";
+  }
+}
+
+function previewBackground(studio: StyleStudio, colors: { bg: string; accent: string; accent2: string }) {
+  if (studio.background === "solid") return colors.bg;
+  const start = studio.customGradientColors ? studio.gradientStart : colors.accent;
+  const end = studio.customGradientColors ? studio.gradientEnd : colors.accent2;
+  const position = gradientPositionCss(studio.gradientPosition);
+  const opposite = gradientPositionCss(oppositeGradientPosition(studio.gradientPosition));
+  const startMix = `color-mix(in srgb, ${start} ${studio.gradientStrength}%, ${colors.bg})`;
+  const endMix = `color-mix(in srgb, ${end} ${Math.max(4, Math.round(studio.gradientStrength * 0.7))}%, ${colors.bg})`;
+
+  if (studio.background === "mesh") {
+    return [
+      `radial-gradient(at ${position}, color-mix(in srgb, ${start} ${studio.gradientStrength}%, transparent) 0px, transparent 52%)`,
+      `radial-gradient(at ${opposite}, color-mix(in srgb, ${end} ${Math.max(4, Math.round(studio.gradientStrength * 0.6))}%, transparent) 0px, transparent 56%)`,
+      colors.bg,
+    ].join(", ");
+  }
+  if (studio.gradientType === "linear") {
+    return `linear-gradient(${studio.gradientAngle}deg, ${startMix} 0%, ${endMix} 52%, ${colors.bg} 100%)`;
+  }
+  if (studio.gradientType === "conic") {
+    return `conic-gradient(from ${studio.gradientAngle}deg at ${position}, ${startMix} 0deg, ${endMix} 120deg, ${colors.bg} 280deg, ${startMix} 360deg)`;
+  }
+  return `radial-gradient(120% 80% at ${position}, ${startMix} 0%, ${endMix} 45%, ${colors.bg} 100%)`;
+}
+
 export default function StyleStudioPanel({
   studio,
   onChange,
@@ -78,6 +167,14 @@ export default function StyleStudioPanel({
     fg: studio.customColors ? studio.fg : preset.vars["--vc-fg"] ?? "#f7f3ea",
     fgMute: studio.customColors ? studio.fgMute : preset.vars["--vc-fg-mute"] ?? "#a8a39a",
     accent: studio.customColors ? studio.accent : preset.vars["--vc-accent"] ?? "#d4af37",
+    accent2: studio.customColors ? studio.accent2 : preset.vars["--vc-accent-2"] ?? "#f0d97e",
+  };
+  const previewBackgroundValue = previewBackground(studio, previewColors);
+  const previewShellStyle: CSSProperties = {
+    background: previewBackgroundValue,
+    color: previewColors.fg,
+    maxWidth: Math.min(studio.maxWidth / 2.4, 260),
+    marginInline: "auto",
   };
 
   function patch<K extends keyof StyleStudio>(key: K, value: StyleStudio[K]) {
@@ -93,6 +190,8 @@ export default function StyleStudioPanel({
       fgMute: preset.vars["--vc-fg-mute"] ?? studio.fgMute,
       accent: preset.vars["--vc-accent"] ?? studio.accent,
       accent2: preset.vars["--vc-accent-2"] ?? studio.accent2,
+      gradientStart: preset.vars["--vc-accent"] ?? studio.gradientStart,
+      gradientEnd: preset.vars["--vc-accent-2"] ?? studio.gradientEnd,
     });
   }
 
@@ -159,7 +258,7 @@ export default function StyleStudioPanel({
           </div>
           <div
             className="rounded-card border border-onyx-700 p-3"
-            style={{ background: previewColors.bg, color: previewColors.fg }}
+            style={previewShellStyle}
             aria-hidden
           >
             <div className="rounded-card p-3" style={{ background: previewColors.bg2, borderRadius: studio.radius }}>
@@ -265,6 +364,54 @@ export default function StyleStudioPanel({
             ))}
           </div>
         </Field>
+        {studio.background !== "solid" ? (
+          <div className="space-y-3 rounded-card border border-onyx-700 bg-onyx-950/60 p-3 sm:col-span-2" data-testid="style-studio-gradient-controls">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {studio.background === "gradient" ? (
+                <Field label="Gradient type">
+                  <select className={INPUT_CLASS_NAME} value={studio.gradientType} onChange={(e) => patch("gradientType", e.target.value as StyleStudio["gradientType"])}>
+                    {GRADIENT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                  </select>
+                </Field>
+              ) : null}
+              <Field label="Gradient position">
+                <select className={INPUT_CLASS_NAME} value={studio.gradientPosition} onChange={(e) => patch("gradientPosition", e.target.value as StyleStudio["gradientPosition"])}>
+                  {GRADIENT_POSITIONS.map((position) => <option key={position.value} value={position.value}>{position.label}</option>)}
+                </select>
+              </Field>
+              {studio.background === "gradient" && studio.gradientType !== "radial" ? (
+                <Field label={`Angle — ${studio.gradientAngle}deg`}>
+                  <input type="range" min={0} max={360} step={5} value={studio.gradientAngle} onChange={(e) => patch("gradientAngle", Number(e.target.value))} className="w-full" />
+                </Field>
+              ) : null}
+              <Field label={`Intensity — ${studio.gradientStrength}%`} className={studio.background === "gradient" && studio.gradientType !== "radial" ? "" : "sm:col-span-2"}>
+                <input type="range" min={0} max={40} value={studio.gradientStrength} onChange={(e) => patch("gradientStrength", Number(e.target.value))} className="w-full" />
+              </Field>
+            </div>
+            <label className="flex items-start gap-2 text-sm text-ivory">
+              <input
+                type="checkbox"
+                checked={studio.customGradientColors}
+                onChange={(e) => patch("customGradientColors", e.target.checked)}
+                className="mt-1 size-4 rounded border-onyx-700 bg-onyx-950"
+              />
+              <span>
+                <span className="font-medium">Use custom gradient colors</span>
+                <span className="block text-xs text-ivory-mute">Off uses the selected theme accent colors.</span>
+              </span>
+            </label>
+            {studio.customGradientColors ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Gradient start">
+                  <ColorInput value={studio.gradientStart} onChange={(v) => patch("gradientStart", v)} ariaLabel="Gradient start color" />
+                </Field>
+                <Field label="Gradient end">
+                  <ColorInput value={studio.gradientEnd} onChange={(v) => patch("gradientEnd", v)} ariaLabel="Gradient end color" />
+                </Field>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <label className="flex items-center gap-2 text-sm text-ivory sm:col-span-2">
           <input type="checkbox" checked={studio.buttonShadow} onChange={(e) => patch("buttonShadow", e.target.checked)} className="size-4 rounded border-onyx-700 bg-onyx-950" />
           Button drop shadow

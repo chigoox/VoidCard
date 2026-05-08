@@ -81,7 +81,7 @@ export function GallerySectionClient({
   } else if (layout === "masonry") {
     container = <div className="columns-2 gap-2 sm:columns-3">{list}</div>;
   } else {
-    container = <div className="grid grid-cols-3 gap-2">{list}</div>;
+    container = <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{list}</div>;
   }
 
   return (

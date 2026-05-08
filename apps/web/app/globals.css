@@ -146,6 +146,17 @@ html, body {
   position: relative;
 }
 
+.vc-profile {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(100%, var(--vc-max-width, 480px));
+  margin-inline: auto;
+}
+
+.vc-profile-stack > [data-vc-section] + [data-vc-section] {
+  margin-top: var(--vc-gap, 0.75rem);
+}
+
 .home-theme {
   --home-bg: #ffffff;
   --home-bg-soft: #fafafb;

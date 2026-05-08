@@ -2385,7 +2385,7 @@ export default function EditorClient({
             style={{ background: "var(--vc-bg, #0a0a0a)", color: "var(--vc-fg, #f7f3ea)" }}
             data-testid="preview-scroll"
           >
-            <div className="space-y-3">
+            <div className="vc-profile-stack">
               {sections.map((section) => (
                 <PreviewSection
                   key={section.id}

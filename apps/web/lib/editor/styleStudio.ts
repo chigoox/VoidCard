@@ -9,6 +9,13 @@ export type StyleStudio = {
   maxWidth: number; // 360–800
   fontWeight: 300 | 400 | 500 | 600 | 700;
   background: "solid" | "gradient" | "mesh";
+  gradientType: "radial" | "linear" | "conic";
+  gradientPosition: "top" | "center" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  gradientAngle: number; // 0-360
+  gradientStrength: number; // 0-40
+  customGradientColors: boolean;
+  gradientStart: string;
+  gradientEnd: string;
   buttonShadow: boolean;
   // When true, the color overrides below are emitted to override the active
   // theme preset's --vc-* variables. When false, the palette and accent come
@@ -28,6 +35,13 @@ export const DEFAULT_STYLE_STUDIO: StyleStudio = {
   maxWidth: 480,
   fontWeight: 500,
   background: "solid",
+  gradientType: "radial",
+  gradientPosition: "top",
+  gradientAngle: 180,
+  gradientStrength: 18,
+  customGradientColors: false,
+  gradientStart: "#d4a853",
+  gradientEnd: "#f0d97e",
   buttonShadow: false,
   customColors: false,
   bg: "#0a0a0a",
@@ -81,6 +95,21 @@ function parseBlock(block: string): StyleStudio {
   }
   const bg = grab("--vc-bg-mode");
   if (bg === "gradient" || bg === "mesh" || bg === "solid") out.background = bg;
+  const gradientType = grab("--vc-gradient-type");
+  if (gradientType === "radial" || gradientType === "linear" || gradientType === "conic") out.gradientType = gradientType;
+  const gradientPosition = grab("--vc-gradient-position");
+  if (isGradientPosition(gradientPosition)) out.gradientPosition = gradientPosition;
+  const gradientAngle = grab("--vc-gradient-angle");
+  if (gradientAngle) out.gradientAngle = clampInt(parseInt(gradientAngle, 10), 0, 360, out.gradientAngle);
+  const gradientStrength = grab("--vc-gradient-strength");
+  if (gradientStrength) out.gradientStrength = clampInt(parseInt(gradientStrength, 10), 0, 40, out.gradientStrength);
+  const customGradientColors = grab("--vc-custom-gradient-colors");
+  if (customGradientColors === "1") out.customGradientColors = true;
+  if (customGradientColors === "0") out.customGradientColors = false;
+  const gradientStart = grab("--vc-gradient-start");
+  if (gradientStart && HEX_RE.test(gradientStart)) out.gradientStart = gradientStart;
+  const gradientEnd = grab("--vc-gradient-end");
+  if (gradientEnd && HEX_RE.test(gradientEnd)) out.gradientEnd = gradientEnd;
   const shadow = grab("--vc-button-shadow");
   if (shadow === "1") out.buttonShadow = true;
   if (shadow === "0") out.buttonShadow = false;
@@ -100,6 +129,12 @@ function parseBlock(block: string): StyleStudio {
 }
 
 function renderBlock(s: StyleStudio): string {
+  const gradientColorOverrides = s.customGradientColors
+    ? [
+        `  --vc-gradient-start: ${s.gradientStart};`,
+        `  --vc-gradient-end: ${s.gradientEnd};`,
+      ]
+    : [];
   const colorOverrides = s.customColors
     ? [
         `  --vc-accent: ${s.accent};`,
@@ -120,24 +155,97 @@ function renderBlock(s: StyleStudio): string {
     `  --vc-max-width: ${s.maxWidth}px;`,
     `  --vc-font-weight: ${s.fontWeight};`,
     `  --vc-bg-mode: ${s.background};`,
+    `  --vc-gradient-type: ${s.gradientType};`,
+    `  --vc-gradient-position: ${s.gradientPosition};`,
+    `  --vc-gradient-angle: ${s.gradientAngle}deg;`,
+    `  --vc-gradient-strength: ${s.gradientStrength}%;`,
+    `  --vc-custom-gradient-colors: ${s.customGradientColors ? 1 : 0};`,
+    ...gradientColorOverrides,
     `  --vc-button-shadow: ${s.buttonShadow ? 1 : 0};`,
     `  font-weight: var(--vc-font-weight);`,
     `}`,
-    `.vc-profile [data-vc-section] { margin-top: var(--vc-gap); }`,
-    `.vc-profile [data-vc-section]:first-child { margin-top: 0; }`,
+    `.vc-profile .vc-profile-stack > [data-vc-section] + [data-vc-section] { margin-top: var(--vc-gap); }`,
     `.vc-profile a[data-vc-link] { border-radius: var(--vc-radius); ${s.buttonShadow ? "box-shadow: 0 6px 18px -8px rgba(0,0,0,.45);" : ""} }`,
-    s.background === "gradient"
-      ? `.vc-profile { background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--vc-accent) 14%, var(--vc-bg)) 0%, var(--vc-bg) 60%) !important; }`
-      : "",
-    s.background === "mesh"
-      ? `.vc-profile { background:
-          radial-gradient(at 20% 0%, color-mix(in srgb, var(--vc-accent) 18%, transparent) 0px, transparent 50%),
-          radial-gradient(at 80% 100%, color-mix(in srgb, var(--vc-accent) 10%, transparent) 0px, transparent 50%),
-          var(--vc-bg) !important; }`
-      : "",
+    backgroundCss(s),
     MARKER_CLOSE,
   ].filter(Boolean);
   return lines.join("\n");
+}
+
+function backgroundCss(s: StyleStudio) {
+  if (s.background === "solid") return "";
+  const start = "var(--vc-gradient-start, var(--vc-accent, #d4af37))";
+  const end = "var(--vc-gradient-end, var(--vc-accent-2, #f0d97e))";
+  const bg = "var(--vc-bg, #0a0a0a)";
+  const startMix = `color-mix(in srgb, ${start} ${s.gradientStrength}%, ${bg})`;
+  const endMix = `color-mix(in srgb, ${end} ${Math.max(4, Math.round(s.gradientStrength * 0.7))}%, ${bg})`;
+  const position = gradientPositionCss(s.gradientPosition);
+  const opposite = gradientPositionCss(oppositeGradientPosition(s.gradientPosition));
+
+  if (s.background === "mesh") {
+    return `.vc-profile { background:
+          radial-gradient(at ${position}, color-mix(in srgb, ${start} ${s.gradientStrength}%, transparent) 0px, transparent 52%),
+          radial-gradient(at ${opposite}, color-mix(in srgb, ${end} ${Math.max(4, Math.round(s.gradientStrength * 0.6))}%, transparent) 0px, transparent 56%),
+          ${bg} !important; }`;
+  }
+
+  if (s.gradientType === "linear") {
+    return `.vc-profile { background: linear-gradient(${s.gradientAngle}deg, ${startMix} 0%, ${endMix} 52%, ${bg} 100%) !important; background-position: ${position}; background-size: 140% 140%; }`;
+  }
+  if (s.gradientType === "conic") {
+    return `.vc-profile { background: conic-gradient(from ${s.gradientAngle}deg at ${position}, ${startMix} 0deg, ${endMix} 120deg, ${bg} 280deg, ${startMix} 360deg) !important; }`;
+  }
+  return `.vc-profile { background: radial-gradient(120% 80% at ${position}, ${startMix} 0%, ${endMix} 45%, ${bg} 100%) !important; }`;
+}
+
+function isGradientPosition(value: string | undefined): value is StyleStudio["gradientPosition"] {
+  return value === "top" || value === "center" || value === "bottom" || value === "left" || value === "right" || value === "top-left" || value === "top-right" || value === "bottom-left" || value === "bottom-right";
+}
+
+function gradientPositionCss(value: StyleStudio["gradientPosition"]) {
+  switch (value) {
+    case "top":
+      return "50% 0%";
+    case "bottom":
+      return "50% 100%";
+    case "left":
+      return "0% 50%";
+    case "right":
+      return "100% 50%";
+    case "top-left":
+      return "0% 0%";
+    case "top-right":
+      return "100% 0%";
+    case "bottom-left":
+      return "0% 100%";
+    case "bottom-right":
+      return "100% 100%";
+    default:
+      return "50% 50%";
+  }
+}
+
+function oppositeGradientPosition(value: StyleStudio["gradientPosition"]): StyleStudio["gradientPosition"] {
+  switch (value) {
+    case "top":
+      return "bottom";
+    case "bottom":
+      return "top";
+    case "left":
+      return "right";
+    case "right":
+      return "left";
+    case "top-left":
+      return "bottom-right";
+    case "top-right":
+      return "bottom-left";
+    case "bottom-left":
+      return "top-right";
+    case "bottom-right":
+      return "top-left";
+    default:
+      return "center";
+  }
 }
 
 function clampInt(v: number, min: number, max: number, fallback: number) {

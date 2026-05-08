@@ -31,7 +31,7 @@ const profileShellStyle: CSSProperties = {
 // keeps the user's chosen column width centered.
 const profileColumnStyle: CSSProperties = {
   width: "100%",
-  maxWidth: "min(100%, var(--vc-max-width, 28rem))",
+  maxWidth: "min(100%, var(--vc-max-width, 480px))",
   background: "var(--vc-bg, #0a0a0a)",
   color: "var(--vc-fg, #f7f3ea)",
 };
@@ -209,7 +209,7 @@ export default async function PublicProfilePage({
         style={profileColumnStyle}
         data-testid="profile-public-content"
       >
-        <div className="space-y-3">
+        <div className="vc-profile-stack">
           {sections.map((section, idx) => (
             <SectionRenderer key={section.id} section={section} verified={profile.verified} username={handle} isTop={idx === 0} />
           ))}
