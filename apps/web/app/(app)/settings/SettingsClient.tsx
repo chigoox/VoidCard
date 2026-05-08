@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { saveProfilePassword, saveSettings } from "./actions";
-import { THEME_PRESETS } from "@/lib/themes/presets";
 
 export function SettingsClient({
   profileId,
@@ -17,7 +16,6 @@ export function SettingsClient({
     bio: string;
     avatarUrl: string;
     customCss: string;
-    themeId: string;
     hasProfilePassword: boolean;
   };
   canUsePasswordProtection: boolean;
@@ -26,7 +24,6 @@ export function SettingsClient({
   const [bio, setBio] = useState(initial.bio);
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl);
   const [customCss, setCustomCss] = useState(initial.customCss);
-  const [themeId, setThemeId] = useState(initial.themeId);
   const [profilePassword, setProfilePassword] = useState("");
   const [hasProfilePassword, setHasProfilePassword] = useState(initial.hasProfilePassword);
   const [pending, start] = useTransition();
@@ -52,7 +49,7 @@ export function SettingsClient({
     e.preventDefault();
     setMsg(null);
     start(async () => {
-      const res = await saveSettings({ profileId, displayName, bio, avatarUrl, customCss, themeId });
+      const res = await saveSettings({ profileId, displayName, bio, avatarUrl, customCss });
       setMsg(res.ok ? "Saved." : res.error ?? "Could not save.");
     });
   }
@@ -89,38 +86,6 @@ export function SettingsClient({
           className="mt-1 w-full rounded-card border border-onyx-600 bg-onyx-900 px-4 py-2.5 outline-none focus:border-gold/60"
         />
       </label>
-      <div className="block">
-        <span className="text-xs uppercase tracking-widest text-ivory-mute">Theme</span>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          {THEME_PRESETS.map((theme) => (
-            <button
-              key={theme.id}
-              type="button"
-              onClick={() => setThemeId(theme.id)}
-              data-testid={`theme-${theme.id}`}
-              aria-pressed={themeId === theme.id}
-              className={[
-                "rounded-card border px-3 py-3 text-left transition",
-                themeId === theme.id
-                  ? "border-gold/60 bg-onyx-900/80 shadow-[0_0_0_1px_rgba(212,168,83,0.25)]"
-                  : "border-onyx-700 bg-onyx-900/40 hover:border-gold/30",
-              ].join(" ")}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-display text-sm text-ivory">{theme.name}</p>
-                  <p className="mt-1 text-xs text-ivory-mute">{theme.description}</p>
-                </div>
-                <div className="flex gap-1">
-                  <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.bg }} />
-                  <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.fg }} />
-                  <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.accent }} />
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
       <label className="block">
         <span className="text-xs uppercase tracking-widest text-ivory-mute">Custom CSS (free)</span>
         <textarea

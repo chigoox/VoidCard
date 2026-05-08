@@ -3,7 +3,6 @@ import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
 import { getManagedProfile, listOwnedProfiles, profileAppPath } from "@/lib/profiles";
 import { SettingsClient } from "./SettingsClient";
-import { THEME_PRESETS } from "@/lib/themes/presets";
 
 export const dynamic = "force-dynamic";
 
@@ -25,16 +24,11 @@ export default async function SettingsPage({
     return null;
   }
 
-  const activeTheme =
-    activeProfile.theme && typeof activeProfile.theme === "object" && "id" in activeProfile.theme && typeof activeProfile.theme.id === "string"
-      ? activeProfile.theme.id
-      : THEME_PRESETS[0].id;
-
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <header>
         <h1 className="font-display text-2xl text-gold-grad">Settings</h1>
-        <p className="mt-1 text-sm text-ivory-dim">Profile, theme, and account.</p>
+        <p className="mt-1 text-sm text-ivory-dim">Profile and account.</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {profiles.map((profile) => (
             <Link
@@ -63,7 +57,6 @@ export default async function SettingsPage({
           avatarUrl: activeProfile.avatarUrl ?? "",
           customCss: activeProfile.customCss ?? "",
           hasProfilePassword: typeof activeProfile.passwordHash === "string" && activeProfile.passwordHash.length > 0,
-          themeId: activeTheme,
         }}
         canUsePasswordProtection={entitlements.passwordProtected}
       />

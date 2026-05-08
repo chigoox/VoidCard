@@ -5,9 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
 import { hashProfilePassword } from "@/lib/profile-password";
 import { getManagedProfile, updateManagedProfile } from "@/lib/profiles";
-import { createClient } from "@/lib/supabase/server";
 import { setCustomCss } from "../edit/actions";
-import { getThemePreset } from "@/lib/themes/presets";
 
 const Settings = z.object({
   profileId: z.string().optional(),
@@ -15,7 +13,6 @@ const Settings = z.object({
   bio: z.string().max(280),
   avatarUrl: z.string().max(1024),
   customCss: z.string().max(30000),
-  themeId: z.string().max(64).optional(),
 });
 
 export async function saveSettings(input: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -26,12 +23,10 @@ export async function saveSettings(input: unknown): Promise<{ ok: true } | { ok:
   const profile = await getManagedProfile(u.id, parsed.data.profileId ?? null);
   if (!profile) return { ok: false, error: "profile_not_found" };
 
-  const sb = await createClient();
   const { error } = await updateManagedProfile(u.id, profile.id, {
       display_name: parsed.data.displayName || null,
       bio: parsed.data.bio || null,
       avatar_url: parsed.data.avatarUrl || null,
-      theme: { id: getThemePreset(parsed.data.themeId).id },
     });
   if (error) return { ok: false, error: error.message };
 

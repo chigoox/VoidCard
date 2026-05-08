@@ -30,6 +30,9 @@ export default async function DashboardPage() {
           <Link href="/cards/pair" className="btn-ghost">Pair a card</Link>
           <Link href="/profiles" className="btn-ghost">Manage profiles</Link>
           <Link href="/share" className="btn-ghost">Share</Link>
+          {(u.role === "admin" || u.role === "superadmin") ? (
+            <Link href="/admin" className="btn-ghost" data-testid="dashboard-admin-link">Admin dashboard</Link>
+          ) : null}
         </div>
         {!publicPath && (
           <p className="mt-3 text-xs text-ivory-mute">

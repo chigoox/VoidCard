@@ -30,7 +30,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { ArrowDown, ArrowUp, Braces, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Globe, GripVertical, MoreHorizontal, Plus, Redo2, Save, Trash2, Undo2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Braces, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FolderOpen, Globe, GripVertical, MoreHorizontal, Plus, Redo2, Save, Trash2, Undo2, Upload, X } from "lucide-react";
 import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
 import {
   Section as SectionSchema,
@@ -58,6 +58,10 @@ const MediaManagerModal = dynamic(() => import("./MediaManagerModal").then((m) =
   ssr: false,
 });
 
+const CropModal = dynamic(() => import("./CropModal").then((m) => m.CropModal), {
+  ssr: false,
+});
+
 const LINK_STYLES = ["pill", "card", "ghost"] as const;
 const LINK_ICON_MODES = ["none", "preset", "image", "text"] as const;
 const SOCIAL_PLATFORMS = [
@@ -77,6 +81,7 @@ const INPUT_CLASS_NAME =
   "w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2.5 text-sm text-ivory outline-none transition focus:border-gold/60";
 const TEXTAREA_CLASS_NAME = `${INPUT_CLASS_NAME} min-h-[112px] resize-y`;
 const MAX_GALLERY_IMAGES = 20;
+const EYE_COACH_STORAGE_KEY = "vc.editor.eyeCoach.v1";
 
 type MediaLibraryItem = {
   id: string;
@@ -87,6 +92,7 @@ type MediaLibraryItem = {
 };
 
 type GalleryImageDraft = { src: string; alt: string };
+type PendingImageCrop = { file: File; src: string; clipped?: number };
 
 function sanitizeCss(css: string) {
   return css.replace(/@import[^;]+;/gi, "").replace(/javascript:/gi, "").replace(/expression\s*\(/gi, "");
@@ -171,6 +177,14 @@ function extractImageUrls(value: string) {
     .filter((entry) => /^https?:\/\//i.test(entry));
 }
 
+function editedImageFile(blob: Blob, original: File) {
+  const baseName = original.name.replace(/\.[^.]+$/, "") || "image";
+  return new File([blob], `${baseName}-edited.jpg`, {
+    type: blob.type || "image/jpeg",
+    lastModified: Date.now(),
+  });
+}
+
 function MediaField({
   label,
   value,
@@ -190,14 +204,23 @@ function MediaField({
 }) {
   const [message, setMessage] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [pendingCrop, setPendingCrop] = useState<PendingImageCrop | null>(null);
   const [uploading, startUpload] = useTransition();
 
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file) return;
+  const clearPendingCrop = useCallback(() => {
+    setPendingCrop((current) => {
+      if (current) URL.revokeObjectURL(current.src);
+      return null;
+    });
+  }, []);
 
+  useEffect(() => {
+    return () => {
+      if (pendingCrop) URL.revokeObjectURL(pendingCrop.src);
+    };
+  }, [pendingCrop]);
+
+  function uploadFile(file: File) {
     setMessage(null);
     startUpload(async () => {
       try {
@@ -211,6 +234,22 @@ function MediaField({
     });
   }
 
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    if (kind === "image") {
+      clearPendingCrop();
+      setMessage(null);
+      setPendingCrop({ file, src: URL.createObjectURL(file) });
+      return;
+    }
+
+    uploadFile(file);
+  }
+
   return (
     <Field label={label} className="space-y-2">
       {value && kind === "image" ? (
@@ -218,21 +257,25 @@ function MediaField({
         <img src={value} alt="" className="h-20 w-20 rounded-card border border-onyx-800 object-cover" />
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <label className="btn-ghost cursor-pointer px-3 py-2 text-xs">
-          {uploading ? "Uploading…" : "Upload"}
+        <label className="btn-ghost inline-flex cursor-pointer items-center gap-1.5 p-2.5 text-xs sm:px-3 sm:py-2" aria-label={uploading ? "Uploading" : "Upload"}>
+          <Upload className="size-4 sm:hidden" aria-hidden />
+          <span className="hidden sm:inline">{uploading ? "Uploading…" : "Upload"}</span>
           <input type="file" accept={accept} className="hidden" onChange={handleFileChange} />
         </label>
         <button
           type="button"
-          className="btn-ghost px-3 py-2 text-xs"
+          className="btn-ghost inline-flex items-center gap-1.5 p-2.5 text-xs sm:px-3 sm:py-2"
           onClick={() => setModalOpen(true)}
+          aria-label="Browse library"
           data-testid={`browse-library-${kind}`}
         >
-          Browse library
+          <FolderOpen className="size-4 sm:hidden" aria-hidden />
+          <span className="hidden sm:inline">Browse library</span>
         </button>
         {value ? (
-          <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={() => onChange("")}>
-            Clear
+          <button type="button" className="btn-ghost inline-flex items-center gap-1.5 p-2.5 text-xs sm:px-3 sm:py-2" onClick={() => onChange("")} aria-label="Clear media">
+            <X className="size-4 sm:hidden" aria-hidden />
+            <span className="hidden sm:inline">Clear</span>
           </button>
         ) : null}
       </div>
@@ -263,6 +306,23 @@ function MediaField({
           })
         }
       />
+      {pendingCrop ? (
+        <CropModal
+          src={pendingCrop.src}
+          filename={pendingCrop.file.name}
+          onCancel={clearPendingCrop}
+          onUseOriginal={() => {
+            const file = pendingCrop.file;
+            clearPendingCrop();
+            uploadFile(file);
+          }}
+          onConfirm={(blob) => {
+            const file = editedImageFile(blob, pendingCrop.file);
+            clearPendingCrop();
+            uploadFile(file);
+          }}
+        />
+      ) : null}
     </Field>
   );
 }
@@ -280,9 +340,23 @@ function GalleryBulkImageControls({
 }) {
   const [message, setMessage] = useState<string | null>(null);
   const [urlList, setUrlList] = useState("");
+  const [pendingCrop, setPendingCrop] = useState<PendingImageCrop | null>(null);
   const [uploading, startUpload] = useTransition();
   const remaining = Math.max(0, MAX_GALLERY_IMAGES - images.length);
   const recentImages = recentMedia.filter((item) => item.kind === "image").slice(0, 8);
+
+  const clearPendingCrop = useCallback(() => {
+    setPendingCrop((current) => {
+      if (current) URL.revokeObjectURL(current.src);
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pendingCrop) URL.revokeObjectURL(pendingCrop.src);
+    };
+  }, [pendingCrop]);
 
   function appendImages(nextImages: GalleryImageDraft[], source: string) {
     if (remaining <= 0) {
@@ -296,17 +370,7 @@ function GalleryBulkImageControls({
     setMessage(`${accepted.length} ${source} added${clipped > 0 ? `; ${clipped} skipped because the gallery is full` : ""}.`);
   }
 
-  function handleFilesChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const files = Array.from(input.files ?? []).filter((file) => file.type.startsWith("image/"));
-    input.value = "";
-    if (files.length === 0) return;
-    if (remaining <= 0) {
-      setMessage(`Gallery is full (${MAX_GALLERY_IMAGES} images).`);
-      return;
-    }
-
-    const selected = files.slice(0, remaining);
+  function uploadFiles(selected: File[], clipped = 0) {
     setMessage(null);
     startUpload(async () => {
       const uploaded = await Promise.all(
@@ -331,7 +395,6 @@ function GalleryBulkImageControls({
           })),
         ]);
       }
-      const clipped = files.length - selected.length;
       setMessage(
         [
           assets.length > 0 ? `${assets.length} uploaded and added` : null,
@@ -342,6 +405,28 @@ function GalleryBulkImageControls({
           .join("; ") || "No images were added.",
       );
     });
+  }
+
+  function handleFilesChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []).filter((file) => file.type.startsWith("image/"));
+    input.value = "";
+    if (files.length === 0) return;
+    if (remaining <= 0) {
+      setMessage(`Gallery is full (${MAX_GALLERY_IMAGES} images).`);
+      return;
+    }
+
+    const selected = files.slice(0, remaining);
+    const clipped = files.length - selected.length;
+    if (selected.length === 1) {
+      clearPendingCrop();
+      setMessage(null);
+      setPendingCrop({ file: selected[0], src: URL.createObjectURL(selected[0]), clipped });
+      return;
+    }
+
+    uploadFiles(selected, clipped);
   }
 
   function addUrls() {
@@ -361,8 +446,9 @@ function GalleryBulkImageControls({
         <span className="text-xs text-ivory-mute">{images.length}/{MAX_GALLERY_IMAGES} images</span>
       </div>
       <div className="flex flex-wrap gap-2">
-        <label className="btn-ghost cursor-pointer px-3 py-2 text-xs" aria-disabled={uploading || remaining <= 0}>
-          {uploading ? "Uploading..." : "Upload images"}
+        <label className="btn-ghost inline-flex cursor-pointer items-center gap-1.5 p-2.5 text-xs sm:px-3 sm:py-2" aria-disabled={uploading || remaining <= 0} aria-label={uploading ? "Uploading images" : "Upload images"}>
+          <Upload className="size-4 sm:hidden" aria-hidden />
+          <span className="hidden sm:inline">{uploading ? "Uploading..." : "Upload images"}</span>
           <input
             type="file"
             accept="image/*"
@@ -375,12 +461,14 @@ function GalleryBulkImageControls({
         </label>
         <button
           type="button"
-          className="btn-ghost px-3 py-2 text-xs"
+          className="btn-ghost inline-flex items-center gap-1.5 p-2.5 text-xs sm:px-3 sm:py-2"
           onClick={() => appendImages(recentImages.map((item) => ({ src: item.url, alt: "" })), "recent image")}
           disabled={recentImages.length === 0 || remaining <= 0}
+          aria-label="Add recent images"
           data-testid="gallery-add-recent-images"
         >
-          Add recent images
+          <FolderOpen className="size-4 sm:hidden" aria-hidden />
+          <span className="hidden sm:inline">Add recent images</span>
         </button>
       </div>
       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -398,6 +486,24 @@ function GalleryBulkImageControls({
         </button>
       </div>
       {message ? <p className="text-xs text-ivory-mute" data-testid="gallery-bulk-message">{message}</p> : null}
+      {pendingCrop ? (
+        <CropModal
+          src={pendingCrop.src}
+          filename={pendingCrop.file.name}
+          onCancel={clearPendingCrop}
+          onUseOriginal={() => {
+            const { file, clipped = 0 } = pendingCrop;
+            clearPendingCrop();
+            uploadFiles([file], clipped);
+          }}
+          onConfirm={(blob) => {
+            const { file: original, clipped = 0 } = pendingCrop;
+            const file = editedImageFile(blob, original);
+            clearPendingCrop();
+            uploadFiles([file], clipped);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -976,7 +1082,7 @@ function SectionEditorFields({
                     className={INPUT_CLASS_NAME}
                     value={descriptor}
                     maxLength={32}
-                    onChange={(event) => onChange({ ...section, props: { ...p, descriptors: descriptors.map((entry, index) => index === descriptorIndex ? event.target.value : entry).filter((entry) => entry.trim().length > 0) } })}
+                    onChange={(event) => onChange({ ...section, props: { ...p, descriptors: descriptors.map((entry, index) => index === descriptorIndex ? event.target.value : entry) } })}
                     data-testid={`profile-descriptor-${descriptorIndex}`}
                   />
                   <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={() => onChange({ ...section, props: { ...p, descriptors: descriptors.filter((_, index) => index !== descriptorIndex) } })}>
@@ -1881,13 +1987,19 @@ export default function EditorClient({
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [toolbarExpanded, setToolbarExpanded] = useState(false);
+  const [eyeCoachVisible, setEyeCoachVisible] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [overDragId, setOverDragId] = useState<string | null>(null);
   // Long-press / rubber-band state for the floating eye control
   const [eyePressing, setEyePressing] = useState(false);
   const eyePressTimer = useRef<number | null>(null);
   const eyeLongPressFired = useRef(false);
+  const dismissEyeCoach = useCallback(() => {
+    setEyeCoachVisible(false);
+    try { window.localStorage.setItem(EYE_COACH_STORAGE_KEY, "1"); } catch {}
+  }, []);
   const startEyePress = useCallback((onLong: () => void) => {
+    dismissEyeCoach();
     eyeLongPressFired.current = false;
     setEyePressing(true);
     if (eyePressTimer.current) window.clearTimeout(eyePressTimer.current);
@@ -1897,7 +2009,7 @@ export default function EditorClient({
       onLong();
       setEyePressing(false);
     }, 420);
-  }, []);
+  }, [dismissEyeCoach]);
   const endEyePress = useCallback((onShort: () => void) => {
     if (eyePressTimer.current) { window.clearTimeout(eyePressTimer.current); eyePressTimer.current = null; }
     setEyePressing(false);
@@ -1906,6 +2018,17 @@ export default function EditorClient({
   const cancelEyePress = useCallback(() => {
     if (eyePressTimer.current) { window.clearTimeout(eyePressTimer.current); eyePressTimer.current = null; }
     setEyePressing(false);
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(EYE_COACH_STORAGE_KEY) === "1") return;
+      if (!window.matchMedia("(max-width: 767px)").matches) return;
+      const timer = window.setTimeout(() => setEyeCoachVisible(true), 700);
+      return () => window.clearTimeout(timer);
+    } catch {
+      return undefined;
+    }
   }, []);
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledPublishAt ?? null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
@@ -3271,6 +3394,28 @@ export default function EditorClient({
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 4.75rem)" }}
         data-testid="mobile-action-bar"
       >
+        <AnimatePresence>
+          {eyeCoachVisible && !toolbarExpanded ? (
+            <motion.div
+              key="eye-coach"
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 420, damping: 26, mass: 0.7 }}
+              className="pointer-events-auto absolute bottom-[calc(100%+0.75rem)] w-[min(18rem,calc(100vw-2rem))] rounded-card border border-gold/30 bg-onyx-950/95 p-3 text-center text-xs text-ivory shadow-2xl backdrop-blur"
+              role="status"
+              aria-live="polite"
+              data-testid="eye-coach-tip"
+            >
+              <p className="font-medium">Hold the eye to expand editor tools.</p>
+              <p className="mt-1 text-[11px] text-ivory-mute">Tap still opens the live preview.</p>
+              <button type="button" className="mt-2 rounded-full px-3 py-1 text-[11px] font-medium text-gold hover:bg-gold/10" onClick={dismissEyeCoach}>
+                Got it
+              </button>
+              <span className="absolute left-1/2 top-full size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-gold/30 bg-onyx-950/95" aria-hidden />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
         <AnimatePresence mode="wait" initial={false}>
           {toolbarExpanded ? (
             <motion.div
