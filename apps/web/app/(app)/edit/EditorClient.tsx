@@ -4,7 +4,7 @@ import "client-only";
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   DndContext,
@@ -1632,6 +1632,30 @@ export default function EditorClient({
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [toolbarExpanded, setToolbarExpanded] = useState(false);
+  // Long-press / rubber-band state for the floating eye control
+  const [eyePressing, setEyePressing] = useState(false);
+  const eyePressTimer = useRef<number | null>(null);
+  const eyeLongPressFired = useRef(false);
+  const startEyePress = useCallback((onLong: () => void) => {
+    eyeLongPressFired.current = false;
+    setEyePressing(true);
+    if (eyePressTimer.current) window.clearTimeout(eyePressTimer.current);
+    eyePressTimer.current = window.setTimeout(() => {
+      eyeLongPressFired.current = true;
+      try { (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }).vibrate?.(18); } catch {}
+      onLong();
+      setEyePressing(false);
+    }, 420);
+  }, []);
+  const endEyePress = useCallback((onShort: () => void) => {
+    if (eyePressTimer.current) { window.clearTimeout(eyePressTimer.current); eyePressTimer.current = null; }
+    setEyePressing(false);
+    if (!eyeLongPressFired.current) onShort();
+  }, []);
+  const cancelEyePress = useCallback(() => {
+    if (eyePressTimer.current) { window.clearTimeout(eyePressTimer.current); eyePressTimer.current = null; }
+    setEyePressing(false);
+  }, []);
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledPublishAt ?? null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -2881,17 +2905,23 @@ export default function EditorClient({
 
       {/* ── Floating action pill (mobile only) ── */}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center md:hidden"
+        className="pointer-events-none fixed inset-x-0 z-50 flex justify-center md:hidden"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 4.75rem)" }}
         data-testid="mobile-action-bar"
       >
         <AnimatePresence mode="wait" initial={false}>
           {toolbarExpanded ? (
             <motion.div
               key="expanded"
-              initial={{ opacity: 0, scale: 0.82, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.82, y: 10 }}
-              transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              initial={{ opacity: 0, scaleX: 0.4, scaleY: 0.7 }}
+              animate={{
+                opacity: 1,
+                scaleX: eyePressing ? 1.08 : 1,
+                scaleY: eyePressing ? 0.94 : 1,
+              }}
+              exit={{ opacity: 0, scaleX: 0.4, scaleY: 0.7 }}
+              transition={{ type: "spring", stiffness: 360, damping: 14, mass: 0.7 }}
+              style={{ originY: 1 }}
               className="pointer-events-auto flex items-center gap-1 rounded-full border border-onyx-700 bg-onyx-950/95 px-2 py-1.5 shadow-2xl backdrop-blur"
             >
               <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Undo" data-testid="undo">
@@ -2904,40 +2934,43 @@ export default function EditorClient({
               <button type="button" onClick={onSave} disabled={pending} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Save draft" data-testid="save-draft">
                 <Save className="size-4" aria-hidden />
               </button>
-              <button type="button" onClick={onPublish} disabled={pending} className="rounded-full bg-gold/10 p-2.5 text-gold hover:bg-gold/20 disabled:opacity-40" aria-label="Publish" data-testid="publish">
-                <Globe className="size-4" aria-hidden />
-              </button>
-              <div className="mx-1 h-5 w-px bg-onyx-700" />
-              {/* Toggle — eye collapses toolbar */}
-              <button
+              {/* Centered eye — tap = preview, long-press = collapse toolbar */}
+              <motion.button
                 type="button"
-                onClick={() => { setToolbarExpanded(false); setMobilePreviewOpen(true); }}
-                className="btn-ghost rounded-full p-2.5"
-                aria-label="Open live preview"
+                onPointerDown={(e) => { e.preventDefault(); startEyePress(() => setToolbarExpanded(false)); }}
+                onPointerUp={() => endEyePress(() => setMobilePreviewOpen(true))}
+                onPointerLeave={cancelEyePress}
+                onPointerCancel={cancelEyePress}
+                onContextMenu={(e) => e.preventDefault()}
+                animate={{ scale: eyePressing ? 1.32 : 1 }}
+                transition={{ type: "spring", stiffness: 520, damping: 9, mass: 0.55 }}
+                className="rounded-full bg-gold/15 p-2.5 text-gold ring-1 ring-gold/40 hover:bg-gold/25 select-none touch-none"
+                style={{ WebkitTapHighlightColor: "transparent" }}
+                aria-label="Tap to preview · hold to collapse"
                 data-testid="mobile-preview-open"
               >
-                <Eye className="size-4" aria-hidden />
-              </button>
-              <button
-                type="button"
-                onClick={() => setToolbarExpanded(false)}
-                className="rounded-full bg-onyx-800 p-2.5 text-ivory-mute hover:bg-onyx-700"
-                aria-label="Collapse toolbar"
-              >
-                <EyeOff className="size-4" aria-hidden />
+                <Eye className="size-5" aria-hidden />
+              </motion.button>
+              <button type="button" onClick={onPublish} disabled={pending} className="rounded-full bg-gold/10 p-2.5 text-gold hover:bg-gold/20 disabled:opacity-40" aria-label="Publish" data-testid="publish">
+                <Globe className="size-4" aria-hidden />
               </button>
             </motion.div>
           ) : (
             <motion.button
               key="collapsed"
               type="button"
-              initial={{ opacity: 0, scale: 0.72 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.72 }}
-              transition={{ type: "spring", stiffness: 420, damping: 30 }}
-              className="pointer-events-auto rounded-full border border-onyx-700 bg-onyx-950/95 p-3.5 shadow-2xl backdrop-blur"
-              onClick={() => setToolbarExpanded(true)}
-              aria-label="Expand editor tools"
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: eyePressing ? 1.28 : 1 }}
+              exit={{ opacity: 0, scale: 0.6 }}
+              transition={{ type: "spring", stiffness: 520, damping: 9, mass: 0.55 }}
+              onPointerDown={(e) => { e.preventDefault(); startEyePress(() => setToolbarExpanded(true)); }}
+              onPointerUp={() => endEyePress(() => setMobilePreviewOpen(true))}
+              onPointerLeave={cancelEyePress}
+              onPointerCancel={cancelEyePress}
+              onContextMenu={(e) => e.preventDefault()}
+              className="pointer-events-auto rounded-full border border-onyx-700 bg-onyx-950/95 p-3.5 shadow-2xl backdrop-blur select-none touch-none"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+              aria-label="Tap to preview · hold for editor tools"
               aria-expanded={false}
               data-testid="floating-toolbar-toggle"
             >
