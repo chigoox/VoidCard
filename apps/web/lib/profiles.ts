@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { entitlementsFor } from "@/lib/entitlements";
+import { entitlementsFor, planWithRole } from "@/lib/entitlements";
 import type { AppUser, Plan } from "@/lib/auth";
 
 export const PRIMARY_PROFILE_ID = "primary";
@@ -76,6 +76,7 @@ type OwnerPlanRow = {
   plan: Plan | null;
   bonus_storage_bytes: number | null;
   verified: boolean | null;
+  role?: string | null;
 };
 
 type SubscriptionPlanRow = {
@@ -240,7 +241,11 @@ export async function usesSharedProfilesAsPrimary() {
   return (await primaryProfileSource()) === "profiles";
 }
 
-function mapPrimaryProfile(row: PrimaryProfileRow): ManagedProfile {
+function effectiveOwnerPlan(owner: OwnerPlanRow | null | undefined, fallback: Plan | null | undefined) {
+  return planWithRole(owner?.plan ?? fallback ?? "free", owner?.role);
+}
+
+function mapPrimaryProfile(row: PrimaryProfileRow, owner?: OwnerPlanRow | null): ManagedProfile {
   return {
     id: PRIMARY_PROFILE_ID,
     isPrimary: true,
@@ -264,7 +269,7 @@ function mapPrimaryProfile(row: PrimaryProfileRow): ManagedProfile {
     removeBranding: row.remove_branding === true,
     isIndexable: row.is_indexable !== false,
     aiIndexing: row.ai_indexing,
-    plan: row.plan ?? "free",
+    plan: effectiveOwnerPlan(owner, row.plan),
     bonusStorageBytes: Number(row.bonus_storage_bytes ?? 0),
     verified: row.verified === true,
   };
@@ -305,7 +310,7 @@ function mapSharedProfileWithCompanion(
     removeBranding: companion?.remove_branding === true,
     isIndexable: companion?.is_indexable !== false,
     aiIndexing: companion?.ai_indexing ?? null,
-    plan: owner.plan ?? "free",
+    plan: effectiveOwnerPlan(owner, companion?.plan),
     bonusStorageBytes: Number(owner.bonus_storage_bytes ?? 0),
     verified: owner.verified === true,
   };
@@ -335,7 +340,7 @@ function mapSecondaryProfile(row: SecondaryProfileRow, owner: OwnerPlanRow): Man
     removeBranding: row.remove_branding === true,
     isIndexable: row.is_indexable !== false,
     aiIndexing: row.ai_indexing,
-    plan: owner.plan ?? "free",
+    plan: effectiveOwnerPlan(owner, "free"),
     bonusStorageBytes: Number(owner.bonus_storage_bytes ?? 0),
     verified: owner.verified === true,
   };
@@ -409,7 +414,8 @@ async function loadPrimaryProfileExtByUsername(username: string) {
 
 async function loadSharedDerivedPlanContext(userId: string): Promise<OwnerPlanRow> {
   const admin = createAdminClient();
-  const [{ data: subscriptions }, { data: verification }, { data: orders }] = await Promise.all([
+  const [{ data: shared }, { data: subscriptions }, { data: verification }, { data: orders }] = await Promise.all([
+    admin.from("profiles").select("role").eq("id", userId).maybeSingle(),
     admin
       .from("vcard_subscriptions")
       .select("plan")
@@ -443,9 +449,10 @@ async function loadSharedDerivedPlanContext(userId: string): Promise<OwnerPlanRo
   }
 
   return {
-    plan,
+    plan: planWithRole(plan, (shared as { role?: string | null } | null)?.role),
     bonus_storage_bytes: bonusStorageBytes,
     verified: (verification as VerificationStatusRow | null)?.status === "approved",
+    role: (shared as { role?: string | null } | null)?.role ?? null,
   };
 }
 
@@ -455,12 +462,17 @@ async function loadOwnerPlanContext(userId: string): Promise<OwnerPlanRow> {
   }
 
   const admin = createAdminClient();
-  const { data } = await admin
-    .from("vcard_profile_ext")
-    .select("plan, bonus_storage_bytes, verified")
-    .eq("user_id", userId)
-    .maybeSingle();
-  return (data as OwnerPlanRow | null) ?? { plan: "free", bonus_storage_bytes: 0, verified: false };
+  const [{ data: ext }, { data: shared }] = await Promise.all([
+    admin
+      .from("vcard_profile_ext")
+      .select("plan, bonus_storage_bytes, verified")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    admin.from("profiles").select("role").eq("id", userId).maybeSingle(),
+  ]);
+  const row = (ext as OwnerPlanRow | null) ?? { plan: "free", bonus_storage_bytes: 0, verified: false };
+  const role = (shared as { role?: string | null } | null)?.role ?? null;
+  return { ...row, plan: planWithRole(row.plan ?? "free", role), role };
 }
 
 export async function loadPrimaryProfile(userId: string): Promise<ManagedProfile | null> {
@@ -913,7 +925,8 @@ export async function findPublicProfileByUsername(username: string): Promise<Man
     .maybeSingle();
   const primary = (primaryData as PrimaryProfileRow | null) ?? null;
   if (primary) {
-    return mapPrimaryProfile(primary);
+    const owner = await loadOwnerPlanContext(primary.user_id);
+    return mapPrimaryProfile(primary, owner);
   }
 
   const { data: secondaryData } = await admin

@@ -9,7 +9,8 @@ import {
 import { SITE_URL } from "@/lib/seo";
 
 export const runtime = "edge";
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(
   _req: Request,
@@ -68,7 +69,7 @@ export async function GET(
     },
     {
       headers: {
-        "cache-control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600",
+        "cache-control": "private, no-store, max-age=0, must-revalidate",
         ...(profile.aiIndexing === "allow_all" ? {} : { "X-Robots-Tag": "noai" }),
       },
     },

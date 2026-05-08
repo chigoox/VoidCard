@@ -5,12 +5,12 @@ import { RefreshCw, X } from "lucide-react";
 
 export function UpdateToast() {
   const [show, setShow] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
-
-    let registration: ServiceWorkerRegistration | null = null;
 
     const onControllerChange = () => {
       // Active worker changed — reload once to pick up new assets.
@@ -24,7 +24,7 @@ export function UpdateToast() {
 
     navigator.serviceWorker.ready
       .then((reg) => {
-        registration = reg;
+        setRegistration(reg);
         const showIfWaiting = () => {
           if (reg.waiting) setShow(true);
         };
@@ -66,14 +66,28 @@ export function UpdateToast() {
         type="button"
         className="btn-primary flex items-center gap-1.5 text-xs"
         onClick={async () => {
-          if (!("serviceWorker" in navigator)) return;
-          const reg = await navigator.serviceWorker.ready;
-          reg.waiting?.postMessage({ type: "SKIP_WAITING" });
-          // controllerchange listener will reload.
+          setReloading(true);
+          if (!("serviceWorker" in navigator)) {
+            window.location.reload();
+            return;
+          }
+
+          const reg = registration ?? await navigator.serviceWorker.ready;
+          const waiting = reg.waiting;
+          if (waiting) {
+            waiting.postMessage({ type: "SKIP_WAITING" });
+            waiting.postMessage("SKIP_WAITING");
+          }
+
+          window.setTimeout(async () => {
+            if (waiting) await reg.unregister().catch(() => false);
+            window.location.reload();
+          }, waiting ? 700 : 0);
         }}
+        disabled={reloading}
       >
-        <RefreshCw className="size-3" aria-hidden />
-        Reload
+        <RefreshCw className={["size-3", reloading ? "animate-spin" : ""].join(" ").trim()} aria-hidden />
+        {reloading ? "Reloading" : "Reload"}
       </button>
       <button
         type="button"

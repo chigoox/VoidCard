@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
 import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
-import { deleteFont, setActiveFont } from "./actions";
+import { deleteFont, saveGoogleFont, setActiveFont } from "./actions";
 import FontUploadClient from "./FontUploadClient";
 import Link from "next/link";
 
@@ -18,6 +18,13 @@ type Font = {
   created_at: string;
 };
 
+const GOOGLE_FONTS = ["Inter", "Fraunces", "Playfair Display", "Montserrat", "Poppins", "Lora", "DM Sans", "Oswald"] as const;
+
+function googleFontUrl(family: string) {
+  const encoded = family.trim().replace(/\s+/g, "+");
+  return `https://fonts.googleapis.com/css2?family=${encoded}:wght@300;400;500;600;700&display=swap`;
+}
+
 export default async function FontsPage() {
   const u = await requireUser();
   const ents = entitlementsFor(u.plan);
@@ -30,19 +37,6 @@ export default async function FontsPage() {
         <div className="card p-6">
           <p className="text-sm text-ivory-mute">Custom font upload is a Pro feature.</p>
           <Link href="/pricing" className="btn-primary mt-4 inline-block">Upgrade to Pro</Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (sharedPrimary) {
-    return (
-      <div className="space-y-4">
-        <h1 className="font-display text-3xl text-gold-grad">Custom fonts</h1>
-        <div className="card p-6">
-          <p className="text-sm text-ivory-mute">
-            Custom font activation is temporarily unavailable while this deployment is using shared-profile compatibility mode.
-          </p>
         </div>
       </div>
     );
@@ -69,11 +63,37 @@ export default async function FontsPage() {
       <div>
         <h1 className="font-display text-3xl text-gold-grad">Custom fonts</h1>
         <p className="mt-1 text-sm text-ivory-mute">
-          Upload .woff2 files (max 1 MB each). {fonts.length} fonts · {(totalBytes / 1024).toFixed(0)} KB total.
+          Save a Google Font or upload .woff2 files. {fonts.length} fonts · {(totalBytes / 1024).toFixed(0)} KB total.
         </p>
       </div>
 
-      <FontUploadClient />
+      <section className="card space-y-3 p-4">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-ivory-mute">Google Fonts</p>
+          <p className="mt-1 text-sm text-ivory-dim">Pick a hosted font and make it active on your public profile.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {GOOGLE_FONTS.map((family) => {
+            const url = googleFontUrl(family);
+            const active = activeUrl === url;
+            return (
+              <form key={family} action={saveGoogleFont} className={["rounded-card border p-3", active ? "border-gold bg-gold/10" : "border-onyx-700 bg-onyx-950/50"].join(" ")}>
+                <input type="hidden" name="family" value={family} />
+                <p className="truncate text-base text-ivory" style={{ fontFamily: family }}>{family}</p>
+                <button type="submit" className={active ? "mt-3 text-xs text-emerald-300" : "mt-3 text-xs text-gold hover:underline"} disabled={active}>
+                  {active ? "Active" : "Save and use"}
+                </button>
+              </form>
+            );
+          })}
+        </div>
+      </section>
+
+      {sharedPrimary ? (
+        <div className="card p-4 text-sm text-ivory-mute">Direct .woff2 uploads are temporarily unavailable in shared-profile compatibility mode. Google Fonts above still work.</div>
+      ) : (
+        <FontUploadClient />
+      )}
 
       <div className="card overflow-hidden">
         <table className="w-full text-left text-sm">
@@ -96,7 +116,7 @@ export default async function FontsPage() {
                 <td className="px-4 py-3">{f.family}</td>
                 <td className="px-4 py-3 tabular-nums">{f.weight}</td>
                 <td className="px-4 py-3 text-xs">{f.style}</td>
-                <td className="px-4 py-3 text-xs text-ivory-mute">{f.bytes ? `${(f.bytes / 1024).toFixed(0)} KB` : "—"}</td>
+                <td className="px-4 py-3 text-xs text-ivory-mute">{f.bytes ? `${(f.bytes / 1024).toFixed(0)} KB` : "Google"}</td>
                 <td className="px-4 py-3 text-xs text-ivory-mute">{new Date(f.created_at).toLocaleDateString()}</td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-3 text-xs">

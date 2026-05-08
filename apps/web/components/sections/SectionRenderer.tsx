@@ -114,25 +114,25 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
             : { width: "calc(100% + 40px)", marginLeft: "-20px", marginRight: "-20px", borderRadius: 0, border: "none" })
         : undefined;
       return (
-        <header className={["flex flex-col items-center text-center", fullBleedTopHeader ? "" : "pt-6"].join(" ").trim()} style={{ color: "var(--vc-fg, #f7f3ea)" }}>
+        <header className={["relative flex flex-col items-center text-center", fullBleedTopHeader ? "" : "pt-6"].join(" ").trim()} style={{ color: "var(--vc-fg, #f7f3ea)" }}>
           {p.coverUrl ? (
-            <div className="mb-4 w-full overflow-hidden" style={{ ...cardStyle, ...fullBleedStyle }}>
-              <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className={topBleed && p.coverFullBleed ? "h-48 w-full object-cover sm:h-64" : "h-32 w-full object-cover"} />
+            <div className={["mb-4 w-full overflow-hidden", fullBleedTopHeader ? "sticky top-0 z-0" : ""].join(" ").trim()} style={{ ...cardStyle, ...fullBleedStyle }}>
+              <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className={fullBleedTopHeader ? "h-48 w-full object-cover sm:h-64" : "h-32 w-full object-cover"} />
             </div>
           ) : null}
           {p.avatarUrl ? (
-            <div className="overflow-hidden rounded-full border-2" style={{ borderColor: SURFACE_BORDER }}>
+            <div className="relative z-10 overflow-hidden rounded-full border-2" style={{ borderColor: SURFACE_BORDER }}>
               <img src={p.avatarUrl} alt={p.name} loading="lazy" decoding="async" className="size-24 object-cover" />
             </div>
           ) : null}
-          <h1 className="mt-4 font-display text-2xl" style={{ color: "var(--vc-fg, #f7f3ea)" }}>
+          <h1 className="relative z-10 mt-4 font-display text-2xl" style={{ color: "var(--vc-fg, #f7f3ea)" }}>
             {p.name}
             {verified && p.showVerified ? (
               <span className="ml-1" style={{ color: "var(--vc-accent, #d4af37)" }}>✓</span>
             ) : null}
           </h1>
-          {p.handle ? <p className="mt-1 text-sm" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>@{p.handle}</p> : null}
-          {p.tagline ? <p className="mt-3 max-w-sm text-sm" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.tagline}</p> : null}
+          {p.handle ? <p className="relative z-10 mt-1 text-sm" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>@{p.handle}</p> : null}
+          {p.tagline ? <p className="relative z-10 mt-3 max-w-sm text-sm" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.tagline}</p> : null}
         </header>
       );
     }

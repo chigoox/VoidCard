@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { entitlementsFor } from "../entitlements";
+import { entitlementsFor, planWithRole } from "../entitlements";
 
 describe("entitlementsFor", () => {
   it("free plan denies pro features", () => {
@@ -42,5 +42,11 @@ describe("entitlementsFor", () => {
   it("storage bonuses below cap pass through", () => {
     const e = entitlementsFor("free", { extraStorageBytes: 1_000_000_000 });
     expect(e.storageBytes).toBe(5_000_000_000 + 1_000_000_000);
+  });
+
+  it("promotes admins and superadmins to enterprise entitlements", () => {
+    expect(planWithRole("free", "admin")).toBe("enterprise");
+    expect(planWithRole("free", "superadmin")).toBe("enterprise");
+    expect(planWithRole("free", "user")).toBe("free");
   });
 });

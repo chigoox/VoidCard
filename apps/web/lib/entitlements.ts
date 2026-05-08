@@ -43,6 +43,10 @@ const FREE_FOR_ALL = {
 
 const STORAGE_BONUS_CAP = 25_000_000_000; // +25 GB cap
 
+export function planWithRole(plan: Plan, role?: string | null): Plan {
+  return role === "admin" || role === "superadmin" ? "enterprise" : plan;
+}
+
 export function entitlementsFor(
   plan: Plan,
   bonuses: { extraStorageBytes?: number } = {}

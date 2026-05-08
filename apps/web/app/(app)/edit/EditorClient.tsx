@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode
 import { AnimatePresence, motion } from "framer-motion";
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   MouseSensor,
   PointerSensor,
@@ -16,6 +17,8 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
   type DraggableAttributes,
 } from "@dnd-kit/core";
 import {
@@ -513,7 +516,7 @@ function SectionRowHeader({
   }, [menuOpen]);
 
   return (
-    <div className="flex min-w-0 items-center gap-1.5">
+    <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-center gap-1.5">
       <button
         type="button"
         aria-label={`Drag ${section.type} section`}
@@ -538,12 +541,12 @@ function SectionRowHeader({
       <button
         type="button"
         onClick={onToggleCollapsed}
-        className="flex min-w-0 flex-1 items-center gap-2 truncate text-left"
+        className="flex min-w-0 flex-col items-start justify-center overflow-hidden rounded-card px-1 py-1 text-left hover:bg-onyx-900/35"
         aria-label={collapsed ? "Expand section" : "Collapse section"}
       >
-        <span className="shrink-0 text-xs uppercase tracking-widest text-ivory-mute">{section.type}</span>
+        <span className="max-w-full truncate text-[11px] uppercase tracking-[0.18em] text-ivory">{section.type}</span>
         {summary ? (
-          <span className="truncate text-xs text-ivory-mute" title={summary}>— {summary}</span>
+          <span className="max-w-full truncate text-[11px] text-ivory-mute" title={summary}>{summary}</span>
         ) : null}
         {validationMessage ? (
           <span
@@ -649,6 +652,7 @@ function SortableSectionRow({
   onRemove,
   onDuplicate,
   onCopyJson,
+  isDragOver,
 }: {
   index: number;
   section: SectionRecord;
@@ -662,6 +666,7 @@ function SortableSectionRow({
   onRemove: (index: number) => void;
   onDuplicate: () => void;
   onCopyJson: () => void;
+  isDragOver: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
   const style = {
@@ -683,12 +688,14 @@ function SortableSectionRow({
       className={[
         "card relative z-0 min-w-0 overflow-visible text-sm focus-within:z-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
         collapsed ? "p-2 sm:p-2.5" : "space-y-4 p-3 sm:p-4",
-        isDragging ? "border-gold/60 shadow-[0_8px_24px_-12px_rgba(212,168,83,0.35)]" : "",
+        isDragging ? "border-gold/70 opacity-45 shadow-[0_12px_32px_-14px_rgba(212,168,83,0.55)]" : "",
+        isDragOver ? "ring-2 ring-gold/45" : "",
       ].join(" ")}
       data-testid={`section-row-${section.id}`}
       data-section-row={section.id}
       tabIndex={-1}
     >
+      {isDragOver ? <span className="absolute -top-2 left-3 right-3 h-1 rounded-full bg-gold shadow-[0_0_18px_rgba(212,168,83,0.8)]" data-testid="drag-insert-line" /> : null}
       <SectionRowHeader
         section={section}
         index={index}
@@ -763,6 +770,21 @@ function SortableSectionRow({
         </>
       ) : null}
     </motion.li>
+  );
+}
+
+function SectionDragPreview({ section }: { section: SectionRecord }) {
+  const summary = sectionSummary(section);
+  return (
+    <div className="w-[min(21rem,82vw)] rounded-card border border-gold/60 bg-onyx-950/95 px-3 py-2 shadow-2xl backdrop-blur" data-testid="drag-preview">
+      <div className="flex items-center gap-2">
+        <GripVertical className="size-4 shrink-0 text-gold" aria-hidden />
+        <div className="min-w-0">
+          <p className="truncate text-xs uppercase tracking-[0.18em] text-ivory">{section.type}</p>
+          {summary ? <p className="truncate text-[11px] text-ivory-mute">{summary}</p> : null}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1675,6 +1697,8 @@ export default function EditorClient({
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [toolbarExpanded, setToolbarExpanded] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [overDragId, setOverDragId] = useState<string | null>(null);
   // Long-press / rubber-band state for the floating eye control
   const [eyePressing, setEyePressing] = useState(false);
   const eyePressTimer = useRef<number | null>(null);
@@ -1746,6 +1770,7 @@ export default function EditorClient({
     const issue = getSectionValidationMessage(section);
     if (issue) validationById.set(section.id, issue);
   }
+  const activeDragSection = activeDragId ? sections.find((section) => section.id === activeDragId) ?? null : null;
 
   const currentSnapshot = JSON.stringify({ sections, themeId, customCss });
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => JSON.stringify({ sections: initial, themeId: initialThemeId, customCss: initialCustomCss }));
@@ -2014,8 +2039,21 @@ export default function EditorClient({
     }
   }
 
+  function onDragStart(event: DragStartEvent) {
+    const id = String(event.active.id);
+    setActiveDragId(id);
+    setOverDragId(id);
+    setAnnouncement("Started reordering sections");
+  }
+
+  function onDragOver(event: DragOverEvent) {
+    setOverDragId(event.over ? String(event.over.id) : null);
+  }
+
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    setActiveDragId(null);
+    setOverDragId(null);
     if (!over || active.id === over.id) return;
 
     pushHistory();
@@ -2027,6 +2065,12 @@ export default function EditorClient({
       return arrayMove(prev, oldIndex, newIndex) as Sections;
     });
     setAnnouncement("Reordered sections");
+  }
+
+  function onDragCancel() {
+    setActiveDragId(null);
+    setOverDragId(null);
+    setAnnouncement("Reorder cancelled");
   }
 
   function expandAll() {
@@ -2292,7 +2336,7 @@ export default function EditorClient({
         className={[
           "order-2 min-w-0 md:order-2 md:sticky md:top-24 md:self-start",
           mobilePreviewOpen
-            ? "safe-modal-frame fixed inset-0 z-40 flex flex-col overflow-y-auto bg-onyx-950/95 backdrop-blur-md md:static md:bg-transparent md:p-0"
+            ? "safe-modal-frame fixed inset-0 z-[80] flex flex-col overflow-y-auto bg-onyx-950/95 backdrop-blur-md md:static md:bg-transparent md:p-0"
             : "hidden md:block",
         ].join(" ")}
         data-testid="preview-column"
@@ -2621,17 +2665,22 @@ export default function EditorClient({
                     aria-checked={active}
                     onClick={() => { pushHistory(); markDirty(); setThemeId(theme.id); }}
                     className={[
-                      "flex shrink-0 flex-col gap-2 rounded-card border p-3 text-left transition",
-                      active ? "border-gold/70 bg-onyx-900" : "border-onyx-700 bg-onyx-950/50 hover:border-onyx-600",
+                      "relative flex shrink-0 flex-col gap-2 rounded-card border p-3 text-left transition",
+                      active ? "border-gold bg-gold/10 shadow-[0_0_0_1px_rgba(212,168,83,0.35),0_10px_24px_-18px_rgba(212,168,83,0.9)]" : "border-onyx-700 bg-onyx-950/50 hover:border-onyx-600",
                     ].join(" ")}
                     data-testid={`theme-pick-${theme.id}`}
                   >
+                    {active ? (
+                      <span className="absolute right-2 top-2 rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-onyx-950">
+                        Active
+                      </span>
+                    ) : null}
                     <div className="flex items-center gap-1.5">
                       <span className="size-4 shrink-0 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.bg }} />
                       <span className="size-4 shrink-0 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.fg }} />
                       <span className="size-4 shrink-0 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.accent }} />
                     </div>
-                    <p className={["truncate text-xs font-medium", active ? "text-gold" : "text-ivory"].join(" ")}>{theme.name}</p>
+                    <p className={["truncate pr-12 text-xs font-medium", active ? "text-gold" : "text-ivory"].join(" ")}>{theme.name}</p>
                   </button>
                 );
               })}
@@ -2785,7 +2834,7 @@ export default function EditorClient({
         </div>{/* /relative */}
         </div>{/* /sticky header */}
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
           <SortableContext items={sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
             <ul className="space-y-3" data-testid="section-list">
               <AnimatePresence initial={false}>
@@ -2808,12 +2857,16 @@ export default function EditorClient({
                     onRemove={() => setConfirmRemoveId(section.id)}
                     onDuplicate={() => duplicateSection(index)}
                     onCopyJson={() => copySectionJson(section)}
+                    isDragOver={activeDragId !== null && overDragId === section.id && activeDragId !== section.id}
                   />
                   );
                 })}
               </AnimatePresence>
             </ul>
           </SortableContext>
+          <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
+            {activeDragSection ? <SectionDragPreview section={activeDragSection} /> : null}
+          </DragOverlay>
         </DndContext>
 
         <div className="hidden md:flex md:flex-wrap md:items-center md:gap-2">
@@ -3009,7 +3062,7 @@ export default function EditorClient({
               <motion.button
                 type="button"
                 onPointerDown={(e) => { e.preventDefault(); startEyePress(() => setToolbarExpanded(false)); }}
-                onPointerUp={() => endEyePress(() => setMobilePreviewOpen(true))}
+                onPointerUp={() => endEyePress(() => setMobilePreviewOpen((open) => !open))}
                 onPointerLeave={cancelEyePress}
                 onPointerCancel={cancelEyePress}
                 onContextMenu={(e) => e.preventDefault()}
@@ -3017,7 +3070,7 @@ export default function EditorClient({
                 transition={{ type: "spring", stiffness: 520, damping: 9, mass: 0.55 }}
                 className="rounded-full bg-gold/15 p-2.5 text-gold ring-1 ring-gold/40 hover:bg-gold/25 select-none touch-none"
                 style={{ WebkitTapHighlightColor: "transparent" }}
-                aria-label="Tap to preview · hold to collapse"
+                aria-label={mobilePreviewOpen ? "Close preview · hold to collapse" : "Tap to preview · hold to collapse"}
                 data-testid="mobile-preview-open"
               >
                 <Eye className="size-5" aria-hidden />
@@ -3039,13 +3092,13 @@ export default function EditorClient({
               exit={{ opacity: 0, scale: 0.6 }}
               transition={{ type: "spring", stiffness: 520, damping: 9, mass: 0.55 }}
               onPointerDown={(e) => { e.preventDefault(); startEyePress(() => setToolbarExpanded(true)); }}
-              onPointerUp={() => endEyePress(() => setMobilePreviewOpen(true))}
+              onPointerUp={() => endEyePress(() => setMobilePreviewOpen((open) => !open))}
               onPointerLeave={cancelEyePress}
               onPointerCancel={cancelEyePress}
               onContextMenu={(e) => e.preventDefault()}
               className="pointer-events-auto rounded-full border border-onyx-700 bg-onyx-950/95 p-3.5 shadow-2xl backdrop-blur select-none touch-none"
               style={{ WebkitTapHighlightColor: "transparent" }}
-              aria-label="Tap to preview · hold for editor tools"
+              aria-label={mobilePreviewOpen ? "Close preview · hold for editor tools" : "Tap to preview · hold for editor tools"}
               aria-expanded={false}
               data-testid="floating-toolbar-toggle"
             >

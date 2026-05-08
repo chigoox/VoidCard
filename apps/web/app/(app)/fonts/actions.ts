@@ -22,6 +22,15 @@ const AddSchema = z.object({
   bytes: z.coerce.number().int().min(1).max(1_000_000),
 });
 
+const GoogleFontSchema = z.object({
+  family: z.enum(["Inter", "Fraunces", "Playfair Display", "Montserrat", "Poppins", "Lora", "DM Sans", "Oswald"]),
+});
+
+function googleFontUrl(family: string) {
+  const encoded = family.trim().replace(/\s+/g, "+");
+  return `https://fonts.googleapis.com/css2?family=${encoded}:wght@300;400;500;600;700&display=swap`;
+}
+
 export async function createFontRecord(input: unknown) {
   const u = await requireUser();
   gateFonts(u.plan, u.bonusStorageBytes);
@@ -47,12 +56,34 @@ export async function createFontRecord(input: unknown) {
   if (u.username) revalidatePath(`/u/${u.username}`);
 }
 
+export async function saveGoogleFont(formData: FormData) {
+  const u = await requireUser();
+  gateFonts(u.plan, u.bonusStorageBytes);
+
+  const parsed = GoogleFontSchema.safeParse({ family: String(formData.get("family") ?? "") });
+  if (!parsed.success) throw new Error("Unsupported Google Font.");
+
+  const url = googleFontUrl(parsed.data.family);
+  const admin = createAdminClient();
+  const { error } = await admin.from("vcard_user_fonts").insert({
+    user_id: u.id,
+    family: parsed.data.family,
+    weight: 400,
+    style: "normal",
+    url,
+    bytes: 0,
+  });
+  if (error) throw new Error(error.message);
+
+  await admin.from("vcard_profile_ext").upsert({ user_id: u.id, custom_font_url: url }, { onConflict: "user_id" });
+  revalidatePath("/settings");
+  revalidatePath("/fonts");
+  if (u.username) revalidatePath(`/u/${u.username}`);
+}
+
 export async function setActiveFont(formData: FormData) {
   const u = await requireUser();
   gateFonts(u.plan, u.bonusStorageBytes);
-  if (await usesSharedProfilesAsPrimary()) {
-    throw new Error("Custom fonts are unavailable in shared-profile compatibility mode.");
-  }
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("missing id");
   const admin = createAdminClient();
@@ -64,7 +95,7 @@ export async function setActiveFont(formData: FormData) {
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data?.url) throw new Error("font not found");
-  await admin.from("vcard_profile_ext").update({ custom_font_url: data.url }).eq("user_id", u.id);
+  await admin.from("vcard_profile_ext").upsert({ user_id: u.id, custom_font_url: data.url }, { onConflict: "user_id" });
   revalidatePath("/settings");
   revalidatePath("/fonts");
   if (u.username) revalidatePath(`/u/${u.username}`);
@@ -73,9 +104,6 @@ export async function setActiveFont(formData: FormData) {
 export async function deleteFont(formData: FormData) {
   const u = await requireUser();
   gateFonts(u.plan, u.bonusStorageBytes);
-  if (await usesSharedProfilesAsPrimary()) {
-    throw new Error("Custom fonts are unavailable in shared-profile compatibility mode.");
-  }
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("missing id");
   const admin = createAdminClient();

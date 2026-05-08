@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 
 export type GalleryImage = { src: string; alt: string; category?: string };
@@ -19,13 +20,22 @@ export function GallerySectionClient({
   radius: string;
 }) {
   const [active, setActive] = useState<number | null>(null);
+  const activeImage = active === null ? null : images[active] ?? null;
+
+  function showPrevious() {
+    setActive((currentIndex) => (currentIndex === null ? null : (currentIndex - 1 + images.length) % images.length));
+  }
+
+  function showNext() {
+    setActive((currentIndex) => (currentIndex === null ? null : (currentIndex + 1) % images.length));
+  }
 
   useEffect(() => {
     if (active === null) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setActive(null);
-      if (e.key === "ArrowRight") setActive((i) => (i === null ? null : (i + 1) % images.length));
-      if (e.key === "ArrowLeft") setActive((i) => (i === null ? null : (i - 1 + images.length) % images.length));
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setActive(null);
+      if (event.key === "ArrowRight") showNext();
+      if (event.key === "ArrowLeft") showPrevious();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -77,26 +87,72 @@ export function GallerySectionClient({
   return (
     <>
       {container}
-      {lightbox && active !== null ? (
+      {lightbox && active !== null && activeImage ? (
         <div
           role="dialog"
           aria-modal="true"
+          aria-label="Gallery image carousel"
           onClick={() => setActive(null)}
-          className="safe-modal-frame fixed inset-0 z-50 flex items-center justify-center bg-black/85"
+          className="safe-modal-frame fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/90 px-4 py-6 text-white"
         >
-          <img
-            src={images[active]?.src}
-            alt={images[active]?.alt ?? ""}
-            className="max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-2rem)] max-w-[calc(100vw-var(--safe-left)-var(--safe-right)-2rem)] object-contain"
-            onClick={(event) => event.stopPropagation()}
-          />
+          <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+0.75rem)] flex items-center justify-between px-[calc(var(--safe-left)+1rem)] pr-[calc(var(--safe-right)+1rem)]">
+            <p className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium tabular-nums text-white/85">
+              {active + 1} / {images.length}
+            </p>
+          </div>
+          <div className="relative flex min-h-0 w-full flex-1 items-center justify-center" onClick={(event) => event.stopPropagation()}>
+            {images.length > 1 ? (
+              <button
+                type="button"
+                onClick={showPrevious}
+                aria-label="Previous image"
+                className="absolute left-0 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/65 text-white ring-1 ring-white/20 transition hover:bg-black/80 sm:left-4"
+              >
+                <ChevronLeft className="size-6" aria-hidden />
+              </button>
+            ) : null}
+            <img
+              src={activeImage.src}
+              alt={activeImage.alt}
+              className="max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-8rem)] max-w-[calc(100vw-var(--safe-left)-var(--safe-right)-2rem)] object-contain"
+            />
+            {images.length > 1 ? (
+              <button
+                type="button"
+                onClick={showNext}
+                aria-label="Next image"
+                className="absolute right-0 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/65 text-white ring-1 ring-white/20 transition hover:bg-black/80 sm:right-4"
+              >
+                <ChevronRight className="size-6" aria-hidden />
+              </button>
+            ) : null}
+          </div>
+          {images.length > 1 ? (
+            <div className="flex max-w-full gap-2 overflow-x-auto px-1 pb-1" onClick={(event) => event.stopPropagation()}>
+              {images.map((image, index) => (
+                <button
+                  key={`${image.src}-${index}`}
+                  type="button"
+                  onClick={() => setActive(index)}
+                  aria-label={`Open image ${index + 1}`}
+                  aria-current={index === active ? "true" : undefined}
+                  className={[
+                    "size-14 shrink-0 overflow-hidden rounded-card ring-2 transition",
+                    index === active ? "ring-[var(--vc-accent,#d4af37)]" : "ring-white/20",
+                  ].join(" ")}
+                >
+                  <img src={image.src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={() => setActive(null)}
             aria-label="Close"
-            className="safe-close-button absolute rounded-full bg-black/60 px-3 py-1 text-sm text-white"
+            className="safe-close-button absolute flex size-10 items-center justify-center rounded-full bg-black/65 text-white ring-1 ring-white/20 transition hover:bg-black/80"
           >
-            ×
+            <X className="size-5" aria-hidden />
           </button>
         </div>
       ) : null}

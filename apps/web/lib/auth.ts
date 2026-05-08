@@ -2,6 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import { loadPrimaryProfile } from "./profiles";
+import { planWithRole } from "./entitlements";
 
 export type Plan = "free" | "pro" | "team" | "enterprise";
 
@@ -29,15 +30,17 @@ export async function getUser(): Promise<AppUser | null> {
     loadPrimaryProfile(user.id),
   ]);
 
+  const role = (profile?.role as "user" | "admin" | "superadmin") ?? "user";
+
   return {
     id: user.id,
     email: user.email ?? null,
     username: primaryProfile?.username ?? null,
     displayName: primaryProfile?.displayName ?? null,
-    plan: primaryProfile?.plan ?? "free",
+    plan: planWithRole(primaryProfile?.plan ?? "free", role),
     bonusStorageBytes: Number(primaryProfile?.bonusStorageBytes ?? 0),
     verified: primaryProfile?.verified === true,
-    role: (profile?.role as "user" | "admin" | "superadmin") ?? "user",
+    role,
   };
 }
 

@@ -8,7 +8,8 @@ import { findPublicProfileByUsername } from "@/lib/profiles";
 import { getThemePreset, themeToCss } from "@/lib/themes/presets";
 
 export const runtime = "edge";
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const shellStyle: CSSProperties = {
   background: "transparent",
@@ -33,8 +34,22 @@ function themeId(theme: unknown): string | null {
 
 function customFontCss(url: string | null | undefined) {
   if (!url) return "";
+  if (url.startsWith("https://fonts.googleapis.com/css2?")) {
+    const family = googleFontFamilyFromUrl(url);
+    if (!family) return "";
+    return `@import url('${url}');.vc-profile{font-family:'${family}',inherit}`;
+  }
   const safe = url.replace(/[^a-zA-Z0-9:/.\-_?=&%#+]/g, "");
   return `@font-face{font-family:'VC Custom';src:url('${safe}');font-display:swap}.vc-profile{font-family:'VC Custom',inherit}`;
+}
+
+function googleFontFamilyFromUrl(url: string) {
+  try {
+    const family = new URL(url).searchParams.get("family")?.split(":")[0]?.replace(/\+/g, " ").trim();
+    return family?.replace(/[^a-zA-Z0-9\s-]/g, "") || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function generateMetadata({

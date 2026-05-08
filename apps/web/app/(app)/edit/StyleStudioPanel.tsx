@@ -6,6 +6,13 @@ import { getThemePreset } from "@/lib/themes/presets";
 const INPUT_CLASS_NAME =
   "w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2.5 text-sm text-ivory outline-none transition focus:border-gold/60";
 
+const QUICK_LOOKS: Array<{ label: string; value: Partial<StyleStudio> }> = [
+  { label: "Classic", value: { radius: 14, gap: 12, maxWidth: 480, fontWeight: 500, background: "solid", buttonShadow: false } },
+  { label: "Soft", value: { radius: 24, gap: 16, maxWidth: 520, fontWeight: 400, background: "gradient", buttonShadow: true } },
+  { label: "Sharp", value: { radius: 6, gap: 10, maxWidth: 460, fontWeight: 600, background: "solid", buttonShadow: false } },
+  { label: "Wide", value: { radius: 16, gap: 14, maxWidth: 680, fontWeight: 500, background: "mesh", buttonShadow: true } },
+];
+
 function Field({
   label,
   className,
@@ -80,22 +87,86 @@ export default function StyleStudioPanel({
       accent2: preset.vars["--vc-accent-2"] ?? studio.accent2,
     });
   }
+
+  function applyQuickLook(value: Partial<StyleStudio>) {
+    onChange({ ...studio, ...value });
+  }
+
+  function backgroundLabel(value: StyleStudio["background"]) {
+    switch (value) {
+      case "gradient":
+        return "Gradient";
+      case "mesh":
+        return "Glow";
+      default:
+        return "Solid";
+    }
+  }
+
   return (
-    <section className="card space-y-3 p-4" data-testid="style-studio">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-ivory-mute">Style studio</p>
-          <p className="mt-1 text-sm text-ivory-dim">Fine-tune the look without writing CSS. Saves alongside your theme.</p>
+    <section className="card overflow-hidden p-0" data-testid="style-studio">
+      <div className="border-b border-onyx-800 bg-onyx-950/70 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-widest text-ivory-mute">Style studio</p>
+            <p className="mt-1 text-sm text-ivory-dim">Fast visual controls for the live profile.</p>
+          </div>
+          <button
+            type="button"
+            className="btn-ghost px-3 py-2 text-xs"
+            onClick={() => onChange({ ...DEFAULT_STYLE_STUDIO })}
+          >
+            Reset
+          </button>
         </div>
-        <button
-          type="button"
-          className="btn-ghost px-3 py-2 text-xs"
-          onClick={() => onChange({ ...DEFAULT_STYLE_STUDIO })}
-        >
-          Reset
-        </button>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_0.9fr]">
+          <div className="space-y-3">
+            <div className="flex gap-2 overflow-x-auto pb-1" data-testid="style-studio-presets">
+              {QUICK_LOOKS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  className="shrink-0 rounded-pill border border-onyx-700 bg-onyx-900 px-3 py-2 text-xs font-medium text-ivory transition hover:border-gold/50 hover:text-gold"
+                  onClick={() => applyQuickLook(preset.value)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-ivory-mute">
+              <div className="rounded-card border border-onyx-800 bg-onyx-950 px-2 py-2">
+                <span className="block text-ivory">{studio.radius}px</span>
+                Radius
+              </div>
+              <div className="rounded-card border border-onyx-800 bg-onyx-950 px-2 py-2">
+                <span className="block text-ivory">{studio.gap}px</span>
+                Gap
+              </div>
+              <div className="rounded-card border border-onyx-800 bg-onyx-950 px-2 py-2">
+                <span className="block text-ivory">{backgroundLabel(studio.background)}</span>
+                Backdrop
+              </div>
+            </div>
+          </div>
+          <div
+            className="rounded-card border border-onyx-700 p-3"
+            style={{ background: studio.customColors ? studio.bg : "#0a0a0a", color: studio.customColors ? studio.fg : "#f7f3ea" }}
+            aria-hidden
+          >
+            <div className="rounded-card p-3" style={{ background: studio.customColors ? studio.bg2 : "#141414", borderRadius: studio.radius }}>
+              <div className="h-2 w-16 rounded-full" style={{ background: studio.accent }} />
+              <p className="mt-3 font-display text-lg" style={{ fontWeight: studio.fontWeight }}>Preview</p>
+              <p className="mt-1 text-xs" style={{ color: studio.customColors ? studio.fgMute : "#a8a39a" }}>Cards, links, spacing.</p>
+              <div className="mt-3 rounded-pill px-3 py-2 text-center text-xs font-medium" style={{ background: studio.accent, color: studio.bg, boxShadow: studio.buttonShadow ? "0 8px 18px -10px rgba(0,0,0,.9)" : undefined }}>
+                Link button
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
+      <div className="space-y-4 p-4">
       <div className="rounded-card border border-onyx-700 bg-onyx-950/60 p-3">
         <label className="flex items-start gap-2 text-sm text-ivory">
           <input
@@ -171,17 +242,28 @@ export default function StyleStudioPanel({
             {[300, 400, 500, 600, 700].map((w) => <option key={w} value={w}>{w}</option>)}
           </select>
         </Field>
-        <Field label="Background">
-          <select className={INPUT_CLASS_NAME} value={studio.background} onChange={(e) => patch("background", e.target.value as StyleStudio["background"])}>
-            <option value="solid">Solid</option>
-            <option value="gradient">Subtle gradient</option>
-            <option value="mesh">Mesh glow</option>
-          </select>
+        <Field label="Background" className="sm:col-span-2">
+          <div className="grid grid-cols-3 gap-2">
+            {(["solid", "gradient", "mesh"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => patch("background", mode)}
+                className={[
+                  "rounded-card border px-3 py-2 text-xs transition",
+                  studio.background === mode ? "border-gold bg-gold/10 text-gold" : "border-onyx-700 bg-onyx-950 text-ivory-mute hover:border-gold/40 hover:text-ivory",
+                ].join(" ")}
+              >
+                {backgroundLabel(mode)}
+              </button>
+            ))}
+          </div>
         </Field>
         <label className="flex items-center gap-2 text-sm text-ivory sm:col-span-2">
           <input type="checkbox" checked={studio.buttonShadow} onChange={(e) => patch("buttonShadow", e.target.checked)} className="size-4 rounded border-onyx-700 bg-onyx-950" />
           Button drop shadow
         </label>
+      </div>
       </div>
     </section>
   );

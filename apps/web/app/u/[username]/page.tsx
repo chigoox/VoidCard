@@ -17,7 +17,8 @@ import { queueWebhookEvent } from "@/lib/webhook-queue";
 import { getThemePreset, themeToCss } from "@/lib/themes/presets";
 
 export const runtime = "nodejs";
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const profileShellStyle: CSSProperties = {
   background: "linear-gradient(180deg, var(--vc-bg, #0a0a0a) 0%, color-mix(in srgb, var(--vc-bg-2, #141414) 72%, var(--vc-bg, #0a0a0a)) 100%)",
@@ -236,8 +237,22 @@ function themeId(theme: unknown): string | null {
 }
 
 function customFontCss(url: string | null) {
+  if (url?.startsWith("https://fonts.googleapis.com/css2?")) {
+    const family = googleFontFamilyFromUrl(url);
+    if (!family) return "";
+    return `@import url('${url}'); .vc-profile-shell, .vc-profile { font-family: '${family}', inherit; }`;
+  }
   if (!url || !/^https?:\/\/.+\.woff2(?:\?.*)?$/i.test(url)) return "";
   return `@font-face { font-family: 'VCUserFont'; src: url('${url}') format('woff2'); font-display: swap; } .vc-profile-shell, .vc-profile { font-family: 'VCUserFont', inherit; }`;
+}
+
+function googleFontFamilyFromUrl(url: string) {
+  try {
+    const family = new URL(url).searchParams.get("family")?.split(":")[0]?.replace(/\+/g, " ").trim();
+    return family?.replace(/[^a-zA-Z0-9\s-]/g, "") || null;
+  } catch {
+    return null;
+  }
 }
 
 async function recordTap(userId: string, source: string, ua: string, ref: string) {
