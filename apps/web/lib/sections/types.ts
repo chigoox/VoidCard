@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-// 18 section types: 17 per BUILD_PLAN.md §11 + 'store' (seller storefront, Stripe Connect).
+// 19 section types: 17 per BUILD_PLAN.md §11 + 'store' (Stripe Connect storefront) + 'booking' (Boox).
 export const SECTION_TYPES = [
   "header", "link", "image", "video", "spotify", "youtube",
   "map", "embed", "form", "gallery", "markdown", "divider",
-  "spacer", "social", "qr", "tip", "schedule", "store",
+  "spacer", "social", "qr", "tip", "schedule", "store", "booking",
 ] as const;
 
 export const STORE_LAYOUTS = ["grid", "list"] as const;
@@ -95,9 +95,11 @@ export const GALLERY_LAYOUTS = ["grid", "masonry", "carousel"] as const;
 const Gallery = Base.extend({
   type: z.literal("gallery"),
   props: z.object({
-    images: z.array(z.object({ src: z.string().url(), alt: z.string().default("") })).max(20),
+    images: z.array(z.object({ src: z.string().url(), alt: z.string().default(""), category: z.string().max(40).optional() })).max(20),
     layout: z.enum(GALLERY_LAYOUTS).default("grid"),
     lightbox: z.boolean().default(true),
+    filters: z.array(z.string().max(40)).max(12).default([]),
+    showCategoryStories: z.boolean().default(false),
   }),
 });
 const Markdown = Base.extend({ type: z.literal("markdown"), props: z.object({ md: z.string().max(8000) }) });
@@ -126,8 +128,20 @@ const Store = Base.extend({
   }),
 });
 
+const Booking = Base.extend({
+  type: z.literal("booking"),
+  props: z.object({
+    provider: z.literal("boox").default("boox"),
+    ownerSlug: z.string().min(1).max(64),
+    mode: z.enum(["embed", "button"]).default("embed"),
+    theme: z.enum(["onyx", "light"]).default("onyx"),
+    height: z.number().int().positive().max(4000).default(820),
+    ctaLabel: z.string().max(40).default("Book now"),
+  }),
+});
+
 export const Section = z.discriminatedUnion("type", [
-  Header, Link, Image, Video, Spotify, YouTube, MapS, Embed, Form, Gallery, Markdown, Divider, Spacer, Social, QR, Tip, Schedule, Store,
+  Header, Link, Image, Video, Spotify, YouTube, MapS, Embed, Form, Gallery, Markdown, Divider, Spacer, Social, QR, Tip, Schedule, Store, Booking,
 ]);
 export type Section = z.infer<typeof Section>;
 export const Sections = z.array(Section);

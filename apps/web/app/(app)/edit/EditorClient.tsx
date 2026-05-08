@@ -830,6 +830,8 @@ function sectionSummary(section: SectionRecord): string {
       return section.props.url;
     case "store":
       return `${section.props.productIds.length} product${section.props.productIds.length === 1 ? "" : "s"}`;
+    case "booking":
+      return section.props.ownerSlug ? `boox/${section.props.ownerSlug}` : "Boox booking";
   }
 }
 
@@ -1292,6 +1294,76 @@ function SectionEditorFields({
     }
     case "store": {
       return <StoreSectionEditorRow section={section} onChange={onChange} />;
+    }
+    case "booking": {
+      const p = section.props;
+      return (
+        <div className="space-y-2">
+          <label className="block text-xs uppercase tracking-widest text-ivory-mute">
+            Boox username
+            <input
+              className={INPUT_CLASS_NAME}
+              value={p.ownerSlug}
+              placeholder="your-handle"
+              onChange={(event) => onChange({ ...section, props: { ...p, ownerSlug: event.target.value.trim() } })}
+              data-testid={`booking-slug-${section.id}`}
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block text-xs uppercase tracking-widest text-ivory-mute">
+              Mode
+              <select
+                className={INPUT_CLASS_NAME}
+                value={p.mode}
+                onChange={(event) => onChange({ ...section, props: { ...p, mode: event.target.value as "embed" | "button" } })}
+              >
+                <option value="embed">Embed widget</option>
+                <option value="button">Button (opens new tab)</option>
+              </select>
+            </label>
+            <label className="block text-xs uppercase tracking-widest text-ivory-mute">
+              Theme
+              <select
+                className={INPUT_CLASS_NAME}
+                value={p.theme}
+                onChange={(event) => onChange({ ...section, props: { ...p, theme: event.target.value as "onyx" | "light" } })}
+              >
+                <option value="onyx">Onyx (dark)</option>
+                <option value="light">Light</option>
+              </select>
+            </label>
+          </div>
+          {p.mode === "embed" ? (
+            <label className="block text-xs uppercase tracking-widest text-ivory-mute">
+              Initial height (px)
+              <input
+                type="number"
+                className={INPUT_CLASS_NAME}
+                value={p.height}
+                min={320}
+                max={4000}
+                onChange={(event) => onChange({ ...section, props: { ...p, height: normalizeInteger(event.target.value, 820) } })}
+              />
+            </label>
+          ) : (
+            <label className="block text-xs uppercase tracking-widest text-ivory-mute">
+              Button label
+              <input
+                className={INPUT_CLASS_NAME}
+                value={p.ctaLabel}
+                onChange={(event) => onChange({ ...section, props: { ...p, ctaLabel: event.target.value } })}
+              />
+            </label>
+          )}
+          <p className="rounded-card border border-onyx-800 bg-onyx-950/40 px-3 py-2 text-xs text-ivory-mute">
+            Powered by <a href="https://booxlit.com" target="_blank" rel="noopener noreferrer" className="text-gold underline-offset-2 hover:underline">Boox</a>.
+            Don&apos;t have an account?{" "}
+            <a href="https://boox.ed5enterprise.com/Signup" target="_blank" rel="noopener noreferrer" className="text-gold underline-offset-2 hover:underline">
+              Create one →
+            </a>
+          </p>
+        </div>
+      );
     }
   }
 }
@@ -1807,6 +1879,7 @@ export default function EditorClient({
       case "embed": nextSection = { ...base, type, props: { html: "<p>Embed</p>", height: 300, autoHeight: false, allowDomains: [] } }; break;
       case "gallery": nextSection = { ...base, type, props: { images: [{ src: "https://placehold.co/600", alt: "" }], layout: "grid", lightbox: true } }; break;
       case "store": nextSection = { ...base, type, props: { title: "Shop", productIds: [], layout: "grid", showPrice: true, buttonLabel: "Buy now" } }; break;
+      case "booking": nextSection = { ...base, type, props: { provider: "boox", ownerSlug: username, mode: "embed", theme: "onyx", height: 820, ctaLabel: "Book now" } }; break;
     }
 
     pushHistory();

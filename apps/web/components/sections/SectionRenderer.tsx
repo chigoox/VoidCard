@@ -1,11 +1,14 @@
 import type { CSSProperties } from "react";
 import type { Section } from "@/lib/sections/types";
+import { markdownToHtml, socialHref } from "@/lib/sections/rendering";
 import { BrandedQR } from "@/components/BrandedQR";
 import { LeadFormSectionClient } from "./LeadFormSectionClient";
 import { SectionMotion } from "./SectionMotion";
 import { GallerySectionClient } from "./GallerySectionClient";
 import { EmbedSectionClient } from "./EmbedSectionClient";
 import { StoreSectionClient } from "./StoreSectionClient";
+import { BookingSectionClient } from "./BookingSectionClient";
+import { TipSectionClient } from "./TipSectionClient";
 
 const SURFACE_BORDER = "color-mix(in srgb, var(--vc-accent, #d4af37) 24%, transparent)";
 
@@ -31,22 +34,6 @@ const ghostStyle: CSSProperties = {
   background: "transparent",
 };
 
-function socialBase(platform: string) {
-  const map: Record<string, string> = {
-    instagram: "https://instagram.com/",
-    tiktok: "https://tiktok.com/@",
-    x: "https://x.com/",
-    linkedin: "https://linkedin.com/in/",
-    youtube: "https://youtube.com/@",
-    threads: "https://threads.net/@",
-    github: "https://github.com/",
-    facebook: "https://facebook.com/",
-    snapchat: "https://snapchat.com/add/",
-  };
-
-  return map[platform] ?? "https://example.com/";
-}
-
 function scheduleLabel(provider: "calcom" | "calendly" | "ed5") {
   switch (provider) {
     case "calcom":
@@ -57,7 +44,6 @@ function scheduleLabel(provider: "calcom" | "calendly" | "ed5") {
       return "Book with ED5";
   }
 }
-
 function renderLinkStyle(style: "pill" | "card" | "ghost") {
   switch (style) {
     case "pill":
@@ -198,7 +184,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
           {p.items.map((item) => (
             <a
               key={item.platform + item.handle}
-              href={`${socialBase(item.platform)}${item.handle}`}
+              href={socialHref(item.platform, item.handle)}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-pill px-3 py-1 text-xs uppercase tracking-widest"
@@ -215,7 +201,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
         <div
           className="prose max-w-none"
           style={{ color: "var(--vc-fg-mute, #a8a39a)" }}
-          dangerouslySetInnerHTML={{ __html: escape(section.props.md) }}
+          dangerouslySetInnerHTML={{ __html: markdownToHtml(section.props.md) }}
         />
       );
     case "divider":
@@ -251,24 +237,15 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
         </a>
       );
     case "tip":
-      return (
-        <div className="p-4" style={cardStyle}>
-          <p className="mb-2 text-sm uppercase tracking-widest" style={{ color: "var(--vc-accent, #d4af37)" }}>Leave a tip</p>
-          <div className="flex gap-2">
-            {section.props.amounts.map((amount) => (
-              <button key={amount} className="flex-1 rounded-pill px-3 py-2.5 text-sm" style={ghostStyle}>
-                ${(amount / 100).toFixed(0)}
-              </button>
-            ))}
-          </div>
-        </div>
-      );
+      return <TipSectionClient stripeAccountId={section.props.stripeAccountId} amounts={section.props.amounts} username={username} />;
     case "gallery":
       return (
         <GallerySectionClient
           images={section.props.images}
           layout={section.props.layout ?? "grid"}
           lightbox={section.props.lightbox ?? true}
+          filters={section.props.filters ?? []}
+          showCategoryStories={section.props.showCategoryStories ?? false}
           radius="var(--vc-radius, 14px)"
         />
       );
@@ -295,6 +272,17 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
           username={username}
         />
       );
+    case "booking":
+      return (
+        <BookingSectionClient
+          ownerSlug={section.props.ownerSlug}
+          height={section.props.height}
+          theme={section.props.theme}
+          ctaLabel={section.props.ctaLabel}
+          mode={section.props.mode}
+          style={cardStyle}
+        />
+      );
     case "map":
       return (
         <div style={cardStyle}>
@@ -309,8 +297,4 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
         </div>
       );
   }
-}
-
-function escape(s: string) {
-  return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
 }
