@@ -42,7 +42,7 @@ export const VIBES: readonly Vibe[] = [
       header(displayName, "Creator · making things"),
       { id: uid(), type: "social", visible: true, props: { items: [] } },
       divider(),
-      { id: uid(), type: "gallery", visible: true, props: { images: [], layout: "grid", lightbox: true } },
+      { id: uid(), type: "gallery", visible: true, props: { images: [], layout: "grid", lightbox: true, filters: [], showCategoryStories: false } },
     ],
   },
   {

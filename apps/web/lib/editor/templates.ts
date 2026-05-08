@@ -110,6 +110,8 @@ function gallery(): SectionRecord {
       ],
       layout: "grid",
       lightbox: true,
+      filters: [],
+      showCategoryStories: false,
     },
   };
 }

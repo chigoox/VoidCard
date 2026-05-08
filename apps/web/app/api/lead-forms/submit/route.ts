@@ -47,22 +47,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   }
 
-  // Turnstile required (no-op in dev without secret).
-  const cap = await verifyTurnstile(body.turnstileToken, ip);
-  if (!cap.success) {
-    return NextResponse.json({ ok: false, error: "captcha_failed" }, { status: 400 });
-  }
-
   const admin = createAdminClient();
 
   // Look up form + ensure it's enabled.
   const { data: form } = await admin
     .from("vcard_lead_forms")
-    .select("id, owner_id, enabled")
+    .select("id, owner_id, enabled, require_captcha")
     .eq("id", body.formId)
     .maybeSingle();
   if (!form || !form.enabled) {
     return NextResponse.json({ ok: false, error: "form_not_found" }, { status: 404 });
+  }
+
+  if (form.require_captcha) {
+    const cap = await verifyTurnstile(body.turnstileToken, ip);
+    if (!cap.success) {
+      return NextResponse.json({ ok: false, error: "captcha_failed" }, { status: 400 });
+    }
   }
 
   const ipHash = await hashIpEdge(ip);

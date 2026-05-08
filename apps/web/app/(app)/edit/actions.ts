@@ -24,6 +24,7 @@ async function syncLeadForms(userId: string, profileId: string, sections: Sectio
       profile_id: profileId === PRIMARY_PROFILE_ID ? userId : null,
       name: section.props.title || "Lead form",
       fields: section.props.fields,
+      require_captcha: section.props.requireCaptcha ?? false,
       enabled: true,
     })),
     { onConflict: "id" },

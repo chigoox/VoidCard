@@ -2,12 +2,22 @@
 
 import "client-only";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { Section } from "@/lib/sections/types";
 
 type FormSection = Extract<Section, { type: "form" }>;
 
 const BORDER = "color-mix(in srgb, var(--vc-accent, #d4af37) 24%, transparent)";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (element: HTMLElement, options: { sitekey: string; callback: (token: string) => void; "expired-callback": () => void; "error-callback": () => void }) => string;
+      reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+    };
+  }
+}
 
 function initialValues(section: FormSection) {
   return Object.fromEntries(section.props.fields.map((field) => [field.name, ""])) as Record<string, string>;
@@ -47,12 +57,55 @@ export function LeadFormSectionClient({ section }: { section: FormSection }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
-  const [captcha, setCaptcha] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<HTMLDivElement | null>(null);
+  const turnstileWidgetId = useRef<string | null>(null);
   const [pending, start] = useTransition();
 
   const requireConsent = section.props.requireConsent ?? false;
   const requireCaptcha = section.props.requireCaptcha ?? false;
   const consentText = section.props.consentText?.trim() || "I agree to be contacted about my inquiry.";
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
+
+  useEffect(() => {
+    if (!requireCaptcha || !turnstileSiteKey || !turnstileRef.current) return;
+
+    let cancelled = false;
+    const renderWidget = () => {
+      if (cancelled || !turnstileRef.current || !window.turnstile || turnstileWidgetId.current) return;
+      turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+        sitekey: turnstileSiteKey,
+        callback: (token) => setTurnstileToken(token),
+        "expired-callback": () => setTurnstileToken(null),
+        "error-callback": () => setTurnstileToken(null),
+      });
+    };
+
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      const existing = document.querySelector<HTMLScriptElement>("script[data-turnstile-script]");
+      if (existing) {
+        existing.addEventListener("load", renderWidget, { once: true });
+      } else {
+        const script = document.createElement("script");
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        script.defer = true;
+        script.dataset.turnstileScript = "true";
+        script.addEventListener("load", renderWidget, { once: true });
+        document.head.appendChild(script);
+      }
+    }
+
+    return () => {
+      cancelled = true;
+      if (turnstileWidgetId.current && window.turnstile) {
+        window.turnstile.remove(turnstileWidgetId.current);
+        turnstileWidgetId.current = null;
+      }
+    };
+  }, [requireCaptcha, turnstileSiteKey]);
 
   function updateValue(name: string, value: string) {
     setValues((current) => ({ ...current, [name]: value }));
@@ -67,8 +120,12 @@ export function LeadFormSectionClient({ section }: { section: FormSection }) {
       setErrorMessage("Please agree to the consent statement to continue.");
       return;
     }
-    if (requireCaptcha && !captcha) {
-      setErrorMessage("Please confirm you are not a bot.");
+    if (requireCaptcha && !turnstileSiteKey) {
+      setErrorMessage("This form's CAPTCHA is not configured yet.");
+      return;
+    }
+    if (requireCaptcha && !turnstileToken) {
+      setErrorMessage("Please complete the CAPTCHA to continue.");
       return;
     }
 
@@ -86,6 +143,7 @@ export function LeadFormSectionClient({ section }: { section: FormSection }) {
           email: firstValueForType(section, values, "email"),
           phone: firstValueForType(section, values, "phone"),
           source: "profile",
+          turnstileToken: turnstileToken ?? undefined,
         }),
       });
       const body = await response.json().catch(() => ({}));
@@ -96,6 +154,8 @@ export function LeadFormSectionClient({ section }: { section: FormSection }) {
       }
 
       setValues(initialValues(section));
+      setTurnstileToken(null);
+      if (turnstileWidgetId.current) window.turnstile?.reset(turnstileWidgetId.current);
       setSuccessMessage(section.props.successMessage);
     });
   }
@@ -171,12 +231,7 @@ export function LeadFormSectionClient({ section }: { section: FormSection }) {
           <span>{consentText}</span>
         </label>
       ) : null}
-      {requireCaptcha ? (
-        <label className="flex items-center gap-2 text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>
-          <input type="checkbox" checked={captcha} onChange={(event) => setCaptcha(event.target.checked)} />
-          <span>I'm not a robot</span>
-        </label>
-      ) : null}
+      {requireCaptcha ? <div ref={turnstileRef} className="min-h-[65px]" /> : null}
       {successMessage ? (
         <p
           className="rounded-card px-3 py-2 text-sm"
