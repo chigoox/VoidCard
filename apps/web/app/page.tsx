@@ -100,24 +100,53 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Phone preview — keeps the Onyx Gold product look so visitors see what their profile will look like */}
-        <div className="flex justify-center">
+        {/* Phone preview — Onyx Gold product look */}
+        <div className="flex w-full justify-center">
           <div className="phone-frame">
-            <div className="flex h-full flex-col bg-onyx-950 p-6 text-ivory">
-              <div className="flex flex-col items-center pt-12">
-                <div className="size-24 rounded-full bg-gold-grad" />
-                <h2 className="mt-4 font-display text-2xl">Void Luxury Detailing <span className="text-gold">✓</span></h2>
-                <p className="mt-1 text-sm text-ivory-dim">@voidluxury</p>
+            {/* status bar notch */}
+            <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center pt-3">
+              <div className="h-[26px] w-[110px] rounded-full bg-black" />
+            </div>
+            <div className="flex h-full flex-col overflow-y-auto bg-onyx-950 text-ivory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {/* cover image strip */}
+              <div className="h-32 w-full shrink-0 bg-gradient-to-br from-onyx-900 to-onyx-800" />
+              {/* avatar — overlaps cover */}
+              <div className="-mt-10 flex flex-col items-center px-5">
+                <div className="size-20 shrink-0 rounded-full border-4 border-onyx-950 bg-gold-grad" />
+                <div className="mt-2 flex items-center gap-1.5">
+                  <h2 className="font-display text-lg font-semibold leading-tight">Void Luxury Detailing</h2>
+                  <span className="text-gold text-xs">✓</span>
+                </div>
+                <p className="mt-0.5 text-xs text-ivory-dim">@voidluxury · Auto detailing studio</p>
               </div>
-              <div className="mt-7 space-y-3">
-                {["Book a service", "Instagram", "TikTok", "Save my contact"].map((label) => (
-                  <div key={label} className="card flex items-center justify-between px-4 py-3.5 text-sm">
-                    <span>{label}</span>
-                    <span className="text-gold">→</span>
+              {/* links section */}
+              <div className="mt-4 space-y-2 px-4">
+                {[
+                  { label: "Book a service", icon: "📅" },
+                  { label: "Instagram", icon: "📷" },
+                  { label: "TikTok", icon: "▶" },
+                  { label: "Save my contact", icon: "👤" },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between rounded-[14px] border border-onyx-700 bg-onyx-900 px-4 py-3 text-sm">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-base">{item.icon}</span>
+                      <span className="text-ivory">{item.label}</span>
+                    </div>
+                    <span className="text-gold text-xs">→</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-auto pb-2 pt-6 text-center text-[10px] uppercase tracking-widest text-ivory-mute">
+              {/* gallery strip */}
+              <div className="mt-4 px-4">
+                <p className="mb-2 text-[10px] uppercase tracking-widest text-ivory-mute">Gallery</p>
+                <div className="grid grid-cols-3 gap-1 overflow-hidden rounded-[14px]">
+                  {["from-amber-900/60 to-onyx-900", "from-onyx-800 to-onyx-900", "from-gold/20 to-onyx-900"].map((g, i) => (
+                    <div key={i} className={`aspect-square w-full bg-gradient-to-br ${g}`} />
+                  ))}
+                </div>
+              </div>
+              {/* powered-by */}
+              <div className="mt-auto pb-3 pt-5 text-center text-[9px] uppercase tracking-widest text-ivory-mute/50">
                 Powered by VoidCard
               </div>
             </div>
