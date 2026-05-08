@@ -80,19 +80,19 @@ export function GallerySectionClient({
           role="dialog"
           aria-modal="true"
           onClick={() => setActive(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+          className="safe-modal-frame fixed inset-0 z-50 flex items-center justify-center bg-black/85"
         >
           <img
             src={images[active]?.src}
             alt={images[active]?.alt ?? ""}
-            className="max-h-[90vh] max-w-[90vw] object-contain"
+            className="max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-2rem)] max-w-[calc(100vw-var(--safe-left)-var(--safe-right)-2rem)] object-contain"
             onClick={(event) => event.stopPropagation()}
           />
           <button
             type="button"
             onClick={() => setActive(null)}
             aria-label="Close"
-            className="absolute right-4 top-4 rounded-full bg-black/60 px-3 py-1 text-sm text-white"
+            className="safe-close-button absolute rounded-full bg-black/60 px-3 py-1 text-sm text-white"
           >
             ×
           </button>

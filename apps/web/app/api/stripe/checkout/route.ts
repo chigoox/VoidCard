@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { z } from "zod";
 import { stripe } from "@/lib/stripe";
 import { getUser } from "@/lib/auth";
 import { getProductBySku, getPlan, getSetting } from "@/lib/cms";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +43,14 @@ const CREDITS_PACK_AMOUNT: Record<string, number> = {
   "credits-100": 100,
   "credits-500": 500,
 };
+
+const CheckoutBody = z.object({
+  kind: z.enum(["shop", "subscribe"]),
+  sku: z.string().min(1).max(80).optional(),
+  plan: z.string().min(1).max(80).optional(),
+  referral: z.string().max(100).optional(),
+  designId: z.string().uuid().optional(),
+});
 
 async function planLineItem(plan: string): Promise<Stripe.Checkout.SessionCreateParams.LineItem | null> {
   const isYear = plan.endsWith("_year");
@@ -115,9 +125,9 @@ async function shopLineItem(
 }
 
 export async function POST(req: Request) {
-  let body: { kind?: "shop" | "subscribe"; sku?: string; plan?: string; referral?: string };
+  let body: z.infer<typeof CheckoutBody>;
   try {
-    body = await req.json();
+    body = CheckoutBody.parse(await req.json());
   } catch {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
@@ -146,6 +156,23 @@ export async function POST(req: Request) {
     }
 
     if (body.kind === "shop" && body.sku) {
+      let designId: string | undefined;
+      if (body.sku === "card-custom") {
+        if (!u) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+        if (!u.verified) return NextResponse.json({ error: "verified_required" }, { status: 403 });
+        if (!body.designId) return NextResponse.json({ error: "design_required" }, { status: 400 });
+
+        const sb = await createClient();
+        const { data: design } = await sb
+          .from("vcard_card_designs")
+          .select("id")
+          .eq("id", body.designId)
+          .eq("user_id", u.id)
+          .maybeSingle();
+        if (!design) return NextResponse.json({ error: "design_not_found" }, { status: 404 });
+        designId = design.id;
+      }
+
       const result = await shopLineItem(body.sku);
       if (!result) return NextResponse.json({ error: "unknown_sku" }, { status: 400 });
       const isCreditsPack = body.sku in CREDITS_PACK_AMOUNT;
@@ -174,6 +201,7 @@ export async function POST(req: Request) {
           user_id: u?.id ?? "",
           sku: body.sku,
           referral_code: body.referral ?? "",
+          ...(designId ? { design_id: designId } : {}),
           ...(isCreditsPack ? { kind: "credits", credits: String(CREDITS_PACK_AMOUNT[body.sku] ?? 0) } : {}),
         },
         ...(result.shippable

@@ -91,12 +91,12 @@ export function QrScannerModal({ onScan, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4"
+      className="safe-modal-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/80 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label="Scan QR code"
     >
-      <div className="w-full max-w-sm space-y-4 rounded-t-2xl border border-onyx-700 bg-onyx-950 p-5 sm:rounded-2xl">
+      <div className="safe-max-h-screen w-full max-w-sm space-y-4 overflow-y-auto rounded-t-2xl border border-onyx-700 bg-onyx-950 p-5 sm:rounded-2xl">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

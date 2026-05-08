@@ -61,7 +61,7 @@ export function ConsentBanner() {
     <div
       role="dialog"
       aria-label="Cookie consent"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-paper-200 bg-white/95 backdrop-blur-md shadow-soft"
+      className="safe-bottom-panel fixed inset-x-0 bottom-0 z-50 border-t border-paper-200 bg-white/95 backdrop-blur-md shadow-soft"
     >
       <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-6">
         <div className="text-sm text-ink-500">

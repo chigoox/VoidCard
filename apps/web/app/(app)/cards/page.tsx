@@ -17,15 +17,24 @@ export default async function CardsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-display text-2xl text-gold-grad">Your cards</h1>
-        <Link
-          href="/cards/pair"
-          className="rounded-md border border-gold/60 bg-onyx-900 px-3 py-1.5 text-sm text-gold hover:bg-gold hover:text-onyx-950"
-          data-testid="cards-pair-link"
-        >
-          Pair a card
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/cards/design"
+            className="rounded-md border border-gold/60 bg-onyx-900 px-3 py-1.5 text-sm text-gold hover:bg-gold hover:text-onyx-950"
+            data-testid="cards-design-link"
+          >
+            Design custom card
+          </Link>
+          <Link
+            href="/cards/pair"
+            className="rounded-md border border-gold/60 bg-onyx-900 px-3 py-1.5 text-sm text-gold hover:bg-gold hover:text-onyx-950"
+            data-testid="cards-pair-link"
+          >
+            Pair a card
+          </Link>
+        </div>
       </header>
 
       {(!cards || cards.length === 0) && (

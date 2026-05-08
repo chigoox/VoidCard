@@ -98,7 +98,7 @@ export function BottomNav() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-40 border-t border-onyx-700/60 bg-onyx-950/95 backdrop-blur-md"
-      style={{ paddingBottom: "var(--safe-bottom)" }}
+      style={{ paddingBottom: "max(var(--safe-bottom), 0px)" }}
     >
       <ul className="mx-auto flex max-w-md justify-around py-1">
         {tabs.map((t) => {

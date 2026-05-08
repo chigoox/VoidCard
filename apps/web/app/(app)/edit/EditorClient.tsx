@@ -66,6 +66,7 @@ const SCHEDULE_PROVIDERS = ["calcom", "calendly", "ed5"] as const;
 const INPUT_CLASS_NAME =
   "w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2.5 text-sm text-ivory outline-none transition focus:border-gold/60";
 const TEXTAREA_CLASS_NAME = `${INPUT_CLASS_NAME} min-h-[112px] resize-y`;
+const MAX_GALLERY_IMAGES = 20;
 
 type MediaLibraryItem = {
   id: string;
@@ -74,6 +75,8 @@ type MediaLibraryItem = {
   url: string;
   createdAt: string;
 };
+
+type GalleryImageDraft = { src: string; alt: string };
 
 function sanitizeCss(css: string) {
   return css.replace(/@import[^;]+;/gi, "").replace(/javascript:/gi, "").replace(/expression\s*\(/gi, "");
@@ -141,6 +144,21 @@ async function uploadMediaAsset(file: File, kind: "image" | "video") {
     url: finalizeBody.url as string,
     createdAt: new Date().toISOString(),
   } satisfies MediaLibraryItem;
+}
+
+function fileNameToAlt(name: string) {
+  return name
+    .replace(/\.[^.]+$/, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractImageUrls(value: string) {
+  return value
+    .split(/[\n,]+/)
+    .map((entry) => entry.trim())
+    .filter((entry) => /^https?:\/\//i.test(entry));
 }
 
 function MediaField({
@@ -285,6 +303,141 @@ function MediaField({
         }
       />
     </Field>
+  );
+}
+
+function GalleryBulkImageControls({
+  images,
+  recentMedia,
+  onChange,
+  onMediaAdded,
+}: {
+  images: GalleryImageDraft[];
+  recentMedia: MediaLibraryItem[];
+  onChange: (images: GalleryImageDraft[]) => void;
+  onMediaAdded: (asset: MediaLibraryItem) => void;
+}) {
+  const [message, setMessage] = useState<string | null>(null);
+  const [urlList, setUrlList] = useState("");
+  const [uploading, startUpload] = useTransition();
+  const remaining = Math.max(0, MAX_GALLERY_IMAGES - images.length);
+  const recentImages = recentMedia.filter((item) => item.kind === "image").slice(0, 8);
+
+  function appendImages(nextImages: GalleryImageDraft[], source: string) {
+    if (remaining <= 0) {
+      setMessage(`Gallery is full (${MAX_GALLERY_IMAGES} images).`);
+      return;
+    }
+    const accepted = nextImages.slice(0, remaining);
+    if (accepted.length === 0) return;
+    onChange([...images, ...accepted]);
+    const clipped = nextImages.length - accepted.length;
+    setMessage(`${accepted.length} ${source} added${clipped > 0 ? `; ${clipped} skipped because the gallery is full` : ""}.`);
+  }
+
+  function handleFilesChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []).filter((file) => file.type.startsWith("image/"));
+    input.value = "";
+    if (files.length === 0) return;
+    if (remaining <= 0) {
+      setMessage(`Gallery is full (${MAX_GALLERY_IMAGES} images).`);
+      return;
+    }
+
+    const selected = files.slice(0, remaining);
+    setMessage(null);
+    startUpload(async () => {
+      const uploaded = await Promise.all(
+        selected.map(async (file) => {
+          try {
+            const asset = await uploadMediaAsset(file, "image");
+            return { asset, name: file.name, error: null };
+          } catch (error) {
+            return { asset: null, name: file.name, error: error instanceof Error ? error.message : "Upload failed. Try again." };
+          }
+        }),
+      );
+      const assets = uploaded.filter((result): result is { asset: MediaLibraryItem; name: string; error: null } => result.asset !== null);
+      const failures = uploaded.length - assets.length;
+      assets.forEach(({ asset }) => onMediaAdded(asset));
+      if (assets.length > 0) {
+        onChange([
+          ...images,
+          ...assets.map(({ asset, name }) => ({
+            src: asset.url,
+            alt: fileNameToAlt(name),
+          })),
+        ]);
+      }
+      const clipped = files.length - selected.length;
+      setMessage(
+        [
+          assets.length > 0 ? `${assets.length} uploaded and added` : null,
+          failures > 0 ? `${failures} failed` : null,
+          clipped > 0 ? `${clipped} skipped because the gallery is full` : null,
+        ]
+          .filter(Boolean)
+          .join("; ") || "No images were added.",
+      );
+    });
+  }
+
+  function addUrls() {
+    const urls = extractImageUrls(urlList);
+    if (urls.length === 0) {
+      setMessage("Paste one or more image URLs that start with http:// or https://.");
+      return;
+    }
+    appendImages(urls.map((src) => ({ src, alt: "" })), "URL");
+    setUrlList("");
+  }
+
+  return (
+    <div className="space-y-3 rounded-card border border-onyx-800 bg-onyx-950/40 p-3" data-testid="gallery-bulk-images">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-ivory">Add multiple images</p>
+        <span className="text-xs text-ivory-mute">{images.length}/{MAX_GALLERY_IMAGES} images</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <label className="btn-ghost cursor-pointer px-3 py-2 text-xs" aria-disabled={uploading || remaining <= 0}>
+          {uploading ? "Uploading..." : "Upload images"}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFilesChange}
+            disabled={uploading || remaining <= 0}
+            data-testid="gallery-upload-images"
+          />
+        </label>
+        <button
+          type="button"
+          className="btn-ghost px-3 py-2 text-xs"
+          onClick={() => appendImages(recentImages.map((item) => ({ src: item.url, alt: "" })), "recent image")}
+          disabled={recentImages.length === 0 || remaining <= 0}
+          data-testid="gallery-add-recent-images"
+        >
+          Add recent images
+        </button>
+      </div>
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+        <Field label="Image URLs">
+          <textarea
+            className={`${TEXTAREA_CLASS_NAME} min-h-[84px]`}
+            value={urlList}
+            onChange={(event) => setUrlList(event.target.value)}
+            placeholder="https://example.com/photo-1.jpg&#10;https://example.com/photo-2.jpg"
+            data-testid="gallery-image-url-list"
+          />
+        </Field>
+        <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={addUrls} disabled={remaining <= 0} data-testid="gallery-add-url-list">
+          Add URLs
+        </button>
+      </div>
+      {message ? <p className="text-xs text-ivory-mute" data-testid="gallery-bulk-message">{message}</p> : null}
+    </div>
   );
 }
 
@@ -554,7 +707,7 @@ function SortableSectionRow({
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
       className={[
-        "card min-w-0 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
+        "card relative z-0 min-w-0 overflow-visible text-sm focus-within:z-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
         collapsed ? "p-2 sm:p-2.5" : "space-y-4 p-3 sm:p-4",
         isDragging ? "border-gold/60 shadow-[0_8px_24px_-12px_rgba(212,168,83,0.35)]" : "",
       ].join(" ")}
@@ -990,6 +1143,12 @@ function SectionEditorFields({
               Open full-size on click (lightbox)
             </label>
           </div>
+          <GalleryBulkImageControls
+            images={p.images}
+            recentMedia={recentMedia}
+            onMediaAdded={onMediaAdded}
+            onChange={(images) => onChange({ ...section, props: { ...p, images } })}
+          />
           {p.images.map((image, imageIndex) => (
             <div key={`${section.id}-image-${imageIndex}`} className="grid gap-3 rounded-card border border-onyx-800 bg-onyx-950/60 p-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
               <MediaField label="Image URL" value={image.src} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, images: p.images.map((entry, index) => index === imageIndex ? { ...entry, src: value } : entry) } })} />
@@ -1005,7 +1164,7 @@ function SectionEditorFields({
               </div>
             </div>
           ))}
-          <button type="button" className="btn-ghost" onClick={() => onChange({ ...section, props: { ...p, images: [...p.images, { src: "https://placehold.co/600", alt: "" }] } })}>
+          <button type="button" className="btn-ghost" onClick={() => onChange({ ...section, props: { ...p, images: [...p.images, { src: "https://placehold.co/600", alt: "" }] } })} disabled={p.images.length >= MAX_GALLERY_IMAGES}>
             Add image
           </button>
         </div>
@@ -1654,7 +1813,6 @@ export default function EditorClient({
     markDirty();
     setSections((prev) => [...prev, nextSection]);
     setCollapsed((prev) => ({ ...prev, [id]: false }));
-    setAddMenuOpen(false);
     setAnnouncement(`Added ${type} section`);
   }
 
@@ -1696,7 +1854,6 @@ export default function EditorClient({
     const firstId = built[0]?.id;
     setCollapsed(() => Object.fromEntries(built.map((s, i) => [s.id, i > 0])));
     if (firstId) setCollapsed((p) => ({ ...p, [firstId]: false }));
-    setTemplatesOpen(false);
     setAnnouncement(`Loaded ${tpl.name} template`);
   }
 
@@ -2030,7 +2187,7 @@ export default function EditorClient({
         className={[
           "order-2 min-w-0 md:order-2 md:sticky md:top-24 md:self-start",
           mobilePreviewOpen
-            ? "fixed inset-0 z-40 flex flex-col overflow-y-auto bg-onyx-950/95 p-4 backdrop-blur-md md:static md:bg-transparent md:p-0"
+            ? "safe-modal-frame fixed inset-0 z-40 flex flex-col overflow-y-auto bg-onyx-950/95 backdrop-blur-md md:static md:bg-transparent md:p-0"
             : "hidden md:block",
         ].join(" ")}
         data-testid="preview-column"
@@ -2453,7 +2610,7 @@ export default function EditorClient({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="card mt-3 grid gap-2 p-3 sm:grid-cols-2"
+                className="card mt-3 flex gap-2 overflow-x-auto overscroll-x-contain p-3 pb-4"
                 data-testid="templates-menu"
               >
                 {SECTION_TEMPLATES.map((tpl) => (
@@ -2461,7 +2618,7 @@ export default function EditorClient({
                     key={tpl.id}
                     type="button"
                     onClick={() => applyTemplate(tpl.id)}
-                    className="rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-3 text-left hover:border-gold/40"
+                    className="min-w-[16rem] max-w-[18rem] shrink-0 rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-3 text-left hover:border-gold/40"
                     data-testid={`template-${tpl.id}`}
                   >
                     <p className="font-display text-sm text-ivory">{tpl.name}</p>
@@ -2479,7 +2636,7 @@ export default function EditorClient({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="card mt-3 grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3"
+                className="card mt-3 flex gap-2 overflow-x-auto overscroll-x-contain p-3 pb-4"
                 data-testid="add-section-menu"
               >
                 {SECTION_TYPES.map((type) => (
@@ -2488,7 +2645,7 @@ export default function EditorClient({
                     type="button"
                     onClick={() => addSection(type)}
                     data-testid={`add-${type}`}
-                    className="flex min-w-0 items-center gap-2 truncate rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
+                    className="flex min-w-[8.75rem] shrink-0 items-center gap-2 truncate rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
                   >
                     <span aria-hidden className="text-gold">+</span>
                     {type}
@@ -2561,12 +2718,12 @@ export default function EditorClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            className="safe-modal-frame fixed inset-0 z-50 flex items-center justify-center bg-black/70"
             role="dialog"
             aria-modal="true"
             data-testid="confirm-remove"
           >
-            <div className="card max-w-sm space-y-3 p-5 text-sm">
+            <div className="card safe-max-h-screen max-w-sm space-y-3 overflow-y-auto p-5 text-sm">
               <p className="font-display text-lg text-ivory">Remove this section?</p>
               <p className="text-xs text-ivory-mute">This cannot be undone after publishing. You can press Ctrl+Z to bring it back before publishing.</p>
               <div className="flex justify-end gap-2">
@@ -2592,12 +2749,12 @@ export default function EditorClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            className="safe-modal-frame fixed inset-0 z-50 flex items-center justify-center bg-black/70"
             role="dialog"
             aria-modal="true"
             data-testid="bulk-links-modal"
           >
-            <div className="card w-full max-w-lg space-y-3 p-5 text-sm">
+            <div className="card safe-max-h-screen w-full max-w-lg space-y-3 overflow-y-auto p-5 text-sm">
               <p className="font-display text-lg text-ivory">Bulk add links</p>
               <p className="text-xs text-ivory-mute">One link per line. Format: <code className="rounded bg-onyx-950 px-1 py-0.5">Label | https://example.com</code> or just a URL.</p>
               <textarea
@@ -2620,12 +2777,12 @@ export default function EditorClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            className="safe-modal-frame fixed inset-0 z-50 flex items-center justify-center bg-black/70"
             role="dialog"
             aria-modal="true"
             data-testid="product-picker-modal"
           >
-            <div className="card w-full max-w-lg space-y-3 p-5 text-sm">
+            <div className="card safe-max-h-screen w-full max-w-lg space-y-3 overflow-y-auto p-5 text-sm">
               <div className="flex items-center justify-between">
                 <p className="font-display text-lg text-ivory">Add a product</p>
                 <button type="button" className="text-ivory-dim hover:text-ivory" onClick={() => setProductPickerOpen(false)} aria-label="Close">×</button>
@@ -2662,12 +2819,12 @@ export default function EditorClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            className="safe-modal-frame fixed inset-0 z-50 flex items-center justify-center bg-black/70"
             role="dialog"
             aria-modal="true"
             data-testid="publish-confirm"
           >
-            <div className="card max-w-md space-y-3 p-5 text-sm">
+            <div className="card safe-max-h-screen max-w-md space-y-3 overflow-y-auto p-5 text-sm">
               <p className="font-display text-lg text-ivory">Publish to your live profile?</p>
               <p className="text-xs text-ivory-mute">
                 {isDirty
@@ -2686,7 +2843,7 @@ export default function EditorClient({
       </AnimatePresence>
 
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden"
+        className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+var(--safe-bottom))] z-50 flex justify-center px-3 md:hidden"
         data-testid="mobile-action-bar"
       >
         <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-2 rounded-full border border-onyx-700 bg-onyx-950/95 px-3 py-2 shadow-2xl backdrop-blur">

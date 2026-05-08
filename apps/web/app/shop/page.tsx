@@ -79,12 +79,18 @@ export default async function ShopPage() {
                 </span>
               )}
             </div>
-            <CheckoutButton
-              kind="shop"
-              sku={sku.sku}
-              label={sku.sku === "verified-badge" ? "Get Verified" : "Order"}
-              className="btn-primary mt-5 self-start"
-            />
+            {sku.sku === "card-custom" ? (
+              <Link href="/cards/design" className="btn-primary mt-5 self-start">
+                Design card
+              </Link>
+            ) : (
+              <CheckoutButton
+                kind="shop"
+                sku={sku.sku}
+                label={sku.sku === "verified-badge" ? "Get Verified" : "Order"}
+                className="btn-primary mt-5 self-start"
+              />
+            )}
           </div>
         ))}
       </section>

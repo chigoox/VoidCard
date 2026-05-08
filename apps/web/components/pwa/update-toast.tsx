@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RefreshCw, X } from "lucide-react";
 
 export function UpdateToast() {
   const [show, setShow] = useState(false);
@@ -54,15 +55,16 @@ export function UpdateToast() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-3 bottom-3 z-50 flex items-center gap-3 rounded-card border border-paper-200 bg-white/95 p-3 shadow-soft-lg backdrop-blur sm:inset-x-auto sm:right-4 sm:max-w-sm"
+      className="safe-floating-bottom fixed z-50 flex items-center gap-3 rounded-card border border-paper-200 bg-white/95 p-3 shadow-soft-lg backdrop-blur sm:max-w-sm"
     >
+      <RefreshCw className="size-4 shrink-0 text-ink-400" aria-hidden />
       <div className="flex-1 text-sm">
         <p className="font-medium text-ink">Update available</p>
         <p className="text-xs text-ink-400">Reload to get the latest version.</p>
       </div>
       <button
         type="button"
-        className="btn-primary text-xs"
+        className="btn-primary flex items-center gap-1.5 text-xs"
         onClick={async () => {
           if (!("serviceWorker" in navigator)) return;
           const reg = await navigator.serviceWorker.ready;
@@ -70,7 +72,16 @@ export function UpdateToast() {
           // controllerchange listener will reload.
         }}
       >
+        <RefreshCw className="size-3" aria-hidden />
         Reload
+      </button>
+      <button
+        type="button"
+        aria-label="Dismiss update notification"
+        className="rounded p-1 text-ink-400 hover:bg-paper-100 hover:text-ink"
+        onClick={() => setShow(false)}
+      >
+        <X className="size-4" aria-hidden />
       </button>
     </div>
   );

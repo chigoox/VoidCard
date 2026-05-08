@@ -562,7 +562,7 @@ export default function OnboardingClient({
             </div>
           </div>
           {confettiOn ? (
-            <div aria-hidden className="pointer-events-none fixed inset-0 z-50 grid place-items-center">
+            <div aria-hidden className="safe-modal-frame pointer-events-none fixed inset-0 z-50 grid place-items-center">
               <div className="rounded-card bg-onyx-950/80 px-6 py-4 text-2xl text-gold-grad shadow-2xl backdrop-blur" data-testid="confetti">
                 You&rsquo;re live ✨
               </div>

@@ -41,7 +41,7 @@ export function MobileNav({ isLoggedIn }: MobileNavProps) {
 
       {open && (
         <div className="absolute inset-x-0 top-full z-50 border-b border-paper-200 bg-white/95 shadow-md backdrop-blur-md">
-          <nav className="mx-auto max-w-7xl px-6 py-4">
+          <nav className="safe-menu-panel mx-auto max-w-7xl py-4">
             <ul className="space-y-1">
               {NAV_LINKS.map((link) => (
                 <li key={link.href}>

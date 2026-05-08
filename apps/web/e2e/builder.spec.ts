@@ -46,6 +46,25 @@ test.describe("builder", () => {
       .toBe(before + 2);
   });
 
+  test("gallery accepts multiple image URLs at once", async ({ page }) => {
+    await page.goto("/edit");
+    const rows = page.getByTestId("section-list").locator("> li");
+    const before = await rows.count();
+
+    await page.getByTestId("add-section-trigger").click();
+    await page.getByTestId("add-gallery").click();
+
+    const galleryRow = rows.nth(before);
+    await expect(galleryRow.getByTestId("gallery-bulk-images")).toBeVisible();
+    await galleryRow
+      .getByTestId("gallery-image-url-list")
+      .fill("https://placehold.co/700x500\nhttps://placehold.co/800x600");
+    await galleryRow.getByTestId("gallery-add-url-list").click();
+
+    await expect(galleryRow.getByLabel("Image URL", { exact: true })).toHaveCount(3);
+    await expect(galleryRow.getByTestId("gallery-bulk-message")).toBeVisible();
+  });
+
   test("publish requires confirmation", async ({ page }) => {
     await page.goto("/edit");
     await page.getByTestId("publish").click();

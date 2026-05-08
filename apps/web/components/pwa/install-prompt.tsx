@@ -33,7 +33,7 @@ export function InstallPrompt() {
     <div
       role="dialog"
       aria-label="Install VoidCard"
-      className="fixed inset-x-3 bottom-3 z-50 flex items-center gap-3 rounded-card border border-paper-200 bg-white/95 p-3 shadow-soft-lg backdrop-blur sm:inset-x-auto sm:right-4 sm:max-w-sm"
+      className="safe-floating-bottom fixed z-50 flex items-center gap-3 rounded-card border border-paper-200 bg-white/95 p-3 shadow-soft-lg backdrop-blur sm:max-w-sm"
     >
       <div className="flex-1 text-sm">
         <p className="font-medium text-ink">Install VoidCard</p>

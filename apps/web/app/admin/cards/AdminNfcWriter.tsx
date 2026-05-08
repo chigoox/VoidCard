@@ -100,12 +100,12 @@ export function AdminNfcWriter({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="safe-modal-frame fixed inset-0 z-50 flex items-center justify-center bg-black/70"
           role="dialog"
           aria-modal="true"
           aria-label={`NFC write for ${serial}`}
         >
-          <div className="w-full max-w-md space-y-5 rounded-2xl border border-onyx-700 bg-onyx-950 p-6 shadow-2xl">
+          <div className="safe-max-h-screen w-full max-w-md space-y-5 overflow-y-auto rounded-2xl border border-onyx-700 bg-onyx-950 p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-display text-lg text-gold-grad">Write NFC tag</p>

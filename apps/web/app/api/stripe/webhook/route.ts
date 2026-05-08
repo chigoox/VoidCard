@@ -19,6 +19,7 @@ const CREDITS_PACK_SKUS: Record<string, number> = {
   "credits-100": 100,
   "credits-500": 500,
 };
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(req: Request) {
   const sig = req.headers.get("stripe-signature");
@@ -242,6 +243,10 @@ export async function POST(req: Request) {
           const product = li.price?.product as Stripe.Product | null;
           return product?.metadata?.sku ?? "";
         }).filter(Boolean);
+        const customDesignId =
+          typeof session.metadata?.design_id === "string" && UUID_RE.test(session.metadata.design_id)
+            ? session.metadata.design_id
+            : null;
 
         const total = session.amount_total ?? 0;
         const { data: order } = await admin.from("vcard_orders").insert({
@@ -260,13 +265,26 @@ export async function POST(req: Request) {
 
         for (const li of lineItems.data) {
           const product = li.price?.product as Stripe.Product | null;
+          const sku = product?.metadata?.sku ?? "";
+          const itemMetadata = {
+            ...(product?.metadata ?? {}),
+            ...(sku === "card-custom" && customDesignId ? { design_id: customDesignId } : {}),
+          };
           await admin.from("vcard_order_items").insert({
             order_id: order!.id,
-            sku: product?.metadata?.sku ?? "",
+            sku,
             qty: li.quantity ?? 1,
             price_cents: li.amount_total ?? li.amount_subtotal ?? 0,
-            metadata: product?.metadata ?? {},
+            metadata: itemMetadata,
           });
+        }
+
+        if (userId && customDesignId && skus.includes("card-custom")) {
+          await admin
+            .from("vcard_card_designs")
+            .update({ status: "ordered", updated_at: new Date().toISOString() })
+            .eq("id", customDesignId)
+            .eq("user_id", userId);
         }
 
         // Side effects: storage bonus + verified grant + referral credit
@@ -340,6 +358,7 @@ export async function POST(req: Request) {
             total_cents: total,
             currency: session.currency ?? "usd",
             skus,
+            ...(customDesignId ? { design_id: customDesignId } : {}),
             created_at: new Date().toISOString(),
           }).catch(() => null);
         }

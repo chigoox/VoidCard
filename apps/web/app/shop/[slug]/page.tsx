@@ -20,10 +20,22 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   });
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ design_id?: string }>;
+}) {
   const { slug } = await params;
+  const query = await searchParams;
   const product = await getProductBySku(slug);
   if (!product || !product.active) notFound();
+  const designId =
+    typeof query?.design_id === "string" && /^[0-9a-f-]{36}$/i.test(query.design_id)
+      ? query.design_id
+      : undefined;
+  const isCustomCard = product.sku === "card-custom";
 
   const requiresVerified = Boolean(
     (product.metadata as { requires_verified?: boolean } | null)?.requires_verified,
@@ -78,8 +90,26 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </div>
           )}
 
-          <div className="mt-7 flex gap-3">
-            <CheckoutButton kind="shop" sku={product.sku} label={`Order — ${formatPrice(product.price_cents, product.currency)}`} className="btn-primary" />
+          <div className="mt-7 flex flex-wrap gap-3">
+            {isCustomCard && !designId ? (
+              <Link href="/cards/design" className="btn-primary" data-testid="custom-card-choose-design">
+                Choose design
+              </Link>
+            ) : (
+              <CheckoutButton
+                kind="shop"
+                sku={product.sku}
+                designId={designId}
+                label={`Order — ${formatPrice(product.price_cents, product.currency)}`}
+                className="btn-primary"
+                testId={isCustomCard ? "custom-card-checkout" : undefined}
+              />
+            )}
+            {isCustomCard && designId && (
+              <Link href="/cards/design" className="btn-ghost">
+                Change design
+              </Link>
+            )}
           </div>
 
           <ul className="mt-10 space-y-3 text-sm text-ink-500">

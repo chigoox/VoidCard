@@ -189,7 +189,7 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+      className="safe-modal-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label="Media library"
@@ -198,7 +198,7 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
       }}
       data-testid="media-manager-modal"
     >
-      <div className="card flex max-h-[92vh] w-full flex-col gap-3 rounded-t-card border border-onyx-700 bg-onyx-950 p-4 sm:max-w-3xl sm:rounded-card">
+      <div className="card safe-max-h-screen flex w-full flex-col gap-3 overflow-hidden rounded-t-card border border-onyx-700 bg-onyx-950 p-4 sm:max-w-3xl sm:rounded-card">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-medium text-ivory">
             {kind === "image" ? "Image library" : "Video library"}
