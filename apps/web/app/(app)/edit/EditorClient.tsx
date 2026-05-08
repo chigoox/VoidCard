@@ -9,7 +9,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   DndContext,
   KeyboardSensor,
+  MouseSensor,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -499,7 +501,8 @@ function SectionRowHeader({
       <button
         type="button"
         aria-label={`Drag ${section.type} section`}
-        className="btn-ghost cursor-grab px-2 py-1 text-xs active:cursor-grabbing"
+        className="btn-ghost cursor-grab touch-none select-none px-2 py-1 text-xs active:cursor-grabbing"
+        style={{ touchAction: "none" }}
         data-testid={`drag-handle-${section.id}`}
         {...dragAttributes}
         {...(dragListeners ?? {})}
@@ -1684,8 +1687,14 @@ export default function EditorClient({
 
   const saveSequence = useRef(0);
   const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 4 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 8 },
+    }),
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
+      activationConstraint: { distance: 4 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
