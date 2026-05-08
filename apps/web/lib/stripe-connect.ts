@@ -29,6 +29,11 @@ export async function getSellerAccount(userId: string): Promise<SellerAccount | 
 
 /**
  * Look up or create the user's Stripe Express account.
+ *
+ * Cross-app reuse: before creating a new acct in Stripe, we check sister
+ * ED5 apps (currently Boox) for an existing Stripe Connect account tied
+ * to the same Supabase user.id. This avoids duplicate Connect accounts
+ * for the same human.
  */
 export async function getOrCreateExpressAccount(params: {
   userId: string;
@@ -38,24 +43,46 @@ export async function getOrCreateExpressAccount(params: {
   const existing = await getSellerAccount(params.userId);
   if (existing) return existing;
 
-  const account = await stripe.accounts.create({
-    type: "express",
-    email: params.email ?? undefined,
-    country: params.country,
-    capabilities: {
-      card_payments: { requested: true },
-      transfers: { requested: true },
-    },
-    business_type: "individual",
-    metadata: { vcard_user_id: params.userId },
-  });
+  // 1) Try to reuse an existing acct from Boox.
+  const reused = await fetchSisterStripeAccountId(params.userId);
+
+  let accountId: string;
+  let accountSnapshot: Awaited<ReturnType<typeof stripe.accounts.retrieve>> | null = null;
+  if (reused) {
+    accountId = reused;
+    try {
+      accountSnapshot = await stripe.accounts.retrieve(accountId);
+    } catch {
+      // If the acct id stored in Boox is invalid for our Stripe account,
+      // fall through to creating a new one.
+      accountSnapshot = null;
+    }
+  }
+
+  if (!accountSnapshot) {
+    const created = await stripe.accounts.create({
+      type: "express",
+      email: params.email ?? undefined,
+      country: params.country,
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_type: "individual",
+      metadata: { vcard_user_id: params.userId, ed5_user_id: params.userId },
+    });
+    accountId = created.id;
+    accountSnapshot = created;
+  }
+
+  const account = accountSnapshot;
 
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("vcard_seller_accounts")
     .insert({
       user_id: params.userId,
-      stripe_account_id: account.id,
+      stripe_account_id: accountId,
       account_type: "express",
       country: account.country ?? null,
       default_currency: account.default_currency ?? null,
@@ -69,6 +96,30 @@ export async function getOrCreateExpressAccount(params: {
     .single();
   if (error || !data) throw new Error(error?.message ?? "seller_account_insert_failed");
   return data as SellerAccount;
+}
+
+/**
+ * Calls Boox's internal lookup endpoint to see if the user already has
+ * a Stripe Connect account on the booking side. Returns null on any failure.
+ */
+async function fetchSisterStripeAccountId(userId: string): Promise<string | null> {
+  const secret = process.env.ED5_SERVICE_SECRET;
+  const booxUrl = process.env.NEXT_PUBLIC_BOOX_URL;
+  if (!secret || !booxUrl) return null;
+  try {
+    const res = await fetch(
+      `${booxUrl.replace(/\/$/, "")}/api/internal/stripe-account?uid=${encodeURIComponent(userId)}`,
+      {
+        headers: { Authorization: `Bearer ${secret}` },
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as { stripeAccountId?: string | null };
+    return body.stripeAccountId || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
