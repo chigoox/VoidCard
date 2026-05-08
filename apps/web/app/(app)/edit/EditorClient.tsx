@@ -2607,8 +2607,8 @@ export default function EditorClient({
         {/* ─── Sections tab ─── */}
         {editorTab === "sections" ? <div className="flex flex-col gap-4">
 
-        <div className="sticky top-0 z-20 bg-onyx-950 pb-2 md:top-24">
-        <div className="relative">
+        <div className="sticky top-0 z-20 -mx-1 px-1 pt-1 pb-3 md:top-24">
+        <div className="card relative space-y-3 border border-onyx-700 bg-onyx-950/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-onyx-950/85">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-widest text-ivory-mute">
