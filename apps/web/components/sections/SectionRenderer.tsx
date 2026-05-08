@@ -108,6 +108,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
     case "header": {
       const p = section.props;
       const fullBleedTopHeader = !!topBleed && !!p.coverUrl;
+      const avatarOverlapClass = p.coverUrl ? "-mt-12" : "";
       const fullBleedStyle: CSSProperties | undefined = p.coverFullBleed || fullBleedTopHeader
         ? (topBleed
             ? { width: "100%", marginLeft: 0, marginRight: 0, borderRadius: 0, border: "none" }
@@ -116,23 +117,31 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
       return (
         <header className={["relative flex flex-col items-center text-center", fullBleedTopHeader ? "" : "pt-6"].join(" ").trim()} style={{ color: "var(--vc-fg, #f7f3ea)" }}>
           {p.coverUrl ? (
-            <div className={["mb-4 w-full overflow-hidden", fullBleedTopHeader ? "sticky top-0 z-0" : ""].join(" ").trim()} style={{ ...cardStyle, ...fullBleedStyle }}>
-              <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className={fullBleedTopHeader ? "h-48 w-full object-cover sm:h-64" : "h-32 w-full object-cover"} />
+            <div className={["relative mb-0 w-full overflow-hidden", fullBleedTopHeader ? "sticky top-0 z-0" : ""].join(" ").trim()} style={{ ...cardStyle, ...fullBleedStyle }}>
+              <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className={fullBleedTopHeader ? "h-48 w-full object-cover sm:h-64" : "h-36 w-full object-cover"} />
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+                style={{ background: "linear-gradient(to top, var(--vc-bg, #0a0a0a), color-mix(in srgb, var(--vc-bg, #0a0a0a) 52%, transparent), transparent)" }}
+                aria-hidden
+              />
             </div>
           ) : null}
           {p.avatarUrl ? (
-            <div className="relative z-10 overflow-hidden rounded-full border-2" style={{ borderColor: SURFACE_BORDER }}>
-              <img src={p.avatarUrl} alt={p.name} loading="lazy" decoding="async" className="size-24 object-cover" />
+            <div
+              className={["relative z-10 overflow-hidden rounded-full border-[3px] p-0.5 shadow-[0_18px_42px_-22px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08)]", avatarOverlapClass].join(" ").trim()}
+              style={{ backgroundColor: "var(--vc-bg, #0a0a0a)", borderColor: "color-mix(in srgb, var(--vc-accent, #d4af37) 68%, rgba(255,255,255,0.28))" }}
+            >
+              <img src={p.avatarUrl} alt={p.name} loading="lazy" decoding="async" className="size-24 rounded-full object-cover" />
             </div>
           ) : null}
-          <h1 className="relative z-10 mt-4 font-display text-2xl" style={{ color: "var(--vc-fg, #f7f3ea)" }}>
+          <h1 className="relative z-10 mt-3 font-display text-2xl leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]" style={{ color: "var(--vc-fg, #f7f3ea)" }}>
             {p.name}
             {verified && p.showVerified ? (
               <span className="ml-1" style={{ color: "var(--vc-accent, #d4af37)" }}>✓</span>
             ) : null}
           </h1>
-          {p.handle ? <p className="relative z-10 mt-1 text-sm" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>@{p.handle}</p> : null}
-          {p.tagline ? <p className="relative z-10 mt-3 max-w-sm text-sm" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.tagline}</p> : null}
+          {p.handle ? <p className="relative z-10 mt-1 text-sm font-medium" style={{ color: "color-mix(in srgb, var(--vc-fg-mute, #a8a39a) 86%, var(--vc-accent, #d4af37))" }}>@{p.handle}</p> : null}
+          {p.tagline ? <p className="relative z-10 mt-2 max-w-sm text-balance text-sm leading-relaxed" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.tagline}</p> : null}
         </header>
       );
     }
