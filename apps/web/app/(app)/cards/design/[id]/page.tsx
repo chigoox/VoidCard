@@ -10,8 +10,18 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
-export default async function DesignPage({ params }: Props) {
+function safeReturnTo(value: unknown) {
+  if (typeof value !== "string") return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.length > 300) return null;
+  return value;
+}
+
+export default async function DesignPage({
+  params,
+  searchParams,
+}: Props & { searchParams?: Promise<{ return_to?: string }> }) {
   const { id } = await params;
+  const returnTo = safeReturnTo((await searchParams)?.return_to);
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
 
   const user = await requireUser();
@@ -42,7 +52,7 @@ export default async function DesignPage({ params }: Props) {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <Link
-          href="/cards/design"
+          href={`/cards/design${returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : ""}`}
           className="text-xs uppercase tracking-widest text-ivory-mute hover:text-gold"
         >
           ← All designs

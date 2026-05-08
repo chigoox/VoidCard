@@ -5,7 +5,22 @@ import { createDesignAction, deleteDesignAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function CardDesignsPage() {
+function safeReturnTo(value: unknown) {
+  if (typeof value !== "string") return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.length > 300) return null;
+  return value;
+}
+
+function designHref(id: string, returnTo: string | null) {
+  return `/cards/design/${id}${returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : ""}`;
+}
+
+export default async function CardDesignsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ return_to?: string }>;
+}) {
+  const returnTo = safeReturnTo((await searchParams)?.return_to);
   const user = await requireUser();
   const sb = await createClient();
   const { data: designs } = await sb
@@ -24,6 +39,7 @@ export default async function CardDesignsPage() {
           </p>
         </div>
         <form action={createDesignAction}>
+          {returnTo && <input type="hidden" name="return_to" value={returnTo} />}
           <button
             type="submit"
             data-testid="design-new"
@@ -51,7 +67,7 @@ export default async function CardDesignsPage() {
             className="overflow-hidden rounded-lg border border-onyx-700 bg-onyx-900"
           >
             <Link
-              href={`/cards/design/${d.id}`}
+              href={designHref(d.id, returnTo)}
               className="block aspect-[1.586/1] w-full bg-onyx-950"
               aria-label={`Open ${d.name}`}
             >
@@ -71,7 +87,7 @@ export default async function CardDesignsPage() {
             <div className="flex items-center justify-between gap-2 p-3">
               <div className="min-w-0">
                 <Link
-                  href={`/cards/design/${d.id}`}
+                  href={designHref(d.id, returnTo)}
                   className="block truncate text-sm font-medium text-ivory hover:text-gold"
                 >
                   {d.name}

@@ -35,6 +35,16 @@ export type DbPlan = {
   position: number;
 };
 
+export const CUSTOM_DESIGN_ADDON_SETTING_KEY = "shop.custom_design_addon_cents";
+export const DEFAULT_CUSTOM_DESIGN_ADDON_CENTS = 1000;
+export const CUSTOM_DESIGN_ADDON_SKU = "custom-design-addon";
+
+const CUSTOM_DESIGN_ADDON_CARD_SKUS = new Set(["card-pvc", "card-metal", "card-replacement"]);
+
+export function isCustomDesignAddonCardSku(sku: string): boolean {
+  return CUSTOM_DESIGN_ADDON_CARD_SKUS.has(sku);
+}
+
 /**
  * List active shop products from the CMS (vcard_products), ordered by position.
  * Falls back to an empty array if the table is missing or query fails.
@@ -92,6 +102,13 @@ export async function getSetting<T = unknown>(key: string): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+export async function getCustomDesignAddonCents(): Promise<number> {
+  const value = await getSetting<number>(CUSTOM_DESIGN_ADDON_SETTING_KEY);
+  return typeof value === "number" && Number.isInteger(value) && value >= 0
+    ? value
+    : DEFAULT_CUSTOM_DESIGN_ADDON_CENTS;
 }
 
 export function formatPrice(cents: number, currency = "usd"): string {

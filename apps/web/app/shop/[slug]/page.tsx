@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { CheckoutButton } from "@/components/checkout-button";
-import { getProductBySku, formatPrice } from "@/lib/cms";
+import { getCustomDesignAddonCents, getProductBySku, formatPrice, isCustomDesignAddonCardSku } from "@/lib/cms";
 import { buildMetadata } from "@/lib/seo";
 import { jsonLdScript, breadcrumbs } from "@/lib/jsonld";
 
@@ -25,7 +25,7 @@ export default async function ProductPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ design_id?: string }>;
+  searchParams?: Promise<{ custom_design?: string; design_id?: string }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
@@ -36,6 +36,12 @@ export default async function ProductPage({
       ? query.design_id
       : undefined;
   const isCustomCard = product.sku === "card-custom";
+  const supportsCustomDesignAddon = isCustomDesignAddonCardSku(product.sku);
+  const customDesignAddonCents = supportsCustomDesignAddon ? await getCustomDesignAddonCents() : 0;
+  const wantsCustomDesignAddon = supportsCustomDesignAddon && (query?.custom_design === "1" || Boolean(designId));
+  const orderTotalCents = product.price_cents + (wantsCustomDesignAddon && designId ? customDesignAddonCents : 0);
+  const designReturnTo = `/shop/${product.sku}${supportsCustomDesignAddon ? "?custom_design=1" : ""}`;
+  const chooseDesignHref = `/cards/design?return_to=${encodeURIComponent(designReturnTo)}`;
 
   const requiresVerified = Boolean(
     (product.metadata as { requires_verified?: boolean } | null)?.requires_verified,
@@ -90,23 +96,61 @@ export default async function ProductPage({
             </div>
           )}
 
+          {supportsCustomDesignAddon && (
+            <div className="mt-6 rounded-card border border-paper-300 bg-paper-50 p-4 text-sm text-ink-600">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-ink">Custom design</p>
+                  <p className="mt-1 text-ink-500">Use artwork from the VoidCard designer on this card.</p>
+                </div>
+                <span className="font-display text-lg text-ink">+{formatPrice(customDesignAddonCents, product.currency)}</span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {wantsCustomDesignAddon ? (
+                  <>
+                    <Link href={chooseDesignHref} className="btn-primary" data-testid="card-addon-choose-design">
+                      {designId ? "Change design" : "Choose design"}
+                    </Link>
+                    <Link href={`/shop/${product.sku}`} className="btn-ghost">
+                      Standard design
+                    </Link>
+                  </>
+                ) : (
+                  <Link href={`/shop/${product.sku}?custom_design=1`} className="btn-ghost" data-testid="card-addon-select">
+                    Add custom design
+                  </Link>
+                )}
+              </div>
+              {wantsCustomDesignAddon && designId && (
+                <p className="mt-3 text-xs uppercase tracking-[0.16em] text-ink-400" data-testid="card-addon-selected">
+                  Design selected
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="mt-7 flex flex-wrap gap-3">
             {isCustomCard && !designId ? (
-              <Link href="/cards/design" className="btn-primary" data-testid="custom-card-choose-design">
+              <Link href={chooseDesignHref} className="btn-primary" data-testid="custom-card-choose-design">
                 Choose design
+              </Link>
+            ) : wantsCustomDesignAddon && !designId ? (
+              <Link href={chooseDesignHref} className="btn-primary" data-testid="card-addon-checkout-choose-design">
+                Choose design to order
               </Link>
             ) : (
               <CheckoutButton
                 kind="shop"
                 sku={product.sku}
                 designId={designId}
-                label={`Order — ${formatPrice(product.price_cents, product.currency)}`}
+                customDesign={wantsCustomDesignAddon}
+                label={`Order — ${formatPrice(orderTotalCents, product.currency)}`}
                 className="btn-primary"
-                testId={isCustomCard ? "custom-card-checkout" : undefined}
+                testId={isCustomCard ? "custom-card-checkout" : wantsCustomDesignAddon ? "card-addon-checkout" : undefined}
               />
             )}
             {isCustomCard && designId && (
-              <Link href="/cards/design" className="btn-ghost">
+              <Link href={chooseDesignHref} className="btn-ghost">
                 Change design
               </Link>
             )}

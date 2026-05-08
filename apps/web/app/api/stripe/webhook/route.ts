@@ -247,6 +247,8 @@ export async function POST(req: Request) {
           typeof session.metadata?.design_id === "string" && UUID_RE.test(session.metadata.design_id)
             ? session.metadata.design_id
             : null;
+        const mainSku = typeof session.metadata?.sku === "string" ? session.metadata.sku : "";
+        const hasCustomDesignAddon = session.metadata?.custom_design_addon === "true";
 
         const total = session.amount_total ?? 0;
         const { data: order } = await admin.from("vcard_orders").insert({
@@ -266,9 +268,14 @@ export async function POST(req: Request) {
         for (const li of lineItems.data) {
           const product = li.price?.product as Stripe.Product | null;
           const sku = product?.metadata?.sku ?? "";
+          const productMetadata = product?.metadata ?? {};
           const itemMetadata = {
-            ...(product?.metadata ?? {}),
-            ...(sku === "card-custom" && customDesignId ? { design_id: customDesignId } : {}),
+            ...productMetadata,
+            ...(
+              customDesignId && (sku === "card-custom" || sku === "custom-design-addon" || (hasCustomDesignAddon && sku === mainSku))
+                ? { design_id: customDesignId }
+                : {}
+            ),
           };
           await admin.from("vcard_order_items").insert({
             order_id: order!.id,
@@ -279,7 +286,7 @@ export async function POST(req: Request) {
           });
         }
 
-        if (userId && customDesignId && skus.includes("card-custom")) {
+        if (userId && customDesignId && (hasCustomDesignAddon || skus.includes("card-custom") || skus.includes("custom-design-addon"))) {
           await admin
             .from("vcard_card_designs")
             .update({ status: "ordered", updated_at: new Date().toISOString() })
@@ -359,6 +366,7 @@ export async function POST(req: Request) {
             currency: session.currency ?? "usd",
             skus,
             ...(customDesignId ? { design_id: customDesignId } : {}),
+            ...(hasCustomDesignAddon ? { custom_design_addon: true } : {}),
             created_at: new Date().toISOString(),
           }).catch(() => null);
         }

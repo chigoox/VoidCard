@@ -3,7 +3,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { CheckoutButton } from "@/components/checkout-button";
 import { TrustStrip } from "@/components/trust-strip";
-import { listProducts, formatPrice, type DbProduct } from "@/lib/cms";
+import { listProducts, formatPrice, isCustomDesignAddonCardSku, type DbProduct } from "@/lib/cms";
 import { buildMetadata } from "@/lib/seo";
 import { jsonLdScript, breadcrumbs } from "@/lib/jsonld";
 
@@ -82,6 +82,10 @@ export default async function ShopPage() {
             {sku.sku === "card-custom" ? (
               <Link href="/cards/design" className="btn-primary mt-5 self-start">
                 Design card
+              </Link>
+            ) : isCustomDesignAddonCardSku(sku.sku) ? (
+              <Link href={`/shop/${sku.sku}`} className="btn-primary mt-5 self-start">
+                Order
               </Link>
             ) : (
               <CheckoutButton

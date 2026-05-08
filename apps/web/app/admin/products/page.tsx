@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { listProducts, formatPrice } from "@/lib/cms";
+import { CUSTOM_DESIGN_ADDON_SETTING_KEY, getCustomDesignAddonCents, listProducts, formatPrice } from "@/lib/cms";
+import { upsertSetting } from "../settings/actions";
 import { deleteProduct, syncStripePrices } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ export default async function AdminProductsPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const products = await listProducts({ includeInactive: true });
+  const customDesignAddonCents = await getCustomDesignAddonCents();
   const sp = (await searchParams) ?? {};
   const synced = sp.synced === "1";
 
@@ -33,6 +35,30 @@ export default async function AdminProductsPage({
           Stripe sync complete. Matched: {sp.matched ?? 0}, updated: {sp.updated ?? 0}, missing: {sp.missing ?? 0}.
         </div>
       )}
+
+      <form action={upsertSetting} className="card grid gap-4 p-5 md:grid-cols-[1fr_auto_auto] md:items-end">
+        <input type="hidden" name="key" value={CUSTOM_DESIGN_ADDON_SETTING_KEY} />
+        <div>
+          <label htmlFor="custom-design-addon-price" className="text-sm font-medium text-ivory">
+            Custom design add-on price
+          </label>
+          <p className="mt-1 text-xs text-ivory-mute">
+            Added to eligible card orders when buyers attach a saved designer file.
+          </p>
+        </div>
+        <input
+          id="custom-design-addon-price"
+          name="value_json"
+          type="number"
+          min={0}
+          step={1}
+          required
+          defaultValue={customDesignAddonCents}
+          className="input w-full md:w-40"
+          aria-label="Custom design add-on price in cents"
+        />
+        <button className="btn-gold" type="submit">Save add-on price</button>
+      </form>
 
       <div className="card overflow-hidden">
         <table className="w-full text-left text-sm">

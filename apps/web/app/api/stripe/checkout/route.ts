@@ -3,7 +3,14 @@ import type Stripe from "stripe";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
 import { getUser } from "@/lib/auth";
-import { getProductBySku, getPlan, getSetting } from "@/lib/cms";
+import {
+  CUSTOM_DESIGN_ADDON_SKU,
+  getCustomDesignAddonCents,
+  getProductBySku,
+  getPlan,
+  getSetting,
+  isCustomDesignAddonCardSku,
+} from "@/lib/cms";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -50,6 +57,7 @@ const CheckoutBody = z.object({
   plan: z.string().min(1).max(80).optional(),
   referral: z.string().max(100).optional(),
   designId: z.string().uuid().optional(),
+  customDesign: z.boolean().optional(),
 });
 
 async function planLineItem(plan: string): Promise<Stripe.Checkout.SessionCreateParams.LineItem | null> {
@@ -87,7 +95,7 @@ async function planLineItem(plan: string): Promise<Stripe.Checkout.SessionCreate
 
 async function shopLineItem(
   sku: string,
-): Promise<{ item: Stripe.Checkout.SessionCreateParams.LineItem; shippable: boolean } | null> {
+): Promise<{ item: Stripe.Checkout.SessionCreateParams.LineItem; shippable: boolean; currency: string } | null> {
   const product = await getProductBySku(sku);
   if (product) {
     if (!product.price_cents || product.price_cents <= 0) return null;
@@ -95,6 +103,7 @@ async function shopLineItem(
     const shippable = sku !== "verified-badge" && meta.shippable !== false;
     return {
       shippable,
+      currency: (product.currency || "usd").toLowerCase(),
       item: {
         quantity: 1,
         price_data: {
@@ -113,12 +122,37 @@ async function shopLineItem(
   if (!fb) return null;
   return {
     shippable: fb.shippable,
+    currency: fb.currency,
     item: {
       quantity: 1,
       price_data: {
         currency: fb.currency,
         unit_amount: fb.cents,
         product_data: { name: fb.name, metadata: { sku } },
+      },
+    },
+  };
+}
+
+function customDesignAddonLineItem(input: {
+  cents: number;
+  currency: string;
+  parentSku: string;
+  designId: string;
+}): Stripe.Checkout.SessionCreateParams.LineItem {
+  return {
+    quantity: 1,
+    price_data: {
+      currency: input.currency,
+      unit_amount: input.cents,
+      product_data: {
+        name: "Custom card design",
+        description: "Saved VoidCard designer artwork attached to this card order.",
+        metadata: {
+          sku: CUSTOM_DESIGN_ADDON_SKU,
+          parent_sku: input.parentSku,
+          design_id: input.designId,
+        },
       },
     },
   };
@@ -157,9 +191,18 @@ export async function POST(req: Request) {
 
     if (body.kind === "shop" && body.sku) {
       let designId: string | undefined;
-      if (body.sku === "card-custom") {
+      const wantsDesignAddon = body.customDesign === true && body.sku !== "card-custom";
+      const needsDesign = body.sku === "card-custom" || wantsDesignAddon;
+
+      if (wantsDesignAddon && !isCustomDesignAddonCardSku(body.sku)) {
+        return NextResponse.json({ error: "custom_design_unavailable" }, { status: 400 });
+      }
+
+      if (needsDesign) {
         if (!u) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-        if (!u.verified) return NextResponse.json({ error: "verified_required" }, { status: 403 });
+        if (body.sku === "card-custom" && !u.verified) {
+          return NextResponse.json({ error: "verified_required" }, { status: 403 });
+        }
         if (!body.designId) return NextResponse.json({ error: "design_required" }, { status: 400 });
 
         const sb = await createClient();
@@ -175,6 +218,16 @@ export async function POST(req: Request) {
 
       const result = await shopLineItem(body.sku);
       if (!result) return NextResponse.json({ error: "unknown_sku" }, { status: 400 });
+      const customDesignAddonCents = wantsDesignAddon ? await getCustomDesignAddonCents() : 0;
+      const lineItems = [result.item];
+      if (wantsDesignAddon && designId && customDesignAddonCents > 0) {
+        lineItems.push(customDesignAddonLineItem({
+          cents: customDesignAddonCents,
+          currency: result.currency,
+          parentSku: body.sku,
+          designId,
+        }));
+      }
       const isCreditsPack = body.sku in CREDITS_PACK_AMOUNT;
       const successUrl = isCreditsPack
         ? `${origin}/account/credits?ok=1`
@@ -192,7 +245,7 @@ export async function POST(req: Request) {
         >;
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
-        line_items: [result.item],
+        line_items: lineItems,
         success_url: successUrl,
         cancel_url: cancelUrl,
         customer_email: u?.email ?? undefined,
@@ -202,6 +255,10 @@ export async function POST(req: Request) {
           sku: body.sku,
           referral_code: body.referral ?? "",
           ...(designId ? { design_id: designId } : {}),
+          ...(wantsDesignAddon ? {
+            custom_design_addon: "true",
+            custom_design_addon_cents: String(customDesignAddonCents),
+          } : {}),
           ...(isCreditsPack ? { kind: "credits", credits: String(CREDITS_PACK_AMOUNT[body.sku] ?? 0) } : {}),
         },
         ...(result.shippable

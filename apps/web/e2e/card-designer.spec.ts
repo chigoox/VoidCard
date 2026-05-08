@@ -26,6 +26,33 @@ test.describe("custom card checkout gate", () => {
   });
 });
 
+test.describe("card custom design add-on", () => {
+  test("adds a selected design to eligible card checkout", async ({ page }) => {
+    let checkoutBody: unknown;
+    await page.route("**/api/stripe/checkout", async (route) => {
+      checkoutBody = route.request().postDataJSON();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ url: "/shop?ok=1" }),
+      });
+    });
+
+    await page.goto(`/shop/card-pvc?custom_design=1&design_id=${DESIGN_ID}`);
+    await expect(page.getByTestId("card-addon-selected")).toBeVisible();
+    await expect(page.getByTestId("card-addon-checkout")).toContainText("$29");
+
+    await page.getByTestId("card-addon-checkout").click();
+    await expect(page).toHaveURL(/\/shop\?ok=1$/);
+    expect(checkoutBody).toMatchObject({
+      kind: "shop",
+      sku: "card-pvc",
+      designId: DESIGN_ID,
+      customDesign: true,
+    });
+  });
+});
+
 test.describe("card designer", () => {
   test.skip(!HAS_AUTH, "Auth storage state not available (run e2e:auth-setup).");
   test.use({ storageState: STORAGE });

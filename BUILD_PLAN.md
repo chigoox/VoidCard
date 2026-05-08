@@ -582,6 +582,7 @@ All charts use **recharts** with custom dark theme; numbers tabular-nums; deltas
 | `card-pvc` | NFC Card | $19 | color: black/white/gold-foil | std PVC |
 | `card-metal` | Premium Metal NFC Card | $29 | color: black/silver/gold | brushed metal |
 | `card-custom` | Custom-Art NFC Card | $49 | upload artwork | **requires Verified badge** (§24b) |
+| `custom-design-addon` | Custom design add-on | +$10 default | saved card-designer file | added to eligible card orders; price editable in `/admin/products` via `shop.custom_design_addon_cents` |
 | `keychain` | NFC Keychain | $15 | leather: black/tan | |
 | `stickers-5` | NFC Sticker pack (5) | $9 | — | |
 | `bundle-starter` | Starter Bundle | $35 | — | card + keychain + stickers |

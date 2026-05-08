@@ -2,7 +2,7 @@
 import { useTransition } from "react";
 
 export function CheckoutButton({
-  kind, sku, plan, label, className = "btn-gold", referral, designId, testId,
+  kind, sku, plan, label, className = "btn-gold", referral, designId, customDesign, testId,
 }: {
   kind: "shop" | "subscribe";
   sku?: string;
@@ -11,6 +11,7 @@ export function CheckoutButton({
   className?: string;
   referral?: string;
   designId?: string;
+  customDesign?: boolean;
   testId?: string;
 }) {
   const [pending, start] = useTransition();
@@ -26,7 +27,7 @@ export function CheckoutButton({
         const res = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ kind, sku, plan, referral, designId }),
+          body: JSON.stringify({ kind, sku, plan, referral, designId, customDesign }),
         });
         const data = await res.json().catch(() => ({}));
         if (data.url) {
@@ -34,7 +35,8 @@ export function CheckoutButton({
         } else if (data.error === "verified_required") {
           window.location.href = "/account/verify";
         } else if (data.error === "design_required" || data.error === "design_not_found") {
-          window.location.href = "/cards/design";
+          const returnTo = sku ? `/shop/${sku}${customDesign ? "?custom_design=1" : ""}` : "/shop";
+          window.location.href = `/cards/design?return_to=${encodeURIComponent(returnTo)}`;
         } else {
           // Fallback: send to signup with desired next route.
           const next = fallbackNext();

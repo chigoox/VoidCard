@@ -29,6 +29,8 @@ export async function upsertSetting(formData: FormData) {
   });
   if (error) throw new Error(error.message);
   revalidatePath("/admin/settings");
+  revalidatePath("/admin/products");
+  revalidatePath("/shop");
 }
 
 export async function deleteSetting(formData: FormData) {

@@ -61,7 +61,13 @@ const SaveSchema = z.object({
   preview: z.string().url().max(2000).optional(),
 });
 
-export async function createDesignAction() {
+function safeReturnTo(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.length > 300) return null;
+  return value;
+}
+
+export async function createDesignAction(formData?: FormData) {
   const user = await requireUser();
   const ent = entitlementsFor(user.plan, { extraStorageBytes: user.bonusStorageBytes });
   if (!ent.allSectionTypes) throw new Error("Not allowed");
@@ -79,7 +85,8 @@ export async function createDesignAction() {
     throw new Error("Could not create design");
   }
   revalidatePath("/cards/design");
-  redirect(`/cards/design/${data.id}`);
+  const returnTo = safeReturnTo(formData?.get("return_to") ?? null);
+  redirect(`/cards/design/${data.id}${returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : ""}`);
 }
 
 export async function saveDesignAction(input: {

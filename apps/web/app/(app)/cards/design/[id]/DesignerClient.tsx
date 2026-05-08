@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { capture } from "@/lib/posthog-browser";
 import { saveDesignAction } from "../actions";
 import type { DesignDoc, DesignItem } from "./types";
@@ -252,6 +252,7 @@ export function DesignerClient(props: {
   customFonts: CustomFont[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<unknown>(null);
   const layerRef = useRef<unknown>(null);
@@ -283,6 +284,11 @@ export function DesignerClient(props: {
     () => items.find((i) => i.id === selectedId) ?? null,
     [items, selectedId],
   );
+  const returnTo = useMemo(() => {
+    const value = searchParams.get("return_to");
+    if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
+    return value;
+  }, [searchParams]);
 
   useEffect(() => {
     void capture("card_designer_opened", { design_id: props.id });
@@ -925,7 +931,9 @@ export function DesignerClient(props: {
     const saved = await save({ silent: true });
     if (saved) {
       void capture("card_design_order_started", { design_id: props.id });
-      router.push(`/shop/card-custom?design_id=${props.id}`);
+      const next = new URL(returnTo ?? "/shop/card-custom", window.location.origin);
+      next.searchParams.set("design_id", props.id);
+      router.push(`${next.pathname}${next.search}${next.hash}`);
     }
   }
 
