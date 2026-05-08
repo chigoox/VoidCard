@@ -2492,10 +2492,10 @@ export default function EditorClient({
         </div>
       </div>
 
-      <div className="order-1 min-w-0 flex flex-col gap-4 pb-24 md:order-1 md:pb-0">
+      <div className="order-1 flex h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-8.5rem)] min-h-[32rem] min-w-0 flex-col gap-4 overflow-hidden pb-0 md:order-1 md:h-[calc(100dvh-var(--safe-top)-7rem)]">
 
-        {/* ─── Sticky editor controls ─── */}
-        <div className="sticky top-[calc(var(--safe-top)+3.5rem)] z-20 -mx-1 space-y-3 px-1 pb-3 sm:top-[calc(var(--safe-top)+4rem)] md:top-24">
+        {/* ─── Fixed editor controls: these stay put while the panel below scrolls ─── */}
+        <div className="z-20 -mx-1 shrink-0 space-y-3 px-1 pb-3">
           <div role="tablist" className="card flex overflow-hidden p-0 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-onyx-950/85">
             {(["sections", "style", "settings", "advanced"] as const).map((tab) => (
               <button
@@ -2628,6 +2628,8 @@ export default function EditorClient({
             </div>
           ) : null}
         </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1" data-testid="editor-scroll-panel">
 
         {/* ─── Settings tab ─── */}
         {editorTab === "settings" ? <div className="space-y-4">
@@ -3011,6 +3013,7 @@ export default function EditorClient({
             {errorMessage}
           </p>
         )}
+        </div>
       </div>
 
       <span aria-live="polite" className="sr-only" data-testid="editor-announcer">{announcement}</span>
