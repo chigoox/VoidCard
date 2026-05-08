@@ -8,7 +8,7 @@ import { Sections, type SectionType } from "@/lib/sections/types";
 const FETCH_LIMIT = 120;
 
 const DISCOVER_CATEGORY_DEFS = [
-  { slug: "bookings", label: "Bookings", types: ["schedule"] },
+  { slug: "bookings", label: "Bookings", types: ["schedule", "booking"] },
   { slug: "tips", label: "Tips", types: ["tip"] },
   { slug: "music", label: "Music", types: ["spotify"] },
   { slug: "video", label: "Video", types: ["video", "youtube"] },
