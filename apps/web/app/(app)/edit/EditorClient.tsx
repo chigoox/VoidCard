@@ -820,6 +820,10 @@ function sectionSummary(section: SectionRecord): string {
       return section.props.name || "";
     case "link":
       return section.props.label || section.props.url;
+    case "phone":
+      return section.props.label || section.props.phone;
+    case "email":
+      return section.props.label || section.props.email;
     case "image":
       return section.props.alt || "image";
     case "video":
@@ -941,6 +945,7 @@ function SectionEditorFields({
   switch (section.type) {
     case "header": {
       const p = section.props;
+      const descriptors = p.descriptors ?? [];
       return (
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Name">
@@ -949,6 +954,37 @@ function SectionEditorFields({
           <Field label="Handle">
             <input className={INPUT_CLASS_NAME} value={p.handle ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, handle: event.target.value || undefined } })} />
           </Field>
+          <div className="space-y-3 rounded-card border border-onyx-800 bg-onyx-950/40 p-3 md:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Profile descriptor chips</p>
+              <button
+                type="button"
+                className="btn-ghost px-3 py-1.5 text-xs"
+                onClick={() => onChange({ ...section, props: { ...p, descriptors: [...descriptors, "New chip"].slice(0, 6) } })}
+                disabled={descriptors.length >= 6}
+                data-testid="add-profile-descriptor"
+              >
+                Add chip
+              </button>
+            </div>
+            {descriptors.length === 0 ? <p className="text-xs text-ivory-mute">Add chips to replace the @handle line on your public profile.</p> : null}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {descriptors.map((descriptor, descriptorIndex) => (
+                <div key={`${section.id}-descriptor-${descriptorIndex}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                  <input
+                    className={INPUT_CLASS_NAME}
+                    value={descriptor}
+                    maxLength={32}
+                    onChange={(event) => onChange({ ...section, props: { ...p, descriptors: descriptors.map((entry, index) => index === descriptorIndex ? event.target.value : entry).filter((entry) => entry.trim().length > 0) } })}
+                    data-testid={`profile-descriptor-${descriptorIndex}`}
+                  />
+                  <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={() => onChange({ ...section, props: { ...p, descriptors: descriptors.filter((_, index) => index !== descriptorIndex) } })}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
           <Field label="Tagline" className="md:col-span-2">
             <textarea className={TEXTAREA_CLASS_NAME} value={p.tagline ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, tagline: event.target.value || undefined } })} />
           </Field>
@@ -1043,6 +1079,38 @@ function SectionEditorFields({
               </Field>
             ) : null}
           </div>
+        </div>
+      );
+    }
+    case "phone": {
+      const p = section.props;
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Label">
+            <input className={INPUT_CLASS_NAME} value={p.label} onChange={(event) => onChange({ ...section, props: { ...p, label: event.target.value } })} />
+          </Field>
+          <Field label="Phone number">
+            <input className={INPUT_CLASS_NAME} value={p.phone} inputMode="tel" onChange={(event) => onChange({ ...section, props: { ...p, phone: event.target.value } })} />
+          </Field>
+          <Field label="Subtext" className="md:col-span-2">
+            <input className={INPUT_CLASS_NAME} value={p.note ?? ""} maxLength={120} onChange={(event) => onChange({ ...section, props: { ...p, note: event.target.value || undefined } })} />
+          </Field>
+        </div>
+      );
+    }
+    case "email": {
+      const p = section.props;
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Label">
+            <input className={INPUT_CLASS_NAME} value={p.label} onChange={(event) => onChange({ ...section, props: { ...p, label: event.target.value } })} />
+          </Field>
+          <Field label="Email address">
+            <input className={INPUT_CLASS_NAME} value={p.email} inputMode="email" onChange={(event) => onChange({ ...section, props: { ...p, email: event.target.value } })} />
+          </Field>
+          <Field label="Subject" className="md:col-span-2">
+            <input className={INPUT_CLASS_NAME} value={p.subject ?? ""} maxLength={120} onChange={(event) => onChange({ ...section, props: { ...p, subject: event.target.value || undefined } })} />
+          </Field>
         </div>
       );
     }
@@ -2031,8 +2099,10 @@ export default function EditorClient({
     const base = { id, type, visible: true } as const;
     let nextSection: SectionRecord;
     switch (type) {
-      case "header": nextSection = { ...base, type, props: { name: "Your name", showVerified: true, coverFullBleed: false, coverShadow: false } }; break;
+      case "header": nextSection = { ...base, type, props: { name: "Your name", descriptors: [], showVerified: true, coverFullBleed: false, coverShadow: false } }; break;
       case "link": nextSection = { ...base, type, props: { label: "New link", url: "https://example.com", style: "pill" } }; break;
+      case "phone": nextSection = { ...base, type, props: { label: "Call", phone: "+1 555 0100" } }; break;
+      case "email": nextSection = { ...base, type, props: { label: "Email", email: "hello@example.com", subject: "Hello" } }; break;
       case "image": nextSection = { ...base, type, props: { src: "https://placehold.co/600x600", alt: "", rounded: true, fullWidth: false } }; break;
       case "spotify": nextSection = { ...base, type, props: { uri: "spotify:track:11dFghVXANMlKmJXsNCbNl" } }; break;
       case "youtube": nextSection = { ...base, type, props: { id: "dQw4w9WgXcQ" } }; break;

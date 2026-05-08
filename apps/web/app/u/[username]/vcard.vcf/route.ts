@@ -40,6 +40,12 @@ function pickContact(sections: SectionLike[] | null | undefined): {
         if (kind === "map" || kind === "address") out.address ??= value;
       }
     }
+    if (section.type === "phone" && typeof props.phone === "string") {
+      out.phone ??= props.phone;
+    }
+    if (section.type === "email" && typeof props.email === "string") {
+      out.email ??= props.email;
+    }
     if (section.type === "header") {
       if (typeof props.title === "string") out.title ??= props.title;
       if (typeof props.company === "string") out.org ??= props.company;

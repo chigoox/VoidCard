@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-// 19 section types: 17 per BUILD_PLAN.md §11 + 'store' (Stripe Connect storefront) + 'booking' (Boox).
+// 21 section types: 17 per BUILD_PLAN.md §11 + direct contact sections + 'store' (Stripe Connect storefront) + 'booking' (Boox).
 export const SECTION_TYPES = [
-  "header", "link", "image", "video", "spotify", "youtube",
+  "header", "link", "phone", "email", "image", "video", "spotify", "youtube",
   "map", "embed", "form", "gallery", "markdown", "divider",
   "spacer", "social", "qr", "tip", "schedule", "store", "booking",
 ] as const;
@@ -49,6 +49,7 @@ const Header = Base.extend({
     coverUrl: z.string().url().optional(),
     name: z.string(),
     handle: z.string().optional(),
+    descriptors: z.array(z.string().trim().min(1).max(32)).max(6).optional(),
     tagline: z.string().optional(),
     showVerified: z.boolean().default(true),
     coverFullBleed: z.boolean().default(false),
@@ -65,6 +66,24 @@ const Link = Base.extend({
     iconName: z.string().max(40).optional(),
     iconImageUrl: z.string().url().optional(),
     style: z.enum(["pill", "card", "ghost"]).default("pill"),
+  }),
+});
+
+const Phone = Base.extend({
+  type: z.literal("phone"),
+  props: z.object({
+    label: z.string().max(80).default("Call"),
+    phone: z.string().min(1).max(40),
+    note: z.string().max(120).optional(),
+  }),
+});
+
+const Email = Base.extend({
+  type: z.literal("email"),
+  props: z.object({
+    label: z.string().max(80).default("Email"),
+    email: z.string().email(),
+    subject: z.string().max(120).optional(),
   }),
 });
 
@@ -148,7 +167,7 @@ const Booking = Base.extend({
 });
 
 export const Section = z.discriminatedUnion("type", [
-  Header, Link, Image, Video, Spotify, YouTube, MapS, Embed, Form, Gallery, Markdown, Divider, Spacer, Social, QR, Tip, Schedule, Store, Booking,
+  Header, Link, Phone, Email, Image, Video, Spotify, YouTube, MapS, Embed, Form, Gallery, Markdown, Divider, Spacer, Social, QR, Tip, Schedule, Store, Booking,
 ]);
 export type Section = z.infer<typeof Section>;
 export const Sections = z.array(Section);

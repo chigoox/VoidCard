@@ -109,6 +109,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
   switch (section.type) {
     case "header": {
       const p = section.props;
+      const descriptors = p.descriptors?.filter(Boolean) ?? [];
       const fullBleedTopHeader = !!topBleed && !!p.coverUrl;
       const avatarOverlapClass = p.coverUrl ? "-mt-12" : "";
       const fullBleedStyle: CSSProperties | undefined = p.coverFullBleed || fullBleedTopHeader
@@ -147,7 +148,15 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
               <span className="ml-1" style={{ color: "var(--vc-accent, #d4af37)" }}>✓</span>
             ) : null}
           </h1>
-          {p.handle ? <p className="relative z-10 mt-1 w-full break-words px-4 text-sm font-medium" style={{ color: "color-mix(in srgb, var(--vc-fg-mute, #a8a39a) 86%, var(--vc-accent, #d4af37))", maxWidth: "calc(100% - 2rem)", overflowWrap: "anywhere" }}>@{p.handle}</p> : null}
+          {descriptors.length > 0 ? (
+            <div className="relative z-10 mt-2 flex max-w-full flex-wrap justify-center gap-1.5 px-4">
+              {descriptors.map((descriptor) => (
+                <span key={descriptor} className="rounded-pill px-3 py-1 text-[11px] font-medium" style={pillStyle}>
+                  {descriptor}
+                </span>
+              ))}
+            </div>
+          ) : p.handle ? <p className="relative z-10 mt-1 w-full break-words px-4 text-sm font-medium" style={{ color: "color-mix(in srgb, var(--vc-fg-mute, #a8a39a) 86%, var(--vc-accent, #d4af37))", maxWidth: "calc(100% - 2rem)", overflowWrap: "anywhere" }}>@{p.handle}</p> : null}
           {p.tagline ? <p className="relative z-10 mt-2 w-full max-w-sm text-balance px-4 text-sm leading-relaxed" style={{ color: "var(--vc-fg-mute, #a8a39a)", maxWidth: "min(24rem, calc(100% - 2rem))", overflowWrap: "anywhere" }}>{p.tagline}</p> : null}
         </header>
       );
@@ -192,6 +201,41 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
               </span>
             ) : null}
             <span className="truncate">{p.label}</span>
+          </span>
+          <span className="shrink-0" style={{ color: "var(--vc-accent, #d4af37)" }}><LinkIconGlyph name="external" className="size-4" /></span>
+        </a>
+      );
+    }
+    case "phone": {
+      const p = section.props;
+      return (
+        <a href={`tel:${p.phone.replace(/[^+\d]/g, "") || p.phone}`} data-vc-link className="flex items-center justify-between gap-3 rounded-card px-4 py-3.5 text-sm transition" style={renderLinkStyle("card")}>
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--vc-accent, #d4af37) 12%, transparent)", color: "var(--vc-accent, #d4af37)" }}>
+              <LinkIconGlyph name="phone" className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate font-medium">{p.label}</span>
+              <span className="block truncate text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.note ?? p.phone}</span>
+            </span>
+          </span>
+          <span className="shrink-0" style={{ color: "var(--vc-accent, #d4af37)" }}><LinkIconGlyph name="external" className="size-4" /></span>
+        </a>
+      );
+    }
+    case "email": {
+      const p = section.props;
+      const subject = p.subject ? `?subject=${encodeURIComponent(p.subject)}` : "";
+      return (
+        <a href={`mailto:${p.email}${subject}`} data-vc-link className="flex items-center justify-between gap-3 rounded-card px-4 py-3.5 text-sm transition" style={renderLinkStyle("card")}>
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--vc-accent, #d4af37) 12%, transparent)", color: "var(--vc-accent, #d4af37)" }}>
+              <LinkIconGlyph name="mail" className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate font-medium">{p.label}</span>
+              <span className="block truncate text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.email}</span>
+            </span>
           </span>
           <span style={{ color: "var(--vc-accent, #d4af37)" }}>→</span>
         </a>

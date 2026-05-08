@@ -1,8 +1,9 @@
-import type { CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PublicProfileActions } from "@/components/profile/PublicProfileActions";
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
 import { Sections } from "@/lib/sections/types";
 import { buildMetadata, SITE_URL } from "@/lib/seo";
@@ -161,6 +162,14 @@ export default async function PublicProfilePage({
   const sectionsRaw = variant?.sections ?? profile.sections;
   const parsed = Sections.safeParse(sectionsRaw);
   const sections = parsed.success ? parsed.data : [];
+  const actionAfterIndex = sections.findIndex((section) => section.visible !== false && section.type === "header");
+  const profileActions = (
+    <PublicProfileActions
+      displayName={displayName}
+      profileUrl={`${SITE_URL}/u/${handle}`}
+      vcardUrl={`/u/${handle}/vcard.vcf`}
+    />
+  );
 
   const ua = h.get("user-agent") ?? "";
   const ref = h.get("referer") ?? "";
@@ -210,8 +219,12 @@ export default async function PublicProfilePage({
         data-testid="profile-public-content"
       >
         <div className="vc-profile-stack">
+          {actionAfterIndex === -1 ? profileActions : null}
           {sections.map((section, idx) => (
-            <SectionRenderer key={section.id} section={section} verified={profile.verified} username={handle} isTop={idx === 0} />
+            <Fragment key={section.id}>
+              <SectionRenderer section={section} verified={profile.verified} username={handle} isTop={idx === 0} />
+              {idx === actionAfterIndex ? profileActions : null}
+            </Fragment>
           ))}
         </div>
         {!profile.removeBranding && (
