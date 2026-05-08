@@ -1308,9 +1308,13 @@ function SectionEditorFields({
           )}
           <p className="rounded-card border border-onyx-800 bg-onyx-950/40 px-3 py-2 text-xs text-ivory-mute">
             Powered by <a href="https://booxlit.com" target="_blank" rel="noopener noreferrer" className="text-gold underline-offset-2 hover:underline">Boox</a>.
-            Don&apos;t have an account?{" "}
+            {" "}
+            <a href={`/api/boox/launch?next=${encodeURIComponent(`/${p.ownerSlug}/Admin`)}`} target="_blank" rel="noopener noreferrer" className="text-gold underline-offset-2 hover:underline">
+              Open Boox dashboard →
+            </a>
+            {" · "}
             <a href="https://boox.ed5enterprise.com/Signup" target="_blank" rel="noopener noreferrer" className="text-gold underline-offset-2 hover:underline">
-              Create one →
+              Create account
             </a>
           </p>
         </div>
