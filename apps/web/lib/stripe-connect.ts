@@ -46,7 +46,7 @@ export async function getOrCreateExpressAccount(params: {
   // 1) Try to reuse an existing acct from Boox.
   const reused = await fetchSisterStripeAccountId(params.userId);
 
-  let accountId: string;
+  let accountId = "";
   let accountSnapshot: Awaited<ReturnType<typeof stripe.accounts.retrieve>> | null = null;
   if (reused) {
     accountId = reused;
