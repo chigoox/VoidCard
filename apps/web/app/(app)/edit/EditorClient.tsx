@@ -2542,10 +2542,10 @@ export default function EditorClient({
             </div>
           </div>
 
-          {/* Theme picker — swatch grid */}
+          {/* Theme picker — 2-row swatch strip */}
           <div className="space-y-2">
             <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Theme</span>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Theme">
+            <div className="grid auto-cols-[10rem] grid-flow-col grid-rows-2 gap-2 overflow-x-auto overscroll-x-contain pb-1" role="radiogroup" aria-label="Theme">
               {THEME_PRESETS.map((theme) => {
                 const active = theme.id === themeId;
                 return (
@@ -2556,7 +2556,7 @@ export default function EditorClient({
                     aria-checked={active}
                     onClick={() => { pushHistory(); markDirty(); setThemeId(theme.id); }}
                     className={[
-                      "flex flex-col gap-2 rounded-card border p-3 text-left transition",
+                      "flex shrink-0 flex-col gap-2 rounded-card border p-3 text-left transition",
                       active ? "border-gold/70 bg-onyx-900" : "border-onyx-700 bg-onyx-950/50 hover:border-onyx-600",
                     ].join(" ")}
                     data-testid={`theme-pick-${theme.id}`}
@@ -2699,7 +2699,7 @@ export default function EditorClient({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="mt-3 flex flex-wrap gap-2"
+                className="mt-3 grid auto-cols-max grid-flow-col grid-rows-2 gap-2 overflow-x-auto overscroll-x-contain pb-1"
                 data-testid="add-section-menu"
               >
                 {SECTION_TYPES.map((type) => (
@@ -2708,7 +2708,7 @@ export default function EditorClient({
                     type="button"
                     onClick={() => addSection(type)}
                     data-testid={`add-${type}`}
-                    className="flex items-center gap-2 truncate rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
+                    className="flex shrink-0 items-center gap-2 rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
                   >
                     <Plus className="size-3.5 text-gold" aria-hidden />
                     {type}
