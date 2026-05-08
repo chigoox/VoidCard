@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 
 export type MediaItem = {
   id: string;
@@ -186,8 +187,9 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
   }
 
   if (!open) return null;
+  if (typeof document === "undefined") return null;
 
-  return (
+  return <>{createPortal((
     <div
       className="safe-modal-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       role="dialog"
@@ -353,5 +355,5 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
         )}
       </div>
     </div>
-  );
+  ), document.body)}</>;
 }

@@ -477,7 +477,23 @@ function SectionRowHeader({
   dragListeners: SyntheticListenerMap | undefined;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuDir, setMenuDir] = useState<"down" | "up">("down");
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  function toggleMenu() {
+    setMenuOpen((wasOpen) => {
+      const next = !wasOpen;
+      if (next && menuBtnRef.current) {
+        const rect = menuBtnRef.current.getBoundingClientRect();
+        // Approx menu height (~5 items * 36 + paddings) ~= 220px. Reserve room for BottomNav (~80px on mobile).
+        const reserved = 240 + 80;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        setMenuDir(spaceBelow < reserved ? "up" : "down");
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -552,8 +568,9 @@ function SectionRowHeader({
       </button>
       <div className="relative shrink-0" ref={menuRef}>
         <button
+          ref={menuBtnRef}
           type="button"
-          onClick={() => setMenuOpen((o) => !o)}
+          onClick={toggleMenu}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           aria-label="More actions"
@@ -565,7 +582,10 @@ function SectionRowHeader({
         {menuOpen ? (
           <div
             role="menu"
-            className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-card border border-onyx-700 bg-onyx-950 shadow-lg"
+            className={[
+              "absolute right-0 z-30 w-44 overflow-hidden rounded-card border border-onyx-700 bg-onyx-950 shadow-lg",
+              menuDir === "up" ? "bottom-full mb-1" : "top-full mt-1",
+            ].join(" ")}
           >
             <button
               type="button"
