@@ -1341,7 +1341,7 @@ function SectionEditorFields({
                   className="size-4 rounded border-onyx-700 bg-onyx-950"
                   data-testid={`gallery-carousel-full-width-${section.id}`}
                 />
-                Full-width swipe carousel
+                Edge-to-edge square swipe carousel
               </label>
             ) : null}
           </div>

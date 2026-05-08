@@ -1,10 +1,29 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 export type GalleryImage = { src: string; alt: string; category?: string };
 export type GalleryLayout = "grid" | "masonry" | "carousel";
+
+const SWIPE_DISTANCE_PX = 48;
+const SWIPE_AXIS_RATIO = 1.25;
+
+function preloadImageSrc(src: string, onReady: (src: string) => void) {
+  const image = new Image();
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    onReady(src);
+  };
+  image.decoding = "async";
+  image.onload = finish;
+  image.onerror = finish;
+  image.src = src;
+  if (image.complete) finish();
+  else void image.decode?.().then(finish).catch(() => undefined);
+}
 
 export function GallerySectionClient({
   images,
@@ -22,15 +41,34 @@ export function GallerySectionClient({
   radius: string;
 }) {
   const [active, setActive] = useState<number | null>(null);
+  const [readySources, setReadySources] = useState<ReadonlySet<string>>(() => new Set());
+  const swipeRef = useRef<{ pointerId: number; startX: number; startY: number; lastX: number; lastY: number } | null>(null);
   const activeImage = active === null ? null : images[active] ?? null;
+  const activeReady = activeImage === null || readySources.has(activeImage.src);
 
-  function showPrevious() {
-    setActive((currentIndex) => (currentIndex === null ? null : (currentIndex - 1 + images.length) % images.length));
-  }
+  const markImageReady = useCallback((src: string) => {
+    setReadySources((current) => {
+      if (current.has(src)) return current;
+      const next = new Set(current);
+      next.add(src);
+      return next;
+    });
+  }, []);
 
-  function showNext() {
-    setActive((currentIndex) => (currentIndex === null ? null : (currentIndex + 1) % images.length));
-  }
+  const showPrevious = useCallback(() => {
+    setActive((currentIndex) => (currentIndex === null || images.length === 0 ? currentIndex : (currentIndex - 1 + images.length) % images.length));
+  }, [images.length]);
+
+  const showNext = useCallback(() => {
+    setActive((currentIndex) => (currentIndex === null || images.length === 0 ? currentIndex : (currentIndex + 1) % images.length));
+  }, [images.length]);
+
+  const openLightbox = useCallback((index: number) => {
+    const image = images[index];
+    if (!image) return;
+    preloadImageSrc(image.src, markImageReady);
+    setActive(index);
+  }, [images, markImageReady]);
 
   useEffect(() => {
     if (active === null) return;
@@ -41,7 +79,66 @@ export function GallerySectionClient({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, images.length]);
+  }, [active, images.length, showNext, showPrevious]);
+
+  useEffect(() => {
+    if (active === null) return;
+    const nearbyIndexes = images.length > 1 ? [active, (active + 1) % images.length, (active - 1 + images.length) % images.length] : [active];
+    let mounted = true;
+    for (const index of nearbyIndexes) {
+      const image = images[index];
+      if (image) preloadImageSrc(image.src, (src) => {
+        if (mounted) markImageReady(src);
+      });
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [active, images, images.length, markImageReady]);
+
+  useEffect(() => {
+    if (active !== null && !images[active]) setActive(null);
+  }, [active, images]);
+
+  function handleSwipeStart(event: ReactPointerEvent<HTMLDivElement>) {
+    if (images.length < 2) return;
+    swipeRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleSwipeMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const swipe = swipeRef.current;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    swipe.lastX = event.clientX;
+    swipe.lastY = event.clientY;
+  }
+
+  function handleSwipeEnd(event: ReactPointerEvent<HTMLDivElement>) {
+    const swipe = swipeRef.current;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    swipeRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+
+    const deltaX = swipe.lastX - swipe.startX;
+    const deltaY = swipe.lastY - swipe.startY;
+    const isHorizontalSwipe = Math.abs(deltaX) >= SWIPE_DISTANCE_PX && Math.abs(deltaX) > Math.abs(deltaY) * SWIPE_AXIS_RATIO;
+    if (!isHorizontalSwipe) return;
+    if (deltaX < 0) showNext();
+    else showPrevious();
+  }
+
+  function handleSwipeCancel(event: ReactPointerEvent<HTMLDivElement>) {
+    const swipe = swipeRef.current;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    swipeRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  }
 
   const itemStyle: CSSProperties = { borderRadius: radius };
 
@@ -49,19 +146,21 @@ export function GallerySectionClient({
     return (
       <button
         type="button"
-        onClick={lightbox ? () => setActive(index) : undefined}
+        onClick={lightbox ? () => openLightbox(index) : undefined}
+        onFocus={lightbox ? () => preloadImageSrc(image.src, markImageReady) : undefined}
+        onPointerEnter={lightbox ? () => preloadImageSrc(image.src, markImageReady) : undefined}
         className={`block ${className}`}
         style={{ cursor: lightbox ? "zoom-in" : "default", padding: 0, border: 0, background: "transparent" }}
         aria-label={image.alt || `Image ${index + 1}`}
       >
-        <img src={image.src} alt={image.alt} loading="lazy" decoding="async" className="block h-full w-full object-cover" style={{ ...itemStyle, ...style }} />
+        <img src={image.src} alt={image.alt} loading={index < 4 ? "eager" : "lazy"} decoding="async" className="block h-full w-full object-cover" style={{ ...itemStyle, ...style }} onLoad={() => markImageReady(image.src)} />
       </button>
     );
   }
 
   const list = images.map((image, index) => {
     if (layout === "carousel") {
-      return <Tile key={index} image={image} index={index} className={carouselFullWidth ? "aspect-[4/5] min-w-full flex-shrink-0 snap-center snap-always" : "aspect-square min-w-[60%] flex-shrink-0 snap-center"} />;
+      return <Tile key={index} image={image} index={index} className={carouselFullWidth ? "aspect-square min-w-full flex-shrink-0 snap-center snap-always" : "aspect-square min-w-[60%] flex-shrink-0 snap-center"} />;
     }
     if (layout === "masonry") {
       return (
@@ -73,7 +172,7 @@ export function GallerySectionClient({
     return <Tile key={index} image={image} index={index} className="aspect-square w-full" />;
   });
 
-  let container: React.ReactNode;
+  let container: ReactNode;
   if (layout === "carousel") {
     container = (
       <div className={["flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-smooth", carouselFullWidth ? "-mx-4 sm:-mx-6" : ""].join(" ").trim()} style={{ scrollPaddingLeft: carouselFullWidth ? 0 : 8 }}>
@@ -102,11 +201,20 @@ export function GallerySectionClient({
               {active + 1} / {images.length}
             </p>
           </div>
-          <div className="relative flex min-h-0 w-full flex-1 items-center justify-center" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="relative flex min-h-0 w-full flex-1 cursor-grab touch-none select-none items-center justify-center active:cursor-grabbing"
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={handleSwipeStart}
+            onPointerMove={handleSwipeMove}
+            onPointerUp={handleSwipeEnd}
+            onPointerCancel={handleSwipeCancel}
+            style={{ touchAction: "none" }}
+          >
             {images.length > 1 ? (
               <button
                 type="button"
                 onClick={showPrevious}
+                onPointerDown={(event) => event.stopPropagation()}
                 aria-label="Previous image"
                 className="absolute left-0 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/65 text-white ring-1 ring-white/20 transition hover:bg-black/80 sm:left-4"
               >
@@ -116,12 +224,23 @@ export function GallerySectionClient({
             <img
               src={activeImage.src}
               alt={activeImage.alt}
-              className="max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-8rem)] max-w-[calc(100vw-var(--safe-left)-var(--safe-right)-2rem)] object-contain"
+              loading="eager"
+              decoding="async"
+              draggable={false}
+              onLoad={() => markImageReady(activeImage.src)}
+              onDragStart={(event) => event.preventDefault()}
+              className={["max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-8rem)] max-w-[calc(100vw-var(--safe-left)-var(--safe-right)-2rem)] object-contain transition-opacity duration-150", activeReady ? "opacity-100" : "opacity-0"].join(" ")}
             />
+            {!activeReady ? (
+              <div className="absolute inset-0 flex items-center justify-center" aria-label="Loading image" role="status">
+                <span className="size-9 animate-pulse rounded-full ring-2 ring-white/30 ring-offset-4 ring-offset-black/40" />
+              </div>
+            ) : null}
             {images.length > 1 ? (
               <button
                 type="button"
                 onClick={showNext}
+                onPointerDown={(event) => event.stopPropagation()}
                 aria-label="Next image"
                 className="absolute right-0 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/65 text-white ring-1 ring-white/20 transition hover:bg-black/80 sm:right-4"
               >
@@ -143,7 +262,7 @@ export function GallerySectionClient({
                     index === active ? "ring-[var(--vc-accent,#d4af37)]" : "ring-white/20",
                   ].join(" ")}
                 >
-                  <img src={image.src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  <img src={image.src} alt="" loading={index < 4 ? "eager" : "lazy"} decoding="async" className="h-full w-full object-cover" onLoad={() => markImageReady(image.src)} />
                 </button>
               ))}
             </div>
