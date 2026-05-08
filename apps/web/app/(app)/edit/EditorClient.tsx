@@ -1833,7 +1833,7 @@ export default function EditorClient({
       case "video": nextSection = { ...base, type, props: { src: "https://example.com/video.mp4" } }; break;
       case "map": nextSection = { ...base, type, props: { lat: 40.7128, lng: -74.006, label: "NYC" } }; break;
       case "embed": nextSection = { ...base, type, props: { html: "<p>Embed</p>", height: 300, autoHeight: false, allowDomains: [] } }; break;
-      case "gallery": nextSection = { ...base, type, props: { images: [{ src: "https://placehold.co/600", alt: "" }], layout: "grid", lightbox: true } }; break;
+        case "gallery": nextSection = { ...base, type, props: { images: [{ src: "https://placehold.co/600", alt: "" }], layout: "grid", lightbox: true, filters: [], showCategoryStories: false } }; break;
       case "store": nextSection = { ...base, type, props: { title: "Shop", productIds: [], layout: "grid", showPrice: true, buttonLabel: "Buy now" } }; break;
       case "booking": nextSection = { ...base, type, props: { provider: "boox", ownerSlug: username, mode: "embed", theme: "onyx", height: 820, ctaLabel: "Book now" } }; break;
     }

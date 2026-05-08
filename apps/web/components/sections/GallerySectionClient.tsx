@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 
-export type GalleryImage = { src: string; alt: string };
+export type GalleryImage = { src: string; alt: string; category?: string };
 export type GalleryLayout = "grid" | "masonry" | "carousel";
 
 export function GallerySectionClient({
@@ -14,6 +14,8 @@ export function GallerySectionClient({
   images: GalleryImage[];
   layout: GalleryLayout;
   lightbox: boolean;
+  filters: string[];
+  showCategoryStories: boolean;
   radius: string;
 }) {
   const [active, setActive] = useState<number | null>(null);
