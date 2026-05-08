@@ -25,6 +25,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
+import { ArrowDown, ArrowUp, Braces, ChevronDown, ChevronRight, Copy, Eye, EyeOff, GripVertical, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
 import {
   Section as SectionSchema,
@@ -552,7 +553,7 @@ function SectionRowHeader({
         {...dragAttributes}
         {...(dragListeners ?? {})}
       >
-        ⋮⋮
+        <GripVertical className="size-4" aria-hidden />
       </button>
       <button
         type="button"
@@ -562,7 +563,7 @@ function SectionRowHeader({
         className="btn-ghost px-2 py-1 text-xs"
         data-testid={`toggle-collapsed-${section.id}`}
       >
-        {collapsed ? "▸" : "▾"}
+        {collapsed ? <ChevronRight className="size-3.5" aria-hidden /> : <ChevronDown className="size-3.5" aria-hidden />}
       </button>
       <button
         type="button"
@@ -593,7 +594,7 @@ function SectionRowHeader({
         aria-label={section.visible ? "Hide section" : "Show section"}
         data-testid={`toggle-visible-${section.id}`}
       >
-        <span aria-hidden>{section.visible ? "👁" : "🚫"}</span>
+        {section.visible ? <Eye className="size-4" aria-hidden /> : <EyeOff className="size-4" aria-hidden />}
       </button>
       <div className="relative shrink-0" ref={menuRef}>
         <button
@@ -605,7 +606,7 @@ function SectionRowHeader({
           className="btn-ghost px-2 py-1 text-xs"
           data-testid={`row-more-${section.id}`}
         >
-          ⋯
+          <MoreHorizontal className="size-4" aria-hidden />
         </button>
         {menuOpen ? (
           <div
@@ -618,7 +619,7 @@ function SectionRowHeader({
               onClick={() => { setMenuOpen(false); onMove(index, -1); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
             >
-              <span aria-hidden>↑</span> Move up
+              <ArrowUp className="size-3.5" aria-hidden /> Move up
             </button>
             <button
               type="button"
@@ -626,7 +627,7 @@ function SectionRowHeader({
               onClick={() => { setMenuOpen(false); onMove(index, 1); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
             >
-              <span aria-hidden>↓</span> Move down
+              <ArrowDown className="size-3.5" aria-hidden /> Move down
             </button>
             <button
               type="button"
@@ -635,7 +636,7 @@ function SectionRowHeader({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
               data-testid={`duplicate-${section.id}`}
             >
-              <span aria-hidden>⧉</span> Duplicate
+              <Copy className="size-3.5" aria-hidden /> Duplicate
             </button>
             <button
               type="button"
@@ -644,7 +645,7 @@ function SectionRowHeader({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
               data-testid={`copy-json-${section.id}`}
             >
-              <span aria-hidden>⧉</span> Copy JSON
+              <Braces className="size-3.5" aria-hidden /> Copy JSON
             </button>
             <button
               type="button"
@@ -652,7 +653,7 @@ function SectionRowHeader({
               onClick={() => { setMenuOpen(false); onRemove(index); }}
               className="flex w-full items-center gap-2 border-t border-onyx-800 px-3 py-2 text-left text-xs text-red-300 hover:bg-onyx-900"
             >
-              <span aria-hidden>×</span> Remove
+              <Trash2 className="size-3.5" aria-hidden /> Remove
             </button>
           </div>
         ) : null}
@@ -2300,7 +2301,7 @@ export default function EditorClient({
           className="btn-ghost mx-auto inline-flex items-center gap-2 rounded-pill border border-onyx-700 px-4 py-2 text-xs uppercase tracking-widest text-ivory-dim hover:border-gold/40 hover:text-gold md:hidden"
           data-testid="mobile-preview-open"
         >
-          <span aria-hidden>👁</span> Live preview
+          <Eye className="size-3.5" aria-hidden /> Live preview
         </button>
 
         {/* ─── Tab bar ─── */}
@@ -2720,7 +2721,7 @@ export default function EditorClient({
                     data-testid={`add-${type}`}
                     className="flex min-w-[8.75rem] shrink-0 items-center gap-2 truncate rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
                   >
-                    <span aria-hidden className="text-gold">+</span>
+                    <Plus className="size-3.5 text-gold" aria-hidden />
                     {type}
                   </button>
                 ))}
