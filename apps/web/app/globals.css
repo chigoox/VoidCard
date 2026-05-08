@@ -153,7 +153,7 @@ html, body {
   margin-inline: auto;
 }
 
-.vc-profile-stack > [data-vc-section] + [data-vc-section] {
+.vc-profile-stack > * + * {
   margin-top: var(--vc-gap, 0.75rem);
 }
 

@@ -164,7 +164,7 @@ function renderBlock(s: StyleStudio): string {
     `  --vc-button-shadow: ${s.buttonShadow ? 1 : 0};`,
     `  font-weight: var(--vc-font-weight);`,
     `}`,
-    `.vc-profile .vc-profile-stack > [data-vc-section] + [data-vc-section] { margin-top: var(--vc-gap); }`,
+    `.vc-profile .vc-profile-stack > * + * { margin-top: var(--vc-gap); }`,
     `.vc-profile a[data-vc-link] { border-radius: var(--vc-radius); ${s.buttonShadow ? "box-shadow: 0 6px 18px -8px rgba(0,0,0,.45);" : ""} }`,
     backgroundCss(s),
     MARKER_CLOSE,

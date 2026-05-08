@@ -35,6 +35,7 @@ import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedS
 import {
   Section as SectionSchema,
   SECTION_ANIMATIONS,
+  SECTION_ANIMATION_TRIGGERS,
   SECTION_TYPES,
   GALLERY_LAYOUTS,
   type Section as SectionRecord,
@@ -42,6 +43,7 @@ import {
 } from "@/lib/sections/types";
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
 import { BrandedQR } from "@/components/BrandedQR";
+import { LINK_ICON_OPTIONS, LinkIconGlyph } from "@/components/sections/LinkIcon";
 import { THEME_PRESETS, getThemePreset, themeToCss } from "@/lib/themes/presets";
 import { SECTION_TEMPLATES } from "@/lib/editor/templates";
 import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/editor/styleStudio";
@@ -56,6 +58,7 @@ const MediaManagerModal = dynamic(() => import("./MediaManagerModal").then((m) =
 });
 
 const LINK_STYLES = ["pill", "card", "ghost"] as const;
+const LINK_ICON_MODES = ["none", "preset", "image", "text"] as const;
 const SOCIAL_PLATFORMS = [
   "instagram",
   "tiktok",
@@ -675,6 +678,7 @@ function SortableSectionRow({
   };
   const summary = sectionSummary(section);
   const animation = section.display?.animation ?? "none";
+  const animationTrigger = section.display?.animationTrigger ?? "load";
   const animationDelay = section.display?.animationDelay ?? 0;
 
   return (
@@ -764,6 +768,28 @@ function SortableSectionRow({
                     })
                   }
                 />
+              </Field>
+              <Field label="Play when">
+                <select
+                  className={INPUT_CLASS_NAME}
+                  value={animationTrigger}
+                  onChange={(event) =>
+                    onChange({
+                      ...section,
+                      display: {
+                        ...(section.display ?? {}),
+                        animationTrigger: event.target.value as (typeof SECTION_ANIMATION_TRIGGERS)[number],
+                      },
+                    })
+                  }
+                  data-testid={`animation-trigger-${section.id}`}
+                >
+                  {SECTION_ANIMATION_TRIGGERS.map((value) => (
+                    <option key={value} value={value}>
+                      {value === "view" ? "when visible" : value}
+                    </option>
+                  ))}
+                </select>
               </Field>
             </div>
           </details>
@@ -864,6 +890,29 @@ function sectionWantsTopBleed(section: SectionRecord) {
   }
 }
 
+type LinkProps = Extract<SectionRecord, { type: "link" }>["props"];
+type LinkIconMode = (typeof LINK_ICON_MODES)[number];
+
+function linkIconMode(props: LinkProps): LinkIconMode {
+  if (props.iconImageUrl) return "image";
+  if (props.iconName) return "preset";
+  if (props.icon) return "text";
+  return "none";
+}
+
+function linkPropsForIconMode(props: LinkProps, mode: LinkIconMode): LinkProps {
+  switch (mode) {
+    case "preset":
+      return { ...props, iconName: props.iconName ?? LINK_ICON_OPTIONS[0].id, iconImageUrl: undefined, icon: undefined };
+    case "image":
+      return { ...props, iconImageUrl: props.iconImageUrl, iconName: undefined, icon: undefined };
+    case "text":
+      return { ...props, icon: props.icon ?? "", iconName: undefined, iconImageUrl: undefined };
+    default:
+      return { ...props, icon: undefined, iconName: undefined, iconImageUrl: undefined };
+  }
+}
+
 function PreviewSection({ section, isTop, topBleedOffset }: { section: SectionRecord; isTop?: boolean; topBleedOffset?: "page" | "none" }) {
   const parsed = SectionSchema.safeParse(section);
   if (!parsed.success) {
@@ -934,6 +983,7 @@ function SectionEditorFields({
     }
     case "link": {
       const p = section.props;
+      const currentIconMode = linkIconMode(p);
       return (
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Label">
@@ -947,9 +997,52 @@ function SectionEditorFields({
           <Field label="URL" className="md:col-span-2">
             <input className={INPUT_CLASS_NAME} value={p.url} onChange={(event) => onChange({ ...section, props: { ...p, url: event.target.value } })} />
           </Field>
-          <Field label="Icon" className="md:col-span-2">
-            <input className={INPUT_CLASS_NAME} value={p.icon ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, icon: event.target.value || undefined } })} />
-          </Field>
+          <div className="space-y-3 rounded-card border border-onyx-800 bg-onyx-950/40 p-3 md:col-span-2">
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Link icon type">
+              {LINK_ICON_MODES.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={[
+                    "rounded-pill border px-3 py-1.5 text-xs capitalize transition",
+                    currentIconMode === mode ? "border-gold bg-gold/10 text-gold" : "border-onyx-700 bg-onyx-950 text-ivory-mute hover:border-gold/40 hover:text-ivory",
+                  ].join(" ")}
+                  onClick={() => onChange({ ...section, props: linkPropsForIconMode(p, mode) })}
+                  aria-pressed={currentIconMode === mode}
+                  data-testid={`link-icon-mode-${mode}`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+            {currentIconMode === "preset" ? (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" data-testid="link-icon-preset-grid">
+                {LINK_ICON_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={[
+                      "flex min-h-16 flex-col items-center justify-center gap-1 rounded-card border px-2 py-2 text-center text-[11px] transition",
+                      p.iconName === option.id ? "border-gold bg-gold/10 text-gold" : "border-onyx-700 bg-onyx-950 text-ivory-mute hover:border-gold/40 hover:text-ivory",
+                    ].join(" ")}
+                    onClick={() => onChange({ ...section, props: { ...p, iconName: option.id, iconImageUrl: undefined, icon: undefined } })}
+                    aria-pressed={p.iconName === option.id}
+                  >
+                    <LinkIconGlyph name={option.id} className="size-4" />
+                    <span className="break-words leading-tight">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {currentIconMode === "image" ? (
+              <MediaField label="Icon image" value={p.iconImageUrl ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, iconImageUrl: value || undefined, iconName: undefined, icon: undefined } })} />
+            ) : null}
+            {currentIconMode === "text" ? (
+              <Field label="Text or emoji icon">
+                <input className={INPUT_CLASS_NAME} value={p.icon ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, icon: event.target.value || undefined, iconName: undefined, iconImageUrl: undefined } })} />
+              </Field>
+            ) : null}
+          </div>
         </div>
       );
     }

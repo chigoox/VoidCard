@@ -9,6 +9,7 @@ import { EmbedSectionClient } from "./EmbedSectionClient";
 import { StoreSectionClient } from "./StoreSectionClient";
 import { BookingSectionClient } from "./BookingSectionClient";
 import { TipSectionClient } from "./TipSectionClient";
+import { LinkIconGlyph } from "./LinkIcon";
 
 const SURFACE_BORDER = "color-mix(in srgb, var(--vc-accent, #d4af37) 24%, transparent)";
 
@@ -70,6 +71,7 @@ export function SectionRenderer({
 }) {
   if (!section.visible) return null;
   const animation = section.display?.animation ?? "none";
+  const animationTrigger = section.display?.animationTrigger ?? "load";
   const delay = section.display?.animationDelay ?? 0;
   // Top-of-page full-bleed: when this is the first section AND it opts in, escape page padding
   // (px-4/sm:px-6 + pt-8/sm:pt-10) and cover the top safe-area inset so cover/header images go
@@ -81,7 +83,7 @@ export function SectionRenderer({
   if (wantsTopBleed) {
     const topBleedClassName = topBleedOffset === "none" ? "-mx-4 sm:-mx-6" : "-mx-4 -mt-8 sm:-mx-6 sm:-mt-10";
     return (
-      <SectionMotion animation={animation} delay={delay}>
+      <SectionMotion animation={animation} trigger={animationTrigger} delay={delay}>
         <div
           data-vc-section
           data-section-type={section.type}
@@ -95,7 +97,7 @@ export function SectionRenderer({
     );
   }
   return (
-    <SectionMotion animation={animation} delay={delay}>
+    <SectionMotion animation={animation} trigger={animationTrigger} delay={delay}>
       <div data-vc-section data-section-type={section.type}>
         {renderSectionInner(section, verified, username)}
       </div>
@@ -166,9 +168,21 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
           style={renderLinkStyle(p.style)}
         >
           <span className="flex min-w-0 items-center gap-3">
-            {p.icon ? (
+            {p.iconImageUrl ? (
+              <img src={p.iconImageUrl} alt="" loading="lazy" decoding="async" className="size-9 shrink-0 rounded-full object-cover" />
+            ) : p.iconName ? (
               <span
-                className="rounded-pill px-2 py-1 text-[10px] uppercase tracking-[0.24em]"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full"
+                style={{
+                  background: "color-mix(in srgb, var(--vc-accent, #d4af37) 12%, transparent)",
+                  color: "var(--vc-accent, #d4af37)",
+                }}
+              >
+                <LinkIconGlyph name={p.iconName} className="size-4" />
+              </span>
+            ) : p.icon ? (
+              <span
+                className="shrink-0 rounded-pill px-2 py-1 text-[10px] uppercase tracking-[0.24em]"
                 style={{
                   background: "color-mix(in srgb, var(--vc-accent, #d4af37) 12%, transparent)",
                   color: "var(--vc-accent, #d4af37)",

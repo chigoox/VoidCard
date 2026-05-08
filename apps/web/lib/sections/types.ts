@@ -23,9 +23,13 @@ export const SECTION_ANIMATIONS = [
 ] as const;
 export type SectionAnimation = (typeof SECTION_ANIMATIONS)[number];
 
+export const SECTION_ANIMATION_TRIGGERS = ["load", "view", "hover", "tap"] as const;
+export type SectionAnimationTrigger = (typeof SECTION_ANIMATION_TRIGGERS)[number];
+
 const Display = z
   .object({
     animation: z.enum(SECTION_ANIMATIONS).default("none"),
+    animationTrigger: z.enum(SECTION_ANIMATION_TRIGGERS).default("load"),
     animationDelay: z.number().min(0).max(2000).default(0),
   })
   .partial()
@@ -58,6 +62,8 @@ const Link = Base.extend({
     label: z.string(),
     url: z.string().url(),
     icon: z.string().optional(),
+    iconName: z.string().max(40).optional(),
+    iconImageUrl: z.string().url().optional(),
     style: z.enum(["pill", "card", "ghost"]).default("pill"),
   }),
 });

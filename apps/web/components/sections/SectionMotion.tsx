@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import type { ReactNode } from "react";
-import type { SectionAnimation } from "@/lib/sections/types";
+import type { SectionAnimation, SectionAnimationTrigger } from "@/lib/sections/types";
 
 const VARIANTS: Record<Exclude<SectionAnimation, "none">, Variants> = {
   fade: {
@@ -46,12 +46,35 @@ type MotionDivProps = Omit<React.ComponentProps<typeof motion.div>, "children"> 
 };
 const MotionDiv = motion.div as unknown as React.FC<MotionDivProps>;
 
+function interactiveTarget(animation: Exclude<SectionAnimation, "none">) {
+  switch (animation) {
+    case "fade":
+      return { opacity: 0.72 };
+    case "slide-up":
+      return { y: -8 };
+    case "slide-down":
+      return { y: 8 };
+    case "slide-left":
+      return { x: -10 };
+    case "slide-right":
+      return { x: 10 };
+    case "zoom":
+      return { scale: 1.035 };
+    case "float":
+      return { y: -8 };
+    case "shimmer":
+      return { filter: "brightness(1.18)" };
+  }
+}
+
 export function SectionMotion({
   animation,
+  trigger,
   delay,
   children,
 }: {
   animation: SectionAnimation;
+  trigger: SectionAnimationTrigger;
   delay: number;
   children: ReactNode;
 }) {
@@ -60,17 +83,33 @@ export function SectionMotion({
 
   const variants = VARIANTS[animation];
   const isLoop = animation === "float" || animation === "shimmer";
+  const baseTransition = isLoop
+    ? { duration: animation === "float" ? 4 : 2.4, repeat: Infinity, ease: "easeInOut", delay: delay / 1000 }
+    : { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: delay / 1000 };
+
+  if (trigger === "hover" || trigger === "tap") {
+    const target = interactiveTarget(animation);
+    return (
+      <MotionDiv
+        initial="visible"
+        animate="visible"
+        variants={variants}
+        whileHover={trigger === "hover" ? target : undefined}
+        whileTap={trigger === "tap" ? target : undefined}
+        transition={{ duration: 0.22, ease: "easeOut", delay: delay / 1000 }}
+      >
+        {children}
+      </MotionDiv>
+    );
+  }
 
   return (
     <MotionDiv
       initial="hidden"
-      animate="visible"
+      animate={trigger === "load" ? "visible" : undefined}
+      whileInView={trigger === "view" ? "visible" : undefined}
       variants={variants}
-      transition={
-        isLoop
-          ? { duration: animation === "float" ? 4 : 2.4, repeat: Infinity, ease: "easeInOut", delay: delay / 1000 }
-          : { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: delay / 1000 }
-      }
+      transition={baseTransition}
       viewport={{ once: true, amount: 0.2 }}
     >
       {children}
