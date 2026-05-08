@@ -18,6 +18,7 @@ import {
 import { queueWebhookEvent } from "@/lib/webhook-queue";
 import { getThemePreset, themeToCss } from "@/lib/themes/presets";
 import { readProfileIntegrations } from "@/lib/profile-integrations";
+import { getUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -176,8 +177,12 @@ export default async function PublicProfilePage({
 
   const ua = h.get("user-agent") ?? "";
   const ref = h.get("referer") ?? "";
-  void recordTap(profile.ownerUserId, "link", ua, ref, h).catch(() => null);
-  if (variant) void incrementVariantViews(variant.id).catch(() => null);
+  const viewer = await getUser();
+  const isOwnerViewingOwnProfile = viewer?.id === profile.ownerUserId;
+  if (!isOwnerViewingOwnProfile) {
+    void recordTap(profile.ownerUserId, "link", ua, ref, h).catch(() => null);
+    if (variant) void incrementVariantViews(variant.id).catch(() => null);
+  }
 
   const linkUrls: string[] = Array.isArray(profile.links)
     ? (profile.links as Array<{ url?: string }>)
