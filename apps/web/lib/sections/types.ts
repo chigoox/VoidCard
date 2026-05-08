@@ -48,6 +48,7 @@ const Header = Base.extend({
     tagline: z.string().optional(),
     showVerified: z.boolean().default(true),
     coverFullBleed: z.boolean().default(false),
+    coverShadow: z.boolean().default(false),
   }),
 });
 

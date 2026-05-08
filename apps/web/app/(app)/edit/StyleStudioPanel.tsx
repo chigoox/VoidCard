@@ -71,11 +71,19 @@ export default function StyleStudioPanel({
   onChange: (next: StyleStudio) => void;
   themeId?: string;
 }) {
+  const preset = getThemePreset(themeId ?? null);
+  const previewColors = {
+    bg: studio.customColors ? studio.bg : preset.vars["--vc-bg"] ?? "#0a0a0a",
+    bg2: studio.customColors ? studio.bg2 : preset.vars["--vc-bg-2"] ?? "#141414",
+    fg: studio.customColors ? studio.fg : preset.vars["--vc-fg"] ?? "#f7f3ea",
+    fgMute: studio.customColors ? studio.fgMute : preset.vars["--vc-fg-mute"] ?? "#a8a39a",
+    accent: studio.customColors ? studio.accent : preset.vars["--vc-accent"] ?? "#d4af37",
+  };
+
   function patch<K extends keyof StyleStudio>(key: K, value: StyleStudio[K]) {
     onChange({ ...studio, [key]: value });
   }
   function seedFromTheme() {
-    const preset = getThemePreset(themeId ?? null);
     onChange({
       ...studio,
       customColors: true,
@@ -151,14 +159,14 @@ export default function StyleStudioPanel({
           </div>
           <div
             className="rounded-card border border-onyx-700 p-3"
-            style={{ background: studio.customColors ? studio.bg : "#0a0a0a", color: studio.customColors ? studio.fg : "#f7f3ea" }}
+            style={{ background: previewColors.bg, color: previewColors.fg }}
             aria-hidden
           >
-            <div className="rounded-card p-3" style={{ background: studio.customColors ? studio.bg2 : "#141414", borderRadius: studio.radius }}>
-              <div className="h-2 w-16 rounded-full" style={{ background: studio.accent }} />
+            <div className="rounded-card p-3" style={{ background: previewColors.bg2, borderRadius: studio.radius }}>
+              <div className="h-2 w-16 rounded-full" style={{ background: previewColors.accent }} />
               <p className="mt-3 font-display text-lg" style={{ fontWeight: studio.fontWeight }}>Preview</p>
-              <p className="mt-1 text-xs" style={{ color: studio.customColors ? studio.fgMute : "#a8a39a" }}>Cards, links, spacing.</p>
-              <div className="mt-3 rounded-pill px-3 py-2 text-center text-xs font-medium" style={{ background: studio.accent, color: studio.bg, boxShadow: studio.buttonShadow ? "0 8px 18px -10px rgba(0,0,0,.9)" : undefined }}>
+              <p className="mt-1 text-xs" style={{ color: previewColors.fgMute }}>Cards, links, spacing.</p>
+              <div className="mt-3 rounded-pill px-3 py-2 text-center text-xs font-medium" style={{ background: previewColors.accent, color: previewColors.bg, boxShadow: studio.buttonShadow ? "0 8px 18px -10px rgba(0,0,0,.9)" : undefined }}>
                 Link button
               </div>
             </div>
@@ -219,10 +227,8 @@ export default function StyleStudioPanel({
             </button>
           </div>
         ) : (
-          <div className="mt-3">
-            <Field label="Accent color">
-              <ColorInput value={studio.accent} onChange={(v) => patch("accent", v)} ariaLabel="Accent color" />
-            </Field>
+          <div className="mt-3 rounded-card border border-onyx-800 bg-onyx-950 px-3 py-2 text-xs text-ivory-mute">
+            Accent follows the selected theme. Turn on Customize colors to override it.
           </div>
         )}
       </div>

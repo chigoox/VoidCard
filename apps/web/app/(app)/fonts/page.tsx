@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
+import { GOOGLE_FONT_FAMILIES, googleFontUrl } from "@/lib/fonts/google";
 import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { deleteFont, saveGoogleFont, setActiveFont } from "./actions";
@@ -18,13 +19,6 @@ type Font = {
   created_at: string;
 };
 
-const GOOGLE_FONTS = ["Inter", "Fraunces", "Playfair Display", "Montserrat", "Poppins", "Lora", "DM Sans", "Oswald"] as const;
-
-function googleFontUrl(family: string) {
-  const encoded = family.trim().replace(/\s+/g, "+");
-  return `https://fonts.googleapis.com/css2?family=${encoded}:wght@300;400;500;600;700&display=swap`;
-}
-
 export default async function FontsPage() {
   const u = await requireUser();
   const ents = entitlementsFor(u.plan);
@@ -33,7 +27,10 @@ export default async function FontsPage() {
   if (!ents.customFontUpload) {
     return (
       <div className="space-y-4">
-        <h1 className="font-display text-3xl text-gold-grad">Custom fonts</h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="font-display text-3xl text-gold-grad">Custom fonts</h1>
+          <Link href="/edit" className="btn-ghost px-3 py-2 text-xs">Back to editor</Link>
+        </div>
         <div className="card p-6">
           <p className="text-sm text-ivory-mute">Custom font upload is a Pro feature.</p>
           <Link href="/pricing" className="btn-primary mt-4 inline-block">Upgrade to Pro</Link>
@@ -60,11 +57,14 @@ export default async function FontsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl text-gold-grad">Custom fonts</h1>
-        <p className="mt-1 text-sm text-ivory-mute">
-          Save a Google Font or upload .woff2 files. {fonts.length} fonts · {(totalBytes / 1024).toFixed(0)} KB total.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl text-gold-grad">Custom fonts</h1>
+          <p className="mt-1 text-sm text-ivory-mute">
+            Save a Google Font or upload .woff2 files. {fonts.length} fonts · {(totalBytes / 1024).toFixed(0)} KB total.
+          </p>
+        </div>
+        <Link href="/edit" className="btn-ghost px-3 py-2 text-xs">Back to editor</Link>
       </div>
 
       <section className="card space-y-3 p-4">
@@ -72,8 +72,8 @@ export default async function FontsPage() {
           <p className="text-xs uppercase tracking-widest text-ivory-mute">Google Fonts</p>
           <p className="mt-1 text-sm text-ivory-dim">Pick a hosted font and make it active on your public profile.</p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {GOOGLE_FONTS.map((family) => {
+        <div className="grid max-h-[28rem] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-4">
+          {GOOGLE_FONT_FAMILIES.map((family) => {
             const url = googleFontUrl(family);
             const active = activeUrl === url;
             return (

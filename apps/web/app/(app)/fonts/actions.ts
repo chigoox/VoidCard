@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
+import { GOOGLE_FONT_FAMILIES, googleFontUrl } from "@/lib/fonts/google";
 import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -23,13 +24,8 @@ const AddSchema = z.object({
 });
 
 const GoogleFontSchema = z.object({
-  family: z.enum(["Inter", "Fraunces", "Playfair Display", "Montserrat", "Poppins", "Lora", "DM Sans", "Oswald"]),
+  family: z.enum(GOOGLE_FONT_FAMILIES),
 });
-
-function googleFontUrl(family: string) {
-  const encoded = family.trim().replace(/\s+/g, "+");
-  return `https://fonts.googleapis.com/css2?family=${encoded}:wght@300;400;500;600;700&display=swap`;
-}
 
 export async function createFontRecord(input: unknown) {
   const u = await requireUser();

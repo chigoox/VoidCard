@@ -919,6 +919,16 @@ function SectionEditorFields({
             />
             Cover banner fills full width of the screen
           </label>
+          <label className="flex items-center gap-2 text-sm text-ivory md:col-span-2">
+            <input
+              type="checkbox"
+              checked={p.coverShadow ?? false}
+              onChange={(event) => onChange({ ...section, props: { ...p, coverShadow: event.target.checked } })}
+              className="size-4 rounded border-onyx-700 bg-onyx-950"
+              data-testid="cover-shadow"
+            />
+            Add cover image drop shadow
+          </label>
         </div>
       );
     }
@@ -1789,6 +1799,16 @@ export default function EditorClient({
     markDirty();
   }
 
+  function selectTheme(nextThemeId: string) {
+    pushHistory();
+    const nextTheme = getThemePreset(nextThemeId);
+    setThemeId(nextTheme.id);
+    if (!studio.customColors) {
+      setCustomCssState(writeStyleStudio({ ...studio, accent: nextTheme.vars["--vc-accent"] ?? studio.accent }, customCssRest));
+    }
+    markDirty();
+  }
+
   function pushHistory() {
     if (skipHistory.current) return;
     const snap: Snapshot = { sections, themeId, customCss };
@@ -1918,7 +1938,7 @@ export default function EditorClient({
     const base = { id, type, visible: true } as const;
     let nextSection: SectionRecord;
     switch (type) {
-      case "header": nextSection = { ...base, type, props: { name: "Your name", showVerified: true, coverFullBleed: false } }; break;
+      case "header": nextSection = { ...base, type, props: { name: "Your name", showVerified: true, coverFullBleed: false, coverShadow: false } }; break;
       case "link": nextSection = { ...base, type, props: { label: "New link", url: "https://example.com", style: "pill" } }; break;
       case "image": nextSection = { ...base, type, props: { src: "https://placehold.co/600x600", alt: "", rounded: true, fullWidth: false } }; break;
       case "spotify": nextSection = { ...base, type, props: { uri: "spotify:track:11dFghVXANMlKmJXsNCbNl" } }; break;
@@ -2778,7 +2798,7 @@ export default function EditorClient({
                     type="button"
                     role="radio"
                     aria-checked={active}
-                    onClick={() => { pushHistory(); markDirty(); setThemeId(theme.id); }}
+                    onClick={() => selectTheme(theme.id)}
                     className={[
                       "relative flex shrink-0 flex-col gap-2 rounded-card border p-3 text-left transition",
                       active ? "border-gold bg-gold/10 shadow-[0_0_0_1px_rgba(212,168,83,0.35),0_10px_24px_-18px_rgba(212,168,83,0.9)]" : "border-onyx-700 bg-onyx-950/50 hover:border-onyx-600",
@@ -2804,7 +2824,7 @@ export default function EditorClient({
 
         </section>
 
-        <StyleStudioPanel studio={studio} onChange={setStudio} />
+        <StyleStudioPanel studio={studio} onChange={setStudio} themeId={themeId} />
 
         </div> : null}
 

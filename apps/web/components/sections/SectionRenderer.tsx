@@ -114,10 +114,15 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
             ? { width: "100%", marginLeft: 0, marginRight: 0, borderRadius: 0, border: "none" }
             : { width: "calc(100% + 40px)", marginLeft: "-20px", marginRight: "-20px", borderRadius: 0, border: "none" })
         : undefined;
+      const coverStyle: CSSProperties = {
+        ...cardStyle,
+        ...fullBleedStyle,
+        boxShadow: p.coverShadow ? cardStyle.boxShadow : "none",
+      };
       return (
         <header className={["relative flex flex-col items-center text-center", fullBleedTopHeader ? "" : "pt-6"].join(" ").trim()} style={{ color: "var(--vc-fg, #f7f3ea)" }}>
           {p.coverUrl ? (
-            <div className={["relative mb-0 w-full overflow-hidden", fullBleedTopHeader ? "sticky top-0 z-0" : ""].join(" ").trim()} style={{ ...cardStyle, ...fullBleedStyle }}>
+            <div className={["relative mb-0 w-full overflow-hidden", fullBleedTopHeader ? "sticky top-0 z-0" : ""].join(" ").trim()} style={coverStyle} data-vc-header-cover>
               <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className={fullBleedTopHeader ? "h-48 w-full object-cover sm:h-64" : "h-36 w-full object-cover"} />
               <div
                 className="pointer-events-none absolute inset-x-0 bottom-0 h-24"

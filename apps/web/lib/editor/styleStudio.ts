@@ -11,9 +11,8 @@ export type StyleStudio = {
   background: "solid" | "gradient" | "mesh";
   buttonShadow: boolean;
   // When true, the color overrides below are emitted to override the active
-  // theme preset's --vc-* variables. When false, only `accent` is applied
-  // (matches legacy behaviour) and the rest of the palette comes from the
-  // selected theme preset.
+  // theme preset's --vc-* variables. When false, the palette and accent come
+  // from the selected theme preset.
   customColors: boolean;
   bg: string;
   bg2: string;
@@ -103,6 +102,7 @@ function parseBlock(block: string): StyleStudio {
 function renderBlock(s: StyleStudio): string {
   const colorOverrides = s.customColors
     ? [
+        `  --vc-accent: ${s.accent};`,
         `  --vc-bg: ${s.bg};`,
         `  --vc-bg-2: ${s.bg2};`,
         `  --vc-fg: ${s.fg};`,
@@ -114,7 +114,6 @@ function renderBlock(s: StyleStudio): string {
     MARKER_OPEN,
     ".vc-profile {",
     `  --vc-custom-colors: ${s.customColors ? 1 : 0};`,
-    `  --vc-accent: ${s.accent};`,
     ...colorOverrides,
     `  --vc-radius: ${s.radius}px;`,
     `  --vc-gap: ${s.gap}px;`,

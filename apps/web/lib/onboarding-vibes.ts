@@ -24,7 +24,7 @@ function header(name: string, tagline: string): Sections[number] {
     id: uid(),
     type: "header",
     visible: true,
-    props: { name, tagline, showVerified: true, coverFullBleed: false },
+    props: { name, tagline, showVerified: true, coverFullBleed: false, coverShadow: false },
   };
 }
 
