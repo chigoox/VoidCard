@@ -2334,10 +2334,22 @@ export default function EditorClient({
         <section className="card flex flex-wrap items-center justify-between gap-3 p-4" data-testid="share-row">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-widest text-ivory-mute">Public profile</p>
-            <p className="truncate font-display text-sm text-ivory">{`/u/${username}`}</p>
+            <p className="truncate font-display text-sm text-ivory">{username ? `/u/${username}` : "Set a username in Profile settings"}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/u/${username}`} target="_blank" rel="noopener noreferrer" className="btn-ghost px-3 py-2 text-xs">Open live</Link>
+            <a
+              href={username ? `/u/${username}` : "/settings"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-ghost px-3 py-2 text-xs"
+              data-testid="open-live"
+              aria-disabled={!username || undefined}
+              onClick={(e) => {
+                if (!username) { e.preventDefault(); setErrorMessage("Set a username in Profile settings before opening your public profile."); }
+              }}
+            >
+              Open live ↗
+            </a>
             <button type="button" onClick={copyShareUrl} className="btn-ghost px-3 py-2 text-xs" data-testid="copy-share">
               {shareCopied ? "Copied!" : "Copy link"}
             </button>
