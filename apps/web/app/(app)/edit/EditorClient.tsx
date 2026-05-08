@@ -2381,24 +2381,139 @@ export default function EditorClient({
 
       <div className="order-1 min-w-0 flex flex-col gap-4 pb-24 md:order-1 md:pb-0">
 
-        {/* ─── Tab bar ─── */}
-        <div role="tablist" className="card flex overflow-hidden p-0">
-          {(["sections", "style", "settings", "advanced"] as const).map((tab) => (
-            <button
-              key={tab}
-              role="tab"
-              aria-selected={editorTab === tab}
-              onClick={() => setEditorTab(tab)}
-              className={[
-                "flex-1 px-2 py-3 text-xs uppercase tracking-widest transition",
-                editorTab === tab
-                  ? "bg-onyx-900 text-gold shadow-[inset_0_-2px_0_rgba(212,168,83,0.8)]"
-                  : "text-ivory-mute hover:bg-onyx-900/40 hover:text-ivory",
-              ].join(" ")}
-            >
-              {tab === "sections" ? "Sections" : tab === "style" ? "Style" : tab === "settings" ? "Settings" : "Advanced"}
-            </button>
-          ))}
+        {/* ─── Sticky editor controls ─── */}
+        <div className="sticky top-[calc(var(--safe-top)+3.5rem)] z-20 -mx-1 space-y-3 px-1 pb-3 sm:top-[calc(var(--safe-top)+4rem)] md:top-24">
+          <div role="tablist" className="card flex overflow-hidden p-0 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-onyx-950/85">
+            {(["sections", "style", "settings", "advanced"] as const).map((tab) => (
+              <button
+                key={tab}
+                role="tab"
+                aria-selected={editorTab === tab}
+                onClick={() => setEditorTab(tab)}
+                className={[
+                  "flex-1 px-2 py-3 text-xs uppercase tracking-widest transition",
+                  editorTab === tab
+                    ? "bg-onyx-900 text-gold shadow-[inset_0_-2px_0_rgba(212,168,83,0.8)]"
+                    : "text-ivory-mute hover:bg-onyx-900/40 hover:text-ivory",
+                ].join(" ")}
+              >
+                {tab === "sections" ? "Sections" : tab === "style" ? "Style" : tab === "settings" ? "Settings" : "Advanced"}
+              </button>
+            ))}
+          </div>
+
+          {editorTab === "sections" ? (
+            <div className="card relative space-y-3 border border-onyx-700 bg-onyx-950/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-onyx-950/85">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-widest text-ivory-mute">
+                    Sections {sections.length > 0 ? <span className="ml-1 text-ivory-dim/70 normal-case tracking-normal">· {sections.length}</span> : null}
+                  </p>
+                  {sections.length === 0 ? (
+                    <p className="mt-1 text-sm text-ivory-dim">Your profile is empty — add your first section below.</p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTemplatesOpen((o) => !o)}
+                    className="btn-ghost px-3 py-2 text-xs"
+                    aria-expanded={templatesOpen}
+                    data-testid="templates-trigger"
+                  >
+                    Templates
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddMenuOpen((open) => !open)}
+                    className="btn-gold px-4 py-2 text-sm"
+                    aria-expanded={addMenuOpen}
+                    aria-haspopup="menu"
+                    data-testid="add-section-trigger"
+                  >
+                    {addMenuOpen ? "Close" : "+ Add section"}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <input
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder="Filter sections…"
+                  className={`${INPUT_CLASS_NAME} max-w-xs flex-1`}
+                  data-testid="section-filter"
+                />
+                <details className="relative" data-testid="sections-more-menu">
+                  <summary
+                    className="btn-ghost cursor-pointer list-none px-3 py-2 text-xs [&::-webkit-details-marker]:hidden"
+                    aria-label="More section tools"
+                  >
+                    More ⋯
+                  </summary>
+                  <div className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-card border border-onyx-700 bg-onyx-950 shadow-lg">
+                    <button type="button" onClick={expandAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Expand all</button>
+                    <button type="button" onClick={collapseAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Collapse all</button>
+                    <button type="button" onClick={hideAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Hide all</button>
+                    <button type="button" onClick={showAll} className="block w-full border-b border-onyx-800 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Show all</button>
+                    <button type="button" onClick={pasteSectionJson} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="paste-section">Paste section JSON</button>
+                    <button type="button" onClick={() => setBulkLinksOpen(true)} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="bulk-links-trigger">Bulk add links</button>
+                    <button type="button" onClick={openProductPicker} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="product-picker-trigger">Add product link</button>
+                  </div>
+                </details>
+              </div>
+              <AnimatePresence>
+                {templatesOpen ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="mt-3 flex gap-2 overflow-x-auto overscroll-x-contain pb-1"
+                    data-testid="templates-menu"
+                  >
+                    {SECTION_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => applyTemplate(tpl.id)}
+                        className="min-w-[16rem] max-w-[18rem] shrink-0 rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-3 text-left hover:border-gold/40"
+                        data-testid={`template-${tpl.id}`}
+                      >
+                        <p className="font-display text-sm text-ivory">{tpl.name}</p>
+                        <p className="mt-1 text-xs text-ivory-mute">{tpl.description}</p>
+                      </button>
+                    ))}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+              <AnimatePresence>
+                {addMenuOpen ? (
+                  <motion.div
+                    role="menu"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="mt-3 grid auto-cols-max grid-flow-col grid-rows-2 gap-2 overflow-x-auto overscroll-x-contain pb-1"
+                    data-testid="add-section-menu"
+                  >
+                    {SECTION_TYPES.map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => addSection(type)}
+                        data-testid={`add-${type}`}
+                        className="flex shrink-0 items-center gap-2 rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
+                      >
+                        <Plus className="size-3.5 text-gold" aria-hidden />
+                        {type}
+                      </button>
+                    ))}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+          ) : null}
         </div>
 
         {/* ─── Settings tab ─── */}
@@ -2720,119 +2835,6 @@ export default function EditorClient({
 
         {/* ─── Sections tab ─── */}
         {editorTab === "sections" ? <div className="flex flex-col gap-4">
-
-        <div className="sticky top-0 z-20 -mx-1 px-1 pt-1 pb-3 md:top-24">
-        <div className="card relative space-y-3 border border-onyx-700 bg-onyx-950/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-onyx-950/85">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-xs uppercase tracking-widest text-ivory-mute">
-                Sections {sections.length > 0 ? <span className="ml-1 text-ivory-dim/70 normal-case tracking-normal">· {sections.length}</span> : null}
-              </p>
-              {sections.length === 0 ? (
-                <p className="mt-1 text-sm text-ivory-dim">Your profile is empty — add your first section below.</p>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setTemplatesOpen((o) => !o)}
-                className="btn-ghost px-3 py-2 text-xs"
-                aria-expanded={templatesOpen}
-                data-testid="templates-trigger"
-              >
-                Templates
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddMenuOpen((open) => !open)}
-                className="btn-gold px-4 py-2 text-sm"
-                aria-expanded={addMenuOpen}
-                aria-haspopup="menu"
-                data-testid="add-section-trigger"
-              >
-                {addMenuOpen ? "Close" : "+ Add section"}
-              </button>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filter sections…"
-              className={`${INPUT_CLASS_NAME} max-w-xs flex-1`}
-              data-testid="section-filter"
-            />
-            <details className="relative" data-testid="sections-more-menu">
-              <summary
-                className="btn-ghost cursor-pointer list-none px-3 py-2 text-xs [&::-webkit-details-marker]:hidden"
-                aria-label="More section tools"
-              >
-                More ⋯
-              </summary>
-              <div className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-card border border-onyx-700 bg-onyx-950 shadow-lg">
-                <button type="button" onClick={expandAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Expand all</button>
-                <button type="button" onClick={collapseAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Collapse all</button>
-                <button type="button" onClick={hideAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Hide all</button>
-                <button type="button" onClick={showAll} className="block w-full border-b border-onyx-800 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Show all</button>
-                <button type="button" onClick={pasteSectionJson} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="paste-section">Paste section JSON</button>
-                <button type="button" onClick={() => setBulkLinksOpen(true)} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="bulk-links-trigger">Bulk add links</button>
-                <button type="button" onClick={openProductPicker} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="product-picker-trigger">Add product link</button>
-              </div>
-            </details>
-          </div>
-          <AnimatePresence>
-            {templatesOpen ? (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                className="mt-3 flex gap-2 overflow-x-auto overscroll-x-contain pb-1"
-                data-testid="templates-menu"
-              >
-                {SECTION_TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => applyTemplate(tpl.id)}
-                    className="min-w-[16rem] max-w-[18rem] shrink-0 rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-3 text-left hover:border-gold/40"
-                    data-testid={`template-${tpl.id}`}
-                  >
-                    <p className="font-display text-sm text-ivory">{tpl.name}</p>
-                    <p className="mt-1 text-xs text-ivory-mute">{tpl.description}</p>
-                  </button>
-                ))}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-          <AnimatePresence>
-            {addMenuOpen ? (
-              <motion.div
-                role="menu"
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                className="mt-3 grid auto-cols-max grid-flow-col grid-rows-2 gap-2 overflow-x-auto overscroll-x-contain pb-1"
-                data-testid="add-section-menu"
-              >
-                {SECTION_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => addSection(type)}
-                    data-testid={`add-${type}`}
-                    className="flex shrink-0 items-center gap-2 rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
-                  >
-                    <Plus className="size-3.5 text-gold" aria-hidden />
-                    {type}
-                  </button>
-                ))}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>{/* /relative */}
-        </div>{/* /sticky header */}
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
           <SortableContext items={sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>

@@ -134,14 +134,14 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
               <img src={p.avatarUrl} alt={p.name} loading="lazy" decoding="async" className="size-24 rounded-full object-cover" />
             </div>
           ) : null}
-          <h1 className="relative z-10 mt-3 font-display text-2xl leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]" style={{ color: "var(--vc-fg, #f7f3ea)" }}>
+          <h1 className="relative z-10 mt-3 w-full break-words px-4 font-display text-2xl leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]" style={{ color: "var(--vc-fg, #f7f3ea)", maxWidth: "calc(100% - 2rem)", overflowWrap: "anywhere" }}>
             {p.name}
             {verified && p.showVerified ? (
               <span className="ml-1" style={{ color: "var(--vc-accent, #d4af37)" }}>✓</span>
             ) : null}
           </h1>
-          {p.handle ? <p className="relative z-10 mt-1 text-sm font-medium" style={{ color: "color-mix(in srgb, var(--vc-fg-mute, #a8a39a) 86%, var(--vc-accent, #d4af37))" }}>@{p.handle}</p> : null}
-          {p.tagline ? <p className="relative z-10 mt-2 max-w-sm text-balance text-sm leading-relaxed" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.tagline}</p> : null}
+          {p.handle ? <p className="relative z-10 mt-1 w-full break-words px-4 text-sm font-medium" style={{ color: "color-mix(in srgb, var(--vc-fg-mute, #a8a39a) 86%, var(--vc-accent, #d4af37))", maxWidth: "calc(100% - 2rem)", overflowWrap: "anywhere" }}>@{p.handle}</p> : null}
+          {p.tagline ? <p className="relative z-10 mt-2 w-full max-w-sm text-balance px-4 text-sm leading-relaxed" style={{ color: "var(--vc-fg-mute, #a8a39a)", maxWidth: "min(24rem, calc(100% - 2rem))", overflowWrap: "anywhere" }}>{p.tagline}</p> : null}
         </header>
       );
     }

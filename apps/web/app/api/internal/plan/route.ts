@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { planWithRole } from "@/lib/auth";
+import { planWithRole } from "@/lib/entitlements";
 import { loadPrimaryProfile } from "@/lib/profiles";
 
 export const runtime = "nodejs";

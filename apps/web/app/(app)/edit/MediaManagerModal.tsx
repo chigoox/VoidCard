@@ -200,8 +200,11 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
       }}
       data-testid="media-manager-modal"
     >
-      <div className="card safe-max-h-screen flex w-full flex-col gap-3 overflow-hidden rounded-t-card border border-onyx-700 bg-onyx-950 p-4 sm:max-w-3xl sm:rounded-card">
-        <div className="flex items-center justify-between gap-3">
+      <div
+        className="card safe-max-h-screen flex min-h-0 w-full flex-col gap-3 overflow-hidden rounded-t-card border border-onyx-700 bg-onyx-950 p-4 sm:max-w-3xl sm:rounded-card"
+        style={{ height: "min(42rem, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem))" }}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3">
           <h2 className="text-base font-medium text-ivory">
             {kind === "image" ? "Image library" : "Video library"}
           </h2>
@@ -211,7 +214,7 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
         </div>
 
         {showAi ? (
-          <div className="flex gap-1 rounded-pill border border-onyx-800 bg-onyx-950/80 p-1 text-xs">
+          <div className="flex shrink-0 gap-1 rounded-pill border border-onyx-800 bg-onyx-950/80 p-1 text-xs">
             <button
               type="button"
               className={`flex-1 rounded-pill px-3 py-1.5 transition ${tab === "library" ? "bg-gold/20 text-gold" : "text-ivory-mute"}`}
@@ -232,8 +235,8 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
         ) : null}
 
         {tab === "library" ? (
-          <>
-            <div className="flex flex-wrap gap-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
+            <div className="flex shrink-0 flex-wrap gap-2">
               <input
                 type="search"
                 value={search}
@@ -252,7 +255,7 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
                 <option value="ai">AI-generated</option>
               </select>
             </div>
-            <div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 md:grid-cols-4">
+            <div className="grid min-h-0 flex-1 content-start grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4" data-testid="media-library-scroll">
               {items.map((item) => (
                 <div key={item.id} className="group relative overflow-hidden rounded-card border border-onyx-800 bg-onyx-950">
                   <button
@@ -291,7 +294,7 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
               ) : null}
             </div>
             {error ? <p className="text-xs text-red-300">{error}</p> : null}
-            <div className="flex items-center justify-between text-xs text-ivory-mute">
+            <div className="flex shrink-0 items-center justify-between text-xs text-ivory-mute">
               <span>{items.length} item{items.length === 1 ? "" : "s"}</span>
               {hasMore ? (
                 <button
@@ -305,9 +308,9 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
                 </button>
               ) : null}
             </div>
-          </>
+          </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
             <div className="flex items-center justify-between rounded-card border border-onyx-800 bg-onyx-950/60 px-3 py-2 text-xs">
               <span className="text-ivory-mute">
                 Credits:{" "}
