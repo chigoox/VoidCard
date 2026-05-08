@@ -13,6 +13,11 @@ export function PublicProfileActions({
   vcardUrl: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const actionStyle = {
+    background: "var(--vc-accent, #d4af37)",
+    color: "var(--vc-bg, #0a0a0a)",
+    boxShadow: "0 12px 32px -18px color-mix(in srgb, var(--vc-accent, #d4af37) 80%, transparent)",
+  };
 
   async function shareProfile() {
     const shareData = {
@@ -41,7 +46,8 @@ export function PublicProfileActions({
     <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2" data-vc-profile-actions>
       <a
         href={vcardUrl}
-        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-card bg-[#5fd96f] px-4 py-3 text-sm font-semibold text-[#06230b] shadow-[0_12px_32px_-18px_rgba(95,217,111,0.8)] transition hover:brightness-105 active:scale-[0.99]"
+        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-card px-4 py-3 text-sm font-semibold transition hover:brightness-105 active:scale-[0.99]"
+        style={actionStyle}
         data-testid="public-save-contact"
       >
         <Download className="size-4" aria-hidden />
@@ -50,7 +56,8 @@ export function PublicProfileActions({
       <button
         type="button"
         onClick={shareProfile}
-        className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-card bg-[#5fd96f] px-3 text-[#06230b] shadow-[0_12px_32px_-18px_rgba(95,217,111,0.8)] transition hover:brightness-105 active:scale-[0.98]"
+        className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-card px-3 transition hover:brightness-105 active:scale-[0.98]"
+        style={actionStyle}
         aria-label={copied ? "Profile link copied" : "Share profile"}
         data-testid="public-share-profile"
       >

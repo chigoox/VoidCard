@@ -47,6 +47,7 @@ import { LINK_ICON_OPTIONS, LinkIconGlyph } from "@/components/sections/LinkIcon
 import { THEME_PRESETS, getThemePreset, themeToCss } from "@/lib/themes/presets";
 import { SECTION_TEMPLATES } from "@/lib/editor/templates";
 import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/editor/styleStudio";
+import { readProfileIntegrations, writeProfileIntegrations, type ProfileIntegrations } from "@/lib/profile-integrations";
 
 const StyleStudioPanel = dynamic(() => import("./StyleStudioPanel"), {
   ssr: false,
@@ -1331,6 +1332,18 @@ function SectionEditorFields({
               />
               Open full-size on click (lightbox)
             </label>
+            {layout === "carousel" ? (
+              <label className="flex items-center gap-2 text-sm text-ivory md:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={p.carouselFullWidth ?? false}
+                  onChange={(event) => onChange({ ...section, props: { ...p, carouselFullWidth: event.target.checked } })}
+                  className="size-4 rounded border-onyx-700 bg-onyx-950"
+                  data-testid={`gallery-carousel-full-width-${section.id}`}
+                />
+                Full-width swipe carousel
+              </label>
+            ) : null}
           </div>
           <GalleryBulkImageControls
             images={p.images}
@@ -1954,9 +1967,16 @@ export default function EditorClient({
 
   // Style studio: parsed from customCss prefix, persisted back into it.
   const { studio, rest: customCssRest } = readStyleStudio(customCss);
+  const { integrations: profileIntegrations, rest: integrationsCssRest } = readProfileIntegrations(customCss);
   function setStudio(next: StyleStudio) {
     pushHistory();
     setCustomCssState(writeStyleStudio(next, customCssRest));
+    markDirty();
+  }
+
+  function setProfileIntegrations(next: ProfileIntegrations) {
+    pushHistory();
+    setCustomCssState(writeProfileIntegrations(next, integrationsCssRest));
     markDirty();
   }
 
@@ -2117,7 +2137,7 @@ export default function EditorClient({
       case "video": nextSection = { ...base, type, props: { src: "https://example.com/video.mp4" } }; break;
       case "map": nextSection = { ...base, type, props: { lat: 40.7128, lng: -74.006, label: "NYC" } }; break;
       case "embed": nextSection = { ...base, type, props: { html: "<p>Embed</p>", height: 300, autoHeight: false, allowDomains: [] } }; break;
-        case "gallery": nextSection = { ...base, type, props: { images: [{ src: "https://placehold.co/600", alt: "" }], layout: "grid", lightbox: true, filters: [], showCategoryStories: false } }; break;
+        case "gallery": nextSection = { ...base, type, props: { images: [{ src: "https://placehold.co/600", alt: "" }], layout: "grid", lightbox: true, carouselFullWidth: false, filters: [], showCategoryStories: false } }; break;
       case "store": nextSection = { ...base, type, props: { title: "Shop", productIds: [], layout: "grid", showPrice: true, buttonLabel: "Buy now" } }; break;
       case "booking": nextSection = { ...base, type, props: { provider: "boox", ownerSlug: username, mode: "embed", theme: "onyx", height: 820, ctaLabel: "Book now" } }; break;
     }
@@ -2995,6 +3015,33 @@ export default function EditorClient({
 
         {/* ─── Advanced tab ─── */}
         {editorTab === "advanced" ? <div className="space-y-4">
+        <section className="card space-y-4 p-4" data-testid="profile-pixels-panel">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-ivory-mute">Ads and analytics pixels</p>
+            <p className="mt-1 text-xs text-ivory-dim">Add your own profile-level Google Analytics and Meta Pixel IDs. They load on the public page only after the visitor grants the matching cookie consent.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label="Google Analytics Measurement ID">
+              <input
+                className={INPUT_CLASS_NAME}
+                value={profileIntegrations.googleAnalyticsId ?? ""}
+                placeholder="G-XXXXXXXXXX"
+                onChange={(event) => setProfileIntegrations({ ...profileIntegrations, googleAnalyticsId: event.target.value })}
+                data-testid="google-analytics-id"
+              />
+            </Field>
+            <Field label="Facebook / Meta Pixel ID">
+              <input
+                className={INPUT_CLASS_NAME}
+                value={profileIntegrations.facebookPixelId ?? ""}
+                inputMode="numeric"
+                placeholder="123456789012345"
+                onChange={(event) => setProfileIntegrations({ ...profileIntegrations, facebookPixelId: event.target.value })}
+                data-testid="facebook-pixel-id"
+              />
+            </Field>
+          </div>
+        </section>
 
         <section className="card space-y-4 p-4">
           <div>

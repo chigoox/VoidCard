@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PublicMarketingPixels } from "@/components/profile/PublicMarketingPixels";
 import { PublicProfileActions } from "@/components/profile/PublicProfileActions";
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
 import { Sections } from "@/lib/sections/types";
@@ -16,6 +17,7 @@ import {
 } from "@/lib/profile-password";
 import { queueWebhookEvent } from "@/lib/webhook-queue";
 import { getThemePreset, themeToCss } from "@/lib/themes/presets";
+import { readProfileIntegrations } from "@/lib/profile-integrations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -162,6 +164,7 @@ export default async function PublicProfilePage({
   const sectionsRaw = variant?.sections ?? profile.sections;
   const parsed = Sections.safeParse(sectionsRaw);
   const sections = parsed.success ? parsed.data : [];
+  const { integrations } = readProfileIntegrations(profile.customCss ?? "");
   const actionAfterIndex = sections.findIndex((section) => section.visible !== false && section.type === "header");
   const profileActions = (
     <PublicProfileActions
@@ -173,7 +176,7 @@ export default async function PublicProfilePage({
 
   const ua = h.get("user-agent") ?? "";
   const ref = h.get("referer") ?? "";
-  void recordTap(profile.ownerUserId, "link", ua, ref).catch(() => null);
+  void recordTap(profile.ownerUserId, "link", ua, ref, h).catch(() => null);
   if (variant) void incrementVariantViews(variant.id).catch(() => null);
 
   const linkUrls: string[] = Array.isArray(profile.links)
@@ -203,6 +206,7 @@ export default async function PublicProfilePage({
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={jsonLdScript(ld)}
       />
+      <PublicMarketingPixels {...integrations} />
       <link
         rel="alternate"
         type="application/json"
@@ -268,15 +272,19 @@ function googleFontFamilyFromUrl(url: string) {
   }
 }
 
-async function recordTap(userId: string, source: string, ua: string, ref: string) {
+async function recordTap(userId: string, source: string, ua: string, ref: string, h: Headers) {
   const admin = createAdminClient();
   const ipHash = "edge";
   const uaHash = await sha256(ua);
+  const geo = geoFromHeaders(h);
   await admin.from("vcard_taps").insert({
     user_id: userId,
     source,
     ua_hash: uaHash,
     ip_hash: ipHash,
+    country: geo.country,
+    region: geo.region,
+    city: geo.city,
     referrer: ref,
   });
   await queueWebhookEvent(userId, "tap.created", {
@@ -284,6 +292,28 @@ async function recordTap(userId: string, source: string, ua: string, ref: string
     referrer: ref,
     created_at: new Date().toISOString(),
   }).catch(() => null);
+}
+
+function geoFromHeaders(h: Headers) {
+  return {
+    country: cleanGeo(h.get("x-vercel-ip-country")) ?? cleanGeo(h.get("cf-ipcountry")),
+    region: cleanGeo(h.get("x-vercel-ip-country-region")),
+    city: cleanGeo(decodeGeo(h.get("x-vercel-ip-city"))),
+  };
+}
+
+function decodeGeo(value: string | null) {
+  if (!value) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function cleanGeo(value: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 80) : null;
 }
 
 async function sha256(s: string) {

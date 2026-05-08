@@ -10,11 +10,13 @@ export function GallerySectionClient({
   images,
   layout,
   lightbox,
+  carouselFullWidth,
   radius,
 }: {
   images: GalleryImage[];
   layout: GalleryLayout;
   lightbox: boolean;
+  carouselFullWidth: boolean;
   filters: string[];
   showCategoryStories: boolean;
   radius: string;
@@ -59,12 +61,12 @@ export function GallerySectionClient({
 
   const list = images.map((image, index) => {
     if (layout === "carousel") {
-      return <Tile key={index} image={image} index={index} className="aspect-square min-w-[60%] flex-shrink-0 snap-center" />;
+      return <Tile key={index} image={image} index={index} className={carouselFullWidth ? "aspect-[4/5] min-w-full flex-shrink-0 snap-center snap-always" : "aspect-square min-w-[60%] flex-shrink-0 snap-center"} />;
     }
     if (layout === "masonry") {
       return (
-        <div key={index} className="mb-2 break-inside-avoid">
-          <Tile image={image} index={index} className="w-full" />
+        <div key={index} className="break-inside-avoid sm:mb-2">
+          <Tile image={image} index={index} className="aspect-square w-full sm:aspect-auto" />
         </div>
       );
     }
@@ -74,12 +76,12 @@ export function GallerySectionClient({
   let container: React.ReactNode;
   if (layout === "carousel") {
     container = (
-      <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto" style={{ scrollPaddingLeft: 8 }}>
+      <div className={["flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-smooth", carouselFullWidth ? "-mx-4 sm:-mx-6" : ""].join(" ").trim()} style={{ scrollPaddingLeft: carouselFullWidth ? 0 : 8 }}>
         {list}
       </div>
     );
   } else if (layout === "masonry") {
-    container = <div className="columns-2 gap-2 sm:columns-3">{list}</div>;
+    container = <div className="grid grid-cols-2 gap-2 sm:block sm:columns-3 sm:gap-2">{list}</div>;
   } else {
     container = <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{list}</div>;
   }

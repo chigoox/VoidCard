@@ -237,7 +237,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
               <span className="block truncate text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.email}</span>
             </span>
           </span>
-          <span style={{ color: "var(--vc-accent, #d4af37)" }}>→</span>
+          <span className="shrink-0" style={{ color: "var(--vc-accent, #d4af37)" }}><LinkIconGlyph name="external" className="size-4" /></span>
         </a>
       );
     }
@@ -355,6 +355,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
           images={section.props.images}
           layout={section.props.layout ?? "grid"}
           lightbox={section.props.lightbox ?? true}
+          carouselFullWidth={section.props.carouselFullWidth ?? false}
           filters={section.props.filters ?? []}
           showCategoryStories={section.props.showCategoryStories ?? false}
           radius="var(--vc-radius, 14px)"

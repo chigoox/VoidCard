@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "vc.consent.v1";
 const COOKIE_ID_KEY = "vc.cookie_id";
+const CONSENT_EVENT = "vc:consent";
 
 type Choice = { analytics: boolean; marketing: boolean; ts: number };
 
@@ -54,6 +55,7 @@ export function ConsentBanner() {
     } catch {
       /* network failure: client choice still recorded locally */
     }
+    window.dispatchEvent(new CustomEvent(CONSENT_EVENT, { detail: { analytics: a, marketing: m } }));
     setOpen(false);
   }
 

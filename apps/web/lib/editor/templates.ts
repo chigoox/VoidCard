@@ -280,6 +280,7 @@ function gallery(): SectionRecord {
       ],
       layout: "grid",
       lightbox: true,
+      carouselFullWidth: false,
       filters: [],
       showCategoryStories: false,
     },

@@ -124,6 +124,7 @@ const Gallery = Base.extend({
     images: z.array(z.object({ src: z.string().url(), alt: z.string().default(""), category: z.string().max(40).optional() })).max(20),
     layout: z.enum(GALLERY_LAYOUTS).default("grid"),
     lightbox: z.boolean().default(true),
+    carouselFullWidth: z.boolean().default(false),
     filters: z.array(z.string().max(40)).max(12).default([]),
     showCategoryStories: z.boolean().default(false),
   }),

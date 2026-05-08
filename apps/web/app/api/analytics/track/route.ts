@@ -63,6 +63,7 @@ export async function POST(req: Request) {
 
   const ipHash = await hashIpEdge(ip);
   const ua = req.headers.get("user-agent") || "";
+  const geo = geoFromHeaders(req.headers);
 
   const { error } = await admin.from("vcard_taps").insert({
     user_id: userId,
@@ -71,6 +72,9 @@ export async function POST(req: Request) {
     source: (body.source ?? "embed").slice(0, 16),
     ip_hash: ipHash,
     ua_hash: ua.slice(0, 200),
+    country: geo.country,
+    region: geo.region,
+    city: geo.city,
     referrer: body.referrer?.slice(0, 500) ?? null,
     utm: body.utm ?? null,
   });
@@ -85,4 +89,26 @@ export async function POST(req: Request) {
     created_at: new Date().toISOString(),
   }).catch(() => null);
   return NextResponse.json({ ok: true });
+}
+
+function geoFromHeaders(headers: Headers) {
+  return {
+    country: cleanGeo(headers.get("x-vercel-ip-country")) ?? cleanGeo(headers.get("cf-ipcountry")),
+    region: cleanGeo(headers.get("x-vercel-ip-country-region")),
+    city: cleanGeo(decodeGeo(headers.get("x-vercel-ip-city"))),
+  };
+}
+
+function decodeGeo(value: string | null) {
+  if (!value) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function cleanGeo(value: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 80) : null;
 }
