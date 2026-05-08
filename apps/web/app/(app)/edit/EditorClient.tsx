@@ -25,7 +25,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { ArrowDown, ArrowUp, Braces, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Globe, GripVertical, MoreHorizontal, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Braces, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Globe, GripVertical, MoreHorizontal, Plus, Redo2, Save, Trash2, Undo2 } from "lucide-react";
 import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
 import {
   Section as SectionSchema,
@@ -202,46 +202,12 @@ function MediaField({
     });
   }
 
-  function rotateCurrent() {
-    if (kind !== "image" || !value) return;
-    setMessage(null);
-    startUpload(async () => {
-      try {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error("Could not load image for rotation."));
-          img.src = value;
-        });
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalHeight;
-        canvas.height = img.naturalWidth;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas not supported.");
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate(Math.PI / 2);
-        ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), "image/png", 0.92));
-        if (!blob) throw new Error("Rotation failed.");
-        const file = new File([blob], `rotated-${Date.now()}.png`, { type: "image/png" });
-        const asset = await uploadMediaAsset(file, "image");
-        onMediaAdded(asset);
-        onChange(asset.url);
-        setMessage("Rotated and uploaded.");
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not rotate.");
-      }
-    });
-  }
-
   return (
     <Field label={label} className="space-y-2">
       {value && kind === "image" ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={value} alt="" className="h-20 w-20 rounded-card border border-onyx-800 object-cover" />
       ) : null}
-      <input className={INPUT_CLASS_NAME} value={value} onChange={(event) => onChange(event.target.value)} placeholder="https://… or pick from library" />
       <div className="flex flex-wrap gap-2">
         <label className="btn-ghost cursor-pointer px-3 py-2 text-xs">
           {uploading ? "Uploading…" : "Upload"}
@@ -255,21 +221,6 @@ function MediaField({
         >
           Browse library
         </button>
-        {kind === "image" ? (
-          <button
-            type="button"
-            className="btn-ghost px-3 py-2 text-xs"
-            onClick={() => setModalOpen(true)}
-            data-testid="open-ai-gen"
-          >
-            ✨ Generate with AI
-          </button>
-        ) : null}
-        {kind === "image" && value ? (
-          <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={rotateCurrent} disabled={uploading} data-testid="rotate-image">
-            Rotate 90°
-          </button>
-        ) : null}
         {value ? (
           <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={() => onChange("")}>
             Clear
@@ -702,7 +653,6 @@ function SortableSectionRow({
     <motion.li
       ref={setNodeRef}
       style={style}
-      layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
@@ -1677,6 +1627,7 @@ export default function EditorClient({
   const [bulkLinksText, setBulkLinksText] = useState("");
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [toolbarExpanded, setToolbarExpanded] = useState(false);
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledPublishAt ?? null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -2283,7 +2234,7 @@ export default function EditorClient({
         {previewCustomCss ? <style dangerouslySetInnerHTML={{ __html: previewCustomCss }} /> : null}
         <div className="phone-frame mx-auto">
           <div
-            className="vc-profile vc-profile-preview flex h-full flex-col overflow-y-auto overscroll-contain p-5 select-none [&_a]:pointer-events-none [&_button]:pointer-events-none"
+            className="vc-profile vc-profile-preview flex h-full flex-col overflow-y-auto overscroll-contain p-5 pb-16 select-none [&_a]:pointer-events-none [&_button]:pointer-events-none"
             style={{ background: "var(--vc-bg, #0a0a0a)", color: "var(--vc-fg, #f7f3ea)" }}
             data-testid="preview-scroll"
           >
@@ -2618,8 +2569,9 @@ export default function EditorClient({
         </div> : null}
 
         {/* ─── Sections tab ─── */}
-        {editorTab === "sections" ? <div className="space-y-4">
+        {editorTab === "sections" ? <div className="flex flex-col gap-4">
 
+        <div className="sticky top-0 z-20 bg-onyx-950 pb-2 md:top-24">
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
@@ -2711,7 +2663,7 @@ export default function EditorClient({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="card mt-3 flex gap-2 overflow-x-auto overscroll-x-contain p-3 pb-4"
+                className="mt-3 flex flex-wrap gap-2"
                 data-testid="add-section-menu"
               >
                 {SECTION_TYPES.map((type) => (
@@ -2720,7 +2672,7 @@ export default function EditorClient({
                     type="button"
                     onClick={() => addSection(type)}
                     data-testid={`add-${type}`}
-                    className="flex min-w-[8.75rem] shrink-0 items-center gap-2 truncate rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
+                    className="flex items-center gap-2 truncate rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
                   >
                     <Plus className="size-3.5 text-gold" aria-hidden />
                     {type}
@@ -2729,11 +2681,12 @@ export default function EditorClient({
               </motion.div>
             ) : null}
           </AnimatePresence>
-        </div>
+        </div>{/* /relative */}
+        </div>{/* /sticky header */}
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
-            <motion.ul layout className="space-y-3" data-testid="section-list">
+            <ul className="space-y-3" data-testid="section-list">
               <AnimatePresence initial={false}>
                 {sections.map((section, index) => {
                   if (filter && !sectionMatchesFilter(section, filter)) return null;
@@ -2758,20 +2711,20 @@ export default function EditorClient({
                   );
                 })}
               </AnimatePresence>
-            </motion.ul>
+            </ul>
           </SortableContext>
         </DndContext>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost px-3 py-2 text-xs" aria-label="Undo" title="Undo (Ctrl+Z)" data-testid="undo">↶ Undo</button>
-          <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost px-3 py-2 text-xs" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" data-testid="redo">↷ Redo</button>
+        <div className="hidden md:flex md:flex-wrap md:items-center md:gap-2">
+          <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs" aria-label="Undo" title="Undo (Ctrl+Z)" data-testid="undo"><Undo2 className="size-3.5" aria-hidden /> Undo</button>
+          <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" data-testid="redo"><Redo2 className="size-3.5" aria-hidden /> Redo</button>
           <button type="button" onClick={onSave} disabled={pending} className="btn-ghost inline-flex items-center gap-1.5" data-testid="save-draft">
             <Save className="size-3.5" aria-hidden />
-            <span className="hidden sm:inline">Save draft</span>
+            Save draft
           </button>
           <button type="button" onClick={onPublish} disabled={pending} className="btn-gold inline-flex items-center gap-1.5" data-testid="publish">
             <Globe className="size-3.5" aria-hidden />
-            <span className="hidden sm:inline">Publish</span>
+            Publish
           </button>
           <AutosaveStatus
             isOnline={isOnline}
@@ -2923,24 +2876,72 @@ export default function EditorClient({
         ) : null}
       </AnimatePresence>
 
+      {/* ── Floating action pill (mobile only) ── */}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+var(--safe-bottom))] z-50 flex justify-center px-3 md:hidden"
+        className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center md:hidden"
         data-testid="mobile-action-bar"
       >
-        <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-2 rounded-full border border-onyx-700 bg-onyx-950/95 px-3 py-2 shadow-2xl backdrop-blur">
-          <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost px-3 py-2 text-xs" aria-label="Undo">↶</button>
-          <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost px-3 py-2 text-xs" aria-label="Redo">↷</button>
-          <button
-            type="button"
-            onClick={() => setMobilePreviewOpen(true)}
-            className="btn-ghost px-3 py-2 text-xs"
-            data-testid="mobile-preview-open"
-          >
-            👁 Preview
-          </button>
-          <button type="button" onClick={onSave} disabled={pending} className="btn-ghost px-3 py-2 text-xs">Save</button>
-          <button type="button" onClick={onPublish} disabled={pending} className="btn-gold px-3 py-2 text-xs">Publish</button>
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          {toolbarExpanded ? (
+            <motion.div
+              key="expanded"
+              initial={{ opacity: 0, scale: 0.82, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.82, y: 10 }}
+              transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              className="pointer-events-auto flex items-center gap-1 rounded-full border border-onyx-700 bg-onyx-950/95 px-2 py-1.5 shadow-2xl backdrop-blur"
+            >
+              <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Undo" data-testid="undo">
+                <Undo2 className="size-4" aria-hidden />
+              </button>
+              <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Redo" data-testid="redo">
+                <Redo2 className="size-4" aria-hidden />
+              </button>
+              <div className="mx-1 h-5 w-px bg-onyx-700" />
+              <button type="button" onClick={onSave} disabled={pending} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Save draft" data-testid="save-draft">
+                <Save className="size-4" aria-hidden />
+              </button>
+              <button type="button" onClick={onPublish} disabled={pending} className="rounded-full bg-gold/10 p-2.5 text-gold hover:bg-gold/20 disabled:opacity-40" aria-label="Publish" data-testid="publish">
+                <Globe className="size-4" aria-hidden />
+              </button>
+              <div className="mx-1 h-5 w-px bg-onyx-700" />
+              {/* Toggle — eye collapses toolbar */}
+              <button
+                type="button"
+                onClick={() => { setToolbarExpanded(false); setMobilePreviewOpen(true); }}
+                className="btn-ghost rounded-full p-2.5"
+                aria-label="Open live preview"
+                data-testid="mobile-preview-open"
+              >
+                <Eye className="size-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => setToolbarExpanded(false)}
+                className="rounded-full bg-onyx-800 p-2.5 text-ivory-mute hover:bg-onyx-700"
+                aria-label="Collapse toolbar"
+              >
+                <EyeOff className="size-4" aria-hidden />
+              </button>
+            </motion.div>
+          ) : (
+            <motion.button
+              key="collapsed"
+              type="button"
+              initial={{ opacity: 0, scale: 0.72 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.72 }}
+              transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              className="pointer-events-auto rounded-full border border-onyx-700 bg-onyx-950/95 p-3.5 shadow-2xl backdrop-blur"
+              onClick={() => setToolbarExpanded(true)}
+              aria-label="Expand editor tools"
+              aria-expanded={false}
+              data-testid="floating-toolbar-toggle"
+            >
+              <Eye className="size-5 text-ivory" aria-hidden />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
