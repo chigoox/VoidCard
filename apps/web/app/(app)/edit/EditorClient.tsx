@@ -1642,7 +1642,7 @@ export default function EditorClient({
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [variantName, setVariantName] = useState("Variant B");
   const [variantWeight, setVariantWeight] = useState(50);
-  const [editorTab, setEditorTab] = useState<"sections" | "style" | "settings">("sections");
+  const [editorTab, setEditorTab] = useState<"sections" | "style" | "settings" | "advanced">("sections");
   const [pending, start] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -2246,32 +2246,23 @@ export default function EditorClient({
       </div>
 
       <div className="order-1 min-w-0 flex flex-col gap-4 pb-24 md:order-1 md:pb-0">
-        <button
-          type="button"
-          onClick={() => setMobilePreviewOpen(true)}
-          className="btn-ghost mx-auto inline-flex items-center gap-2 rounded-pill border border-onyx-700 px-4 py-2 text-xs uppercase tracking-widest text-ivory-dim hover:border-gold/40 hover:text-gold md:hidden"
-          data-testid="mobile-preview-open"
-        >
-          <Eye className="size-3.5" aria-hidden />
-          <span className="hidden sm:inline">Live preview</span>
-        </button>
 
         {/* ─── Tab bar ─── */}
         <div role="tablist" className="card flex overflow-hidden p-0">
-          {(["sections", "style", "settings"] as const).map((tab) => (
+          {(["sections", "style", "settings", "advanced"] as const).map((tab) => (
             <button
               key={tab}
               role="tab"
               aria-selected={editorTab === tab}
               onClick={() => setEditorTab(tab)}
               className={[
-                "flex-1 px-3 py-3 text-xs uppercase tracking-widest transition",
+                "flex-1 px-2 py-3 text-xs uppercase tracking-widest transition",
                 editorTab === tab
                   ? "bg-onyx-900 text-gold shadow-[inset_0_-2px_0_rgba(212,168,83,0.8)]"
                   : "text-ivory-mute hover:bg-onyx-900/40 hover:text-ivory",
               ].join(" ")}
             >
-              {tab === "sections" ? "Sections" : tab === "style" ? "Style" : "Settings"}
+              {tab === "sections" ? "Sections" : tab === "style" ? "Style" : tab === "settings" ? "Settings" : "Advanced"}
             </button>
           ))}
         </div>
@@ -2289,19 +2280,20 @@ export default function EditorClient({
             <button type="button" onClick={copyShareUrl} className="btn-ghost px-3 py-2 text-xs" data-testid="copy-share">
               {shareCopied ? "Copied!" : "Copy link"}
             </button>
-            <details className="relative">
-              <summary className="btn-ghost cursor-pointer list-none px-3 py-2 text-xs">QR</summary>
-              <div className="absolute right-0 z-10 mt-2 rounded-card border border-onyx-700 bg-onyx-950 p-3 shadow-xl">
-                <BrandedQR
-                  value={`https://vcard.ed5enterprise.com/u/${username}`}
-                  size={200}
-                  variant="onyx"
-                  ariaLabel={`QR for /u/${username}`}
-                  className="rounded-card"
-                />
-              </div>
-            </details>
           </div>
+        </section>
+
+        {/* QR code — full width below the share row */}
+        <section className="card flex flex-col items-center gap-3 p-4">
+          <p className="self-start text-xs uppercase tracking-widest text-ivory-mute">QR code</p>
+          <BrandedQR
+            value={`https://vcard.ed5enterprise.com/u/${username}`}
+            size={220}
+            variant="onyx"
+            ariaLabel={`QR for /u/${username}`}
+            className="rounded-card"
+          />
+          <p className="text-xs text-ivory-dim">Scan to open your live profile</p>
         </section>
 
         <StorageMeter />
@@ -2513,58 +2505,65 @@ export default function EditorClient({
             </div>
           </div>
 
-          {/* Theme picker — compact dropdown with swatch preview */}
+          {/* Theme picker — swatch grid */}
           <div className="space-y-2">
-            <label className="block space-y-1">
-              <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Theme</span>
-              <select
-                value={themeId ?? ""}
-                onChange={(e) => {
-                  pushHistory();
-                  markDirty();
-                  setThemeId(e.target.value);
-                }}
-                className="w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2.5 text-sm text-ivory outline-none transition focus:border-gold/60"
-              >
-                {THEME_PRESETS.map((theme) => (
-                  <option key={theme.id} value={theme.id}>{theme.name}</option>
-                ))}
-              </select>
-            </label>
-            {/* Color swatches + description for selected theme */}
-            {(() => {
-              const active = THEME_PRESETS.find((t) => t.id === themeId);
-              if (!active) return null;
-              return (
-                <div className="flex items-center gap-3 rounded-card border border-onyx-700 bg-onyx-950/60 px-3 py-2">
-                  <div className="flex gap-1.5">
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: active.preview.bg }} />
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: active.preview.fg }} />
-                    <span className="size-4 rounded-full border border-white/10" style={{ backgroundColor: active.preview.accent }} />
-                  </div>
-                  <p className="text-xs text-ivory-mute">{active.description}</p>
-                </div>
-              );
-            })()}
+            <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Theme</span>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Theme">
+              {THEME_PRESETS.map((theme) => {
+                const active = theme.id === themeId;
+                return (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => { pushHistory(); markDirty(); setThemeId(theme.id); }}
+                    className={[
+                      "flex flex-col gap-2 rounded-card border p-3 text-left transition",
+                      active ? "border-gold/70 bg-onyx-900" : "border-onyx-700 bg-onyx-950/50 hover:border-onyx-600",
+                    ].join(" ")}
+                    data-testid={`theme-pick-${theme.id}`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-4 shrink-0 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.bg }} />
+                      <span className="size-4 shrink-0 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.fg }} />
+                      <span className="size-4 shrink-0 rounded-full border border-white/10" style={{ backgroundColor: theme.preview.accent }} />
+                    </div>
+                    <p className={["truncate text-xs font-medium", active ? "text-gold" : "text-ivory"].join(" ")}>{theme.name}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <Field label="Custom CSS">
-            <textarea
-              className={TEXTAREA_CLASS_NAME}
-              value={customCss}
-              spellCheck={false}
-              maxLength={30000}
-              onChange={(event) => {
-                pushHistory();
-                markDirty();
-                setCustomCssState(event.target.value);
-              }}
-              placeholder=".vc-profile { letter-spacing: 0.02em; }"
-            />
-          </Field>
         </section>
 
         <StyleStudioPanel studio={studio} onChange={setStudio} />
+
+        </div> : null}
+
+        {/* ─── Advanced tab ─── */}
+        {editorTab === "advanced" ? <div className="space-y-4">
+
+        <section className="card space-y-4 p-4">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-ivory-mute">Custom CSS</p>
+            <p className="mt-1 text-xs text-ivory-dim">Scoped to <code className="rounded bg-onyx-900 px-1">.vc-profile</code>. Changes autosave with your draft.</p>
+          </div>
+          <textarea
+            className={TEXTAREA_CLASS_NAME}
+            value={customCss}
+            spellCheck={false}
+            maxLength={30000}
+            onChange={(event) => {
+              pushHistory();
+              markDirty();
+              setCustomCssState(event.target.value);
+            }}
+            placeholder=".vc-profile { letter-spacing: 0.02em; }"
+            rows={14}
+          />
+        </section>
 
         </div> : null}
 
@@ -2637,7 +2636,7 @@ export default function EditorClient({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="card mt-3 flex gap-2 overflow-x-auto overscroll-x-contain p-3 pb-4"
+                className="mt-3 flex gap-2 overflow-x-auto overscroll-x-contain pb-1"
                 data-testid="templates-menu"
               >
                 {SECTION_TEMPLATES.map((tpl) => (
