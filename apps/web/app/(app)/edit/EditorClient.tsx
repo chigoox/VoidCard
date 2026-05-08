@@ -826,7 +826,7 @@ function Field({
   );
 }
 
-function PreviewSection({ section }: { section: SectionRecord }) {
+function PreviewSection({ section, isTop }: { section: SectionRecord; isTop?: boolean }) {
   const parsed = SectionSchema.safeParse(section);
   if (!parsed.success) {
     return (
@@ -837,7 +837,7 @@ function PreviewSection({ section }: { section: SectionRecord }) {
     );
   }
 
-  return <SectionRenderer section={parsed.data} />;
+  return <SectionRenderer section={parsed.data} isTop={isTop} />;
 }
 
 function SectionEditorFields({
@@ -1736,6 +1736,7 @@ export default function EditorClient({
   const isDirty = currentSnapshot !== lastSavedSnapshot;
   const previewTheme = getThemePreset(themeId);
   const previewCustomCss = sanitizeCss(customCss);
+  const firstVisibleSectionId = sections.find((section) => section.visible)?.id;
 
   // Style studio: parsed from customCss prefix, persisted back into it.
   const { studio, rest: customCssRest } = readStyleStudio(customCss);
@@ -2295,12 +2296,12 @@ export default function EditorClient({
         {previewCustomCss ? <style dangerouslySetInnerHTML={{ __html: previewCustomCss }} /> : null}
         <div className="phone-frame mx-auto">
           <div
-            className="vc-profile vc-profile-preview flex h-full flex-col overflow-y-auto overscroll-contain p-5 pb-16 select-none [&_a]:pointer-events-none [&_button]:pointer-events-none"
+            className="vc-profile vc-profile-preview flex h-full flex-col overflow-y-auto overscroll-contain px-4 pb-16 pt-8 select-none [&_a]:pointer-events-none [&_button]:pointer-events-none"
             style={{ background: "var(--vc-bg, #0a0a0a)", color: "var(--vc-fg, #f7f3ea)" }}
             data-testid="preview-scroll"
           >
             <div className="space-y-3">
-              {sections.map((section) => <PreviewSection key={section.id} section={section} />)}
+              {sections.map((section) => <PreviewSection key={section.id} section={section} isTop={section.id === firstVisibleSectionId} />)}
             </div>
           </div>
         </div>

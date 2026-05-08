@@ -94,13 +94,14 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
   switch (section.type) {
     case "header": {
       const p = section.props;
+      const fullBleedTopHeader = !!topBleed && p.coverFullBleed;
       const fullBleedStyle: CSSProperties | undefined = p.coverFullBleed
         ? (topBleed
             ? { width: "100%", marginLeft: 0, marginRight: 0, borderRadius: 0, border: "none" }
             : { width: "calc(100% + 40px)", marginLeft: "-20px", marginRight: "-20px", borderRadius: 0, border: "none" })
         : undefined;
       return (
-        <header className="flex flex-col items-center pt-6 text-center" style={{ color: "var(--vc-fg, #f7f3ea)" }}>
+        <header className={["flex flex-col items-center text-center", fullBleedTopHeader ? "" : "pt-6"].join(" ").trim()} style={{ color: "var(--vc-fg, #f7f3ea)" }}>
           {p.coverUrl ? (
             <div className="mb-4 w-full overflow-hidden" style={{ ...cardStyle, ...fullBleedStyle }}>
               <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className={topBleed && p.coverFullBleed ? "h-48 w-full object-cover sm:h-64" : "h-32 w-full object-cover"} />
