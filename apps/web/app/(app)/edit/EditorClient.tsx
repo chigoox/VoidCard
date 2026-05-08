@@ -25,7 +25,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { ArrowDown, ArrowUp, Braces, ChevronDown, ChevronRight, Copy, Eye, EyeOff, GripVertical, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Braces, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Globe, GripVertical, MoreHorizontal, Plus, Save, Trash2 } from "lucide-react";
 import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
 import {
   Section as SectionSchema,
@@ -2301,7 +2301,8 @@ export default function EditorClient({
           className="btn-ghost mx-auto inline-flex items-center gap-2 rounded-pill border border-onyx-700 px-4 py-2 text-xs uppercase tracking-widest text-ivory-dim hover:border-gold/40 hover:text-gold md:hidden"
           data-testid="mobile-preview-open"
         >
-          <Eye className="size-3.5" aria-hidden /> Live preview
+          <Eye className="size-3.5" aria-hidden />
+          <span className="hidden sm:inline">Live preview</span>
         </button>
 
         {/* ─── Tab bar ─── */}
@@ -2764,8 +2765,14 @@ export default function EditorClient({
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost px-3 py-2 text-xs" aria-label="Undo" title="Undo (Ctrl+Z)" data-testid="undo">↶ Undo</button>
           <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost px-3 py-2 text-xs" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" data-testid="redo">↷ Redo</button>
-          <button type="button" onClick={onSave} disabled={pending} className="btn-ghost" data-testid="save-draft">Save draft</button>
-          <button type="button" onClick={onPublish} disabled={pending} className="btn-gold" data-testid="publish">Publish</button>
+          <button type="button" onClick={onSave} disabled={pending} className="btn-ghost inline-flex items-center gap-1.5" data-testid="save-draft">
+            <Save className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">Save draft</span>
+          </button>
+          <button type="button" onClick={onPublish} disabled={pending} className="btn-gold inline-flex items-center gap-1.5" data-testid="publish">
+            <Globe className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">Publish</span>
+          </button>
           <AutosaveStatus
             isOnline={isOnline}
             pending={pending}
