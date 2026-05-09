@@ -92,21 +92,21 @@ export function AdminNfcWriter({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs text-gold hover:underline"
+        className="inline-flex items-center gap-1 rounded-pill border border-onyx-700 px-3 py-1.5 text-xs text-gold transition hover:border-gold/40 hover:text-gold md:rounded-none md:border-0 md:px-0 md:py-0 md:hover:underline"
         title={`Write NFC for ${serial}`}
       >
-        NFC ›
+        QR / NFC
       </button>
 
       {open && (
         <div
-          className="safe-modal-frame fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          className="safe-modal-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/80 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-label={`NFC write for ${serial}`}
         >
-          <div className="safe-max-h-screen w-full max-w-md space-y-5 overflow-y-auto rounded-2xl border border-onyx-700 bg-onyx-950 p-6 shadow-2xl">
-            <div className="flex items-center justify-between">
+          <div className="safe-max-h-screen w-full max-w-md space-y-5 overflow-y-auto rounded-t-2xl border border-onyx-700 bg-onyx-950 p-5 shadow-2xl sm:rounded-2xl sm:p-6">
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-display text-lg text-gold-grad">Write NFC tag</p>
                 <p className="text-xs text-ivory-mute">Serial: <span className="font-mono text-ivory">{serial}</span></p>
@@ -123,18 +123,25 @@ export function AdminNfcWriter({
 
             {/* QR code */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs uppercase tracking-widest text-ivory-mute">Card QR code</p>
                 <button
                   type="button"
                   onClick={downloadQr}
-                  className="text-xs text-gold hover:underline"
+                  className="inline-flex items-center justify-center self-start rounded-pill border border-onyx-700 px-3 py-1.5 text-xs text-gold transition hover:border-gold/40 hover:text-gold"
                 >
                   ↓ Download PNG
                 </button>
               </div>
               <div className="flex justify-center rounded-xl border border-onyx-700 bg-onyx-900 p-4">
-                <BrandedQR value={tapUrl} size={180} variant="onyx" withLogo logoText="V" />
+                <BrandedQR
+                  value={tapUrl}
+                  size={220}
+                  className="h-auto w-full max-w-[220px]"
+                  variant="onyx"
+                  withLogo
+                  logoText="V"
+                />
               </div>
               <p className="text-center text-[10px] text-ivory-mute">
                 Print and attach to card packaging · same URL as NFC tag
@@ -144,7 +151,7 @@ export function AdminNfcWriter({
             {/* URL to write */}
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-widest text-ivory-mute">URL to write on tag</p>
-              <div className="flex items-center gap-2 rounded-lg border border-onyx-700 bg-onyx-900 px-3 py-2">
+              <div className="flex flex-col gap-2 rounded-lg border border-onyx-700 bg-onyx-900 px-3 py-2 sm:flex-row sm:items-center">
                 <code className="min-w-0 flex-1 truncate text-xs text-ivory">{tapUrl}</code>
                 <button
                   type="button"

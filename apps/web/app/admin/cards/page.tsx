@@ -26,12 +26,12 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl text-gold-grad">Cards</h1>
           <p className="mt-1 text-sm text-ivory-mute">Latest 200 by creation date.</p>
         </div>
-        <form className="flex gap-2 text-sm">
+        <form className="flex flex-wrap gap-2 text-sm">
           <input name="q" defaultValue={sp.q ?? ""} placeholder="serial" className="input" />
           <select name="status" defaultValue={sp.status ?? ""} className="input">
             <option value="">all</option>
@@ -63,7 +63,54 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
         <span className="text-xs text-ivory-mute">Creates unprovisioned cards with random serials.</span>
       </form>
 
-      <div className="card overflow-hidden">
+      <div className="space-y-3 md:hidden">
+        {cards.length === 0 ? (
+          <div className="card px-4 py-8 text-center text-sm text-ivory-mute">No cards.</div>
+        ) : (
+          cards.map((c) => (
+            <div key={c.id} className="card space-y-4 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-widest text-ivory-mute">Serial</p>
+                  <p className="mt-1 truncate font-mono text-sm text-ivory">{c.serial}</p>
+                </div>
+                <span className={`shrink-0 rounded-pill border px-2 py-1 text-[11px] ${c.status === "active" ? "border-emerald-500/40 text-emerald-400" : "border-onyx-700/60 text-ivory-mute"}`}>
+                  {c.status}
+                </span>
+              </div>
+
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt className="text-[11px] uppercase tracking-widest text-ivory-mute">SKU</dt>
+                  <dd className="mt-1 text-ivory">{c.sku}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] uppercase tracking-widest text-ivory-mute">Taps</dt>
+                  <dd className="mt-1 tabular-nums text-ivory">{c.total_taps}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] uppercase tracking-widest text-ivory-mute">Owner</dt>
+                  <dd className="mt-1 text-ivory-mute">{c.user_id ? c.user_id.slice(0, 8) : "-"}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] uppercase tracking-widest text-ivory-mute">Last tap</dt>
+                  <dd className="mt-1 text-ivory-mute">{c.last_tap_at ? new Date(c.last_tap_at).toLocaleDateString() : "-"}</dd>
+                </div>
+              </dl>
+
+              <div className="flex items-center justify-between gap-3 border-t border-onyx-800 pt-3">
+                <AdminNfcWriter cardId={c.id} serial={c.serial} currentStatus={c.status} />
+                <form action={disableCard}>
+                  <input type="hidden" name="id" value={c.id} />
+                  <button className="text-xs text-red-400 hover:underline" type="submit">disable</button>
+                </form>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden card overflow-hidden md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-onyx-700/60 bg-onyx-900/40 text-xs uppercase tracking-widest text-ivory-mute">
             <tr>
