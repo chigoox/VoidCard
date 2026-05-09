@@ -21,6 +21,24 @@ html, body {
   font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Prevent rubber-band overscroll from exposing white background on mobile */
+  overscroll-behavior-y: none;
+}
+
+/* Prevent iOS Safari from zooming when tapping inputs (triggered when font-size < 16px) */
+input,
+textarea,
+select {
+  font-size: max(1rem, 16px);
+  touch-action: manipulation;
+}
+
+/* Suppress double-tap zoom on interactive elements */
+button,
+a,
+label,
+[role="button"] {
+  touch-action: manipulation;
 }
 
 ::selection { background: var(--gold); color: #fff; }
