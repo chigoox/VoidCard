@@ -1447,7 +1447,7 @@ function SectionEditorFields({
                   className="size-4 rounded border-onyx-700 bg-onyx-950"
                   data-testid={`gallery-carousel-full-width-${section.id}`}
                 />
-                Edge-to-edge square swipe carousel
+                Edge-to-edge compact swipe carousel
               </label>
             ) : null}
           </div>
@@ -2549,11 +2549,23 @@ export default function EditorClient({
     }
   }
 
+  function humanizeVersioningError(error: string | null | undefined) {
+    if (error === "versioning_unavailable") {
+      return "Snapshots are temporarily unavailable because profile version history is not set up on this environment yet.";
+    }
+    return error ?? null;
+  }
+
   async function refreshVersions() {
     setVersionsLoading(true);
     try {
       const r = await listVersions(profileId);
-      if (r.ok) setVersions(r.versions as Array<{ id: string; label: string | null; created_at: string }>);
+      if (r.ok) {
+        setVersions(r.versions as Array<{ id: string; label: string | null; created_at: string }>);
+        return;
+      }
+      setVersions([]);
+      setErrorMessage(humanizeVersioningError(r.error) ?? "Could not load snapshots.");
     } finally {
       setVersionsLoading(false);
     }
@@ -2562,7 +2574,7 @@ export default function EditorClient({
   async function snapshotNow() {
     const r = await snapshotVersion(sections, versionLabel.trim() || null, profileId);
     if (!r.ok) {
-      setErrorMessage(r.error ?? "Could not save snapshot.");
+      setErrorMessage(humanizeVersioningError(r.error) ?? "Could not save snapshot.");
       return;
     }
     setVersionLabel("");
@@ -2574,7 +2586,7 @@ export default function EditorClient({
     if (typeof window !== "undefined" && !window.confirm("Replace your current draft with this version?")) return;
     const r = await restoreVersion(versionId, profileId);
     if (!r.ok) {
-      setErrorMessage(r.error ?? "Could not restore version.");
+      setErrorMessage(humanizeVersioningError(r.error) ?? "Could not restore version.");
       return;
     }
     setSections(r.sections);
@@ -2586,7 +2598,7 @@ export default function EditorClient({
     if (typeof window !== "undefined" && !window.confirm("Delete this snapshot?")) return;
     const r = await deleteVersion(versionId);
     if (!r.ok) {
-      setErrorMessage(r.error ?? "Could not delete version.");
+      setErrorMessage(humanizeVersioningError(r.error) ?? "Could not delete version.");
       return;
     }
     setVersions((list) => list.filter((v) => v.id !== versionId));

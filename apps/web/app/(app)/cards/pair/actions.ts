@@ -41,7 +41,13 @@ export async function pairCardAction(formData: FormData): Promise<void> {
   if (card.user_id && card.user_id !== user.id) {
     redirect("/cards/pair?err=already_paired");
   }
-  if (card.status === "unprovisioned") {
+
+  // If the user got here from an actual NFC/QR scan, trust that card-id signal
+  // and heal stale inventory state on claim. Serial-only claims still require
+  // the card to be marked provisioned first.
+  const cameFromDetectedCard = cardIdParam.length > 0 && cardIdParam === card.id;
+
+  if (card.status === "unprovisioned" && !cameFromDetectedCard) {
     redirect("/cards/pair?err=not_ready");
   }
   if (card.status === "lost" || card.status === "replaced") {

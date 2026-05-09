@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { markProvisioned } from "./actions";
 import { BrandedQR } from "@/components/BrandedQR";
 import QRCodeLib from "qrcode";
@@ -8,7 +9,7 @@ import QRCodeLib from "qrcode";
 type WriteState = "idle" | "waiting" | "success" | "error";
 
 // Use the env var so dev/staging environments write the correct URL to tags.
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com";
+const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com").trim().replace(/\/+$/, "");
 
 export function AdminNfcWriter({
   cardId,
@@ -30,6 +31,18 @@ export function AdminNfcWriter({
   const tapUrl = `${BASE_URL}/c/${cardId}`;
   const nfcSupported = typeof window !== "undefined" && "NDEFReader" in window;
 
+  async function provisionCard() {
+    const fd = new FormData();
+    fd.set("id", cardId);
+    const res = await markProvisioned(fd);
+    if (res.ok) {
+      setProvDone(true);
+      return true;
+    }
+    setWriteError(res.error ?? "Could not mark as provisioned.");
+    return false;
+  }
+
   function copyUrl() {
     navigator.clipboard.writeText(tapUrl).then(() => {
       setCopied(true);
@@ -50,6 +63,11 @@ export function AdminNfcWriter({
         { signal: abort.signal, overwrite: true },
       );
       setWriteState("success");
+      if (!provDone) {
+        startProvTransition(async () => {
+          await provisionCard();
+        });
+      }
     } catch (err: unknown) {
       if ((err as { name?: string }).name === "AbortError") {
         setWriteState("idle");
@@ -78,12 +96,8 @@ export function AdminNfcWriter({
   }
 
   function handleProvision() {
-    const fd = new FormData();
-    fd.set("id", cardId);
     startProvTransition(async () => {
-      const res = await markProvisioned(fd);
-      if (res.ok) setProvDone(true);
-      else setWriteError(res.error ?? "Could not mark as provisioned.");
+      await provisionCard();
     });
   }
 
@@ -98,23 +112,29 @@ export function AdminNfcWriter({
         QR / NFC
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <div
-          className="safe-modal-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/80 sm:items-center"
+          className="safe-modal-sheet fixed inset-0 z-50 flex items-end justify-center bg-[rgba(7,7,9,0.84)] backdrop-blur-sm sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-label={`NFC write for ${serial}`}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              cancelWrite();
+              setOpen(false);
+            }
+          }}
         >
-          <div className="safe-max-h-screen w-full max-w-md space-y-5 overflow-y-auto rounded-t-2xl border border-onyx-700 bg-onyx-950 p-5 shadow-2xl sm:rounded-2xl sm:p-6">
+          <div className="safe-max-h-screen w-full max-w-lg space-y-5 overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#09090b] p-5 text-[#f5f1e8] shadow-[0_32px_120px_-36px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.04)] sm:rounded-[28px] sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-display text-lg text-gold-grad">Write NFC tag</p>
-                <p className="text-xs text-ivory-mute">Serial: <span className="font-mono text-ivory">{serial}</span></p>
+                <p className="font-display text-lg text-[#f5f1e8]">Write NFC tag</p>
+                <p className="text-xs text-[#9f998d]">Serial: <span className="font-mono text-[#f5f1e8]">{serial}</span></p>
               </div>
               <button
                 type="button"
                 onClick={() => { cancelWrite(); setOpen(false); }}
-                className="text-ivory-dim hover:text-ivory"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[#c7c2b5] transition hover:border-white/20 hover:bg-white/10 hover:text-white"
                 aria-label="Close"
               >
                 ✕
@@ -122,18 +142,18 @@ export function AdminNfcWriter({
             </div>
 
             {/* QR code */}
-            <div className="space-y-2">
+            <div className="space-y-3 rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs uppercase tracking-widest text-ivory-mute">Card QR code</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-[#9f998d]">Card QR code</p>
                 <button
                   type="button"
                   onClick={downloadQr}
-                  className="inline-flex items-center justify-center self-start rounded-pill border border-onyx-700 px-3 py-1.5 text-xs text-gold transition hover:border-gold/40 hover:text-gold"
+                  className="inline-flex items-center justify-center self-start rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-[#f5f1e8] transition hover:border-[#d4af37]/40 hover:bg-white/10 hover:text-[#f8d77b]"
                 >
                   ↓ Download PNG
                 </button>
               </div>
-              <div className="flex justify-center rounded-xl border border-onyx-700 bg-onyx-900 p-4">
+              <div className="flex justify-center rounded-2xl border border-white/10 bg-[#050506] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <BrandedQR
                   value={tapUrl}
                   size={220}
@@ -143,20 +163,20 @@ export function AdminNfcWriter({
                   logoText="V"
                 />
               </div>
-              <p className="text-center text-[10px] text-ivory-mute">
+              <p className="text-center text-[10px] text-[#9f998d]">
                 Print and attach to card packaging · same URL as NFC tag
               </p>
             </div>
 
             {/* URL to write */}
-            <div className="space-y-1">
-              <p className="text-xs uppercase tracking-widest text-ivory-mute">URL to write on tag</p>
-              <div className="flex flex-col gap-2 rounded-lg border border-onyx-700 bg-onyx-900 px-3 py-2 sm:flex-row sm:items-center">
-                <code className="min-w-0 flex-1 truncate text-xs text-ivory">{tapUrl}</code>
+            <div className="space-y-2 rounded-[20px] border border-white/10 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-[#9f998d]">URL to write on tag</p>
+              <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-[#050506] px-3 py-2 sm:flex-row sm:items-start sm:gap-3">
+                <code className="min-w-0 flex-1 whitespace-pre-wrap break-all text-xs text-[#f5f1e8]">{tapUrl}</code>
                 <button
                   type="button"
                   onClick={copyUrl}
-                  className="shrink-0 text-xs text-gold hover:underline"
+                  className="shrink-0 text-left text-xs font-medium text-[#f8d77b] hover:underline sm:pt-0.5"
                 >
                   {copied ? "Copied!" : "Copy"}
                 </button>
@@ -164,19 +184,19 @@ export function AdminNfcWriter({
             </div>
 
             {/* Step instructions */}
-            <ol className="space-y-2 text-sm text-ivory-dim">
+            <ol className="space-y-3 rounded-[20px] border border-white/10 bg-white/5 p-4 text-sm text-[#c7c2b5]">
               <li className="flex gap-2">
-                <span className="shrink-0 font-display text-gold">1.</span>
+                <span className="shrink-0 font-display text-[#f8d77b]">1.</span>
                 {nfcSupported
                   ? "Hold a blank NTAG215 tag to the back of this phone, then tap Write NFC below."
                   : "Open NFC Tools (Android/iOS), tap Write → Add record → URL, paste the URL above, then tap Write / OK and hold the tag."}
               </li>
               <li className="flex gap-2">
-                <span className="shrink-0 font-display text-gold">2.</span>
-                Once written, tap &ldquo;Mark provisioned&rdquo; so the card shows as ready-to-ship.
+                <span className="shrink-0 font-display text-[#f8d77b]">2.</span>
+                Built-in NFC writes auto-mark the card provisioned. If you write with an external app or print only the QR, tap &ldquo;Mark provisioned&rdquo; after the write succeeds.
               </li>
               <li className="flex gap-2">
-                <span className="shrink-0 font-display text-gold">3.</span>
+                <span className="shrink-0 font-display text-[#f8d77b]">3.</span>
                 Ship the card. When the customer taps it, they&apos;ll be walked through pairing automatically.
               </li>
             </ol>
@@ -185,48 +205,48 @@ export function AdminNfcWriter({
             {nfcSupported && (
               <div className="space-y-2">
                 {writeState === "waiting" ? (
-                  <div className="flex items-center justify-between rounded-lg border border-gold/40 bg-gold/5 px-4 py-3">
-                    <span className="text-sm text-gold animate-pulse">Hold tag to phone…</span>
-                    <button type="button" onClick={cancelWrite} className="text-xs text-ivory-dim hover:text-ivory underline">
+                  <div className="flex items-center justify-between rounded-2xl border border-[#d4af37]/35 bg-[rgba(212,175,55,0.12)] px-4 py-3">
+                    <span className="animate-pulse text-sm text-[#f8d77b]">Hold tag to phone…</span>
+                    <button type="button" onClick={cancelWrite} className="text-xs text-[#c7c2b5] underline hover:text-white">
                       Cancel
                     </button>
                   </div>
                 ) : writeState === "success" ? (
-                  <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                  <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/12 px-4 py-3 text-sm text-emerald-200">
                     ✓ Tag written successfully
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={writeNfc}
-                    className="w-full rounded-lg bg-gold px-4 py-2.5 font-medium text-onyx-950 hover:brightness-110"
+                    className="w-full rounded-2xl bg-[linear-gradient(135deg,#f5e9b0_0%,#d4af37_52%,#8c6c1e_100%)] px-4 py-2.5 font-medium text-[#09090b] shadow-[0_18px_44px_-20px_rgba(212,175,55,0.45)] transition hover:brightness-105"
                   >
                     Write NFC tag
                   </button>
                 )}
                 {writeState === "error" && writeError && (
-                  <p className="text-xs text-red-400">{writeError}</p>
+                  <p className="text-xs text-rose-300">{writeError}</p>
                 )}
               </div>
             )}
 
             {/* Mark provisioned */}
-            <div className="border-t border-onyx-800 pt-4">
+            <div className="border-t border-white/10 pt-4">
               {provDone ? (
-                <p className="text-center text-sm text-emerald-400">✓ Marked as provisioned</p>
+                <p className="text-center text-sm text-emerald-200">✓ Marked as provisioned</p>
               ) : (
                 <button
                   type="button"
                   onClick={handleProvision}
                   disabled={provPending}
-                  className="w-full rounded-lg border border-onyx-600 bg-onyx-900 px-4 py-2.5 text-sm text-ivory hover:border-gold/50 disabled:opacity-60"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-[#f5f1e8] transition hover:border-[#d4af37]/40 hover:bg-white/10 disabled:opacity-60"
                 >
                   {provPending ? "Saving…" : "Mark provisioned (ready to ship)"}
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
     </>
   );

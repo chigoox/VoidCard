@@ -172,6 +172,15 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_SITE_URL ??
     "http://localhost:3000";
 
+  if (body.kind === "shop" && body.sku === "verified-badge") {
+    if (!u) {
+      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    }
+    if (u.verified) {
+      return NextResponse.json({ error: "already_verified" }, { status: 409 });
+    }
+  }
+
   try {
     if (body.kind === "subscribe" && body.plan) {
       const item = await planLineItem(body.plan);

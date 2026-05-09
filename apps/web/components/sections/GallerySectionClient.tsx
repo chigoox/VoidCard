@@ -160,7 +160,7 @@ export function GallerySectionClient({
 
   const list = images.map((image, index) => {
     if (layout === "carousel") {
-      return <Tile key={index} image={image} index={index} className={carouselFullWidth ? "aspect-[4/3] min-w-full flex-shrink-0 snap-center snap-always" : "aspect-square min-w-[60%] flex-shrink-0 snap-center"} />;
+      return <Tile key={index} image={image} index={index} className={carouselFullWidth ? "aspect-[16/9] min-w-full flex-shrink-0 snap-center snap-always" : "aspect-square min-w-[60%] flex-shrink-0 snap-center"} />;
     }
     if (layout === "masonry") {
       return (

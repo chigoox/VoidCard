@@ -8,6 +8,11 @@ import { listProducts } from "@/lib/cms";
 import { PRIMARY_PROFILE_ID, getManagedProfile, updateManagedProfile } from "@/lib/profiles";
 import { rateLimits } from "@/lib/rate-limit";
 
+function isMissingProfileVersionsTableError(error: { message?: string | null; code?: string | null } | null | undefined) {
+  const message = error?.message?.toLowerCase() ?? "";
+  return error?.code === "PGRST205" || message.includes("schema cache") || message.includes("could not find the table");
+}
+
 async function syncLeadForms(userId: string, profileId: string, sections: SectionsRecord) {
   const formSections = sections.filter(
     (section): section is Extract<SectionRecord, { type: "form" }> => section.type === "form",
@@ -137,6 +142,9 @@ export async function listVersions(profileId?: string) {
     .eq("profile_id", profile.id)
     .order("created_at", { ascending: false })
     .limit(50);
+  if (isMissingProfileVersionsTableError(error)) {
+    return { ok: false as const, error: "versioning_unavailable", versions: [] };
+  }
   if (error) return { ok: false as const, error: error.message, versions: [] };
   return { ok: true as const, versions: data ?? [] };
 }
@@ -156,6 +164,9 @@ export async function snapshotVersion(input: unknown, label: string | null, prof
     theme: profile.theme ?? null,
     custom_css: profile.customCss ?? null,
   });
+  if (isMissingProfileVersionsTableError(error)) {
+    return { ok: false as const, error: "versioning_unavailable" };
+  }
   if (error) return { ok: false as const, error: error.message };
   // Trim oldest if more than 50 exist for this profile.
   const { data: extras } = await sb
@@ -182,6 +193,9 @@ export async function restoreVersion(versionId: string, profileId?: string) {
     .select("sections, theme, custom_css, profile_id, owner_user_id")
     .eq("id", versionId)
     .maybeSingle();
+  if (isMissingProfileVersionsTableError(error)) {
+    return { ok: false as const, error: "versioning_unavailable" };
+  }
   if (error || !data) return { ok: false as const, error: "version_not_found" };
   if (data.owner_user_id !== u.id || data.profile_id !== profile.id) return { ok: false as const, error: "forbidden" };
   const parsed = Sections.safeParse(data.sections);
@@ -202,6 +216,9 @@ export async function deleteVersion(versionId: string) {
     .delete()
     .eq("id", versionId)
     .eq("owner_user_id", u.id);
+  if (isMissingProfileVersionsTableError(error)) {
+    return { ok: false as const, error: "versioning_unavailable" };
+  }
   if (error) return { ok: false as const, error: error.message };
   return { ok: true as const };
 }
