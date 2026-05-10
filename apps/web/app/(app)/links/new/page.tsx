@@ -1,6 +1,12 @@
 "use client";
 import { useState, useTransition } from "react";
 
+function shortUrl(code: string) {
+  const domain = process.env.NEXT_PUBLIC_SHORT_DOMAIN;
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com";
+  return domain ? `https://${domain}/${code}` : `${site}/s/${code}`;
+}
+
 export default function NewShortLinkPage() {
   const [target, setTarget] = useState("");
   const [code, setCode] = useState("");
@@ -18,7 +24,7 @@ export default function NewShortLinkPage() {
           body: JSON.stringify({ target, code: code || undefined }),
         });
         const data = await res.json().catch(() => ({}));
-        if (res.ok) setMsg({ kind: "ok", text: `Created vc.ed5e.co/${data.code}` });
+        if (res.ok) setMsg({ kind: "ok", text: `Created: ${shortUrl(data.code as string)}` });
         else setMsg({ kind: "err", text: data?.error ?? "Could not create short link." });
       } catch {
         setMsg({ kind: "err", text: "Network error." });

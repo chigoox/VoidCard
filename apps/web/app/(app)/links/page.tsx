@@ -2,6 +2,12 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
+function shortUrl(code: string) {
+  const domain = process.env.NEXT_PUBLIC_SHORT_DOMAIN;
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com";
+  return domain ? `https://${domain}/${code}` : `${site}/s/${code}`;
+}
+
 export default async function LinksPage() {
   const u = await requireUser();
   const sb = await createClient();
@@ -19,15 +25,25 @@ export default async function LinksPage() {
         <Link href="/links/new" className="btn-gold">+ New short link</Link>
       </header>
       <ul className="space-y-2" data-testid="links-list">
-        {(links ?? []).map((l) => (
-          <li key={l.id} className="card flex items-center justify-between p-4 text-sm">
-            <div className="min-w-0">
-              <p className="truncate font-mono text-gold">vc.ed5e.co/{l.code}</p>
-              <p className="truncate text-ivory-dim">{l.target}</p>
-            </div>
-            <span className="text-xs text-ivory-mute">{l.hits} taps</span>
-          </li>
-        ))}
+        {(links ?? []).map((l) => {
+          const url = shortUrl(l.code);
+          return (
+            <li key={l.id} className="card flex items-center justify-between gap-3 p-4 text-sm">
+              <div className="min-w-0">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block truncate font-mono text-gold underline-offset-2 hover:underline"
+                >
+                  {url.replace("https://", "")}
+                </a>
+                <p className="truncate text-xs text-ivory-dim">{l.target}</p>
+              </div>
+              <span className="shrink-0 text-xs text-ivory-mute">{l.hits} taps</span>
+            </li>
+          );
+        })}
         {(links ?? []).length === 0 && <p className="text-sm text-ivory-dim">No short links yet.</p>}
       </ul>
     </div>
