@@ -25,11 +25,12 @@ html, body {
   overscroll-behavior-y: none;
 }
 
-/* Prevent iOS Safari from zooming when tapping inputs (triggered when font-size < 16px) */
+/* Prevent iOS Safari from zooming when tapping inputs (triggered when font-size < 16px).
+   !important is required so this wins over class-level Tailwind `text-sm` (14px) rules. */
 input,
 textarea,
 select {
-  font-size: max(1rem, 16px);
+  font-size: 16px !important;
   touch-action: manipulation;
 }
 
