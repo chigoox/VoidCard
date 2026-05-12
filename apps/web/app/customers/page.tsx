@@ -15,17 +15,16 @@ type Customer = {
   handle: string;
   name: string;
   role: string;
-  quote: string;
+  proof: string;
 };
 
-// Seeded examples only — replace with filmed testimonials in days 31–60.
+// Seeded live demo profile only. Replace with customer-approved stories when collected.
 const CUSTOMERS: Customer[] = [
   {
     handle: "voidluxury",
     name: "Void Luxury Detailing",
     role: "Auto detailing studio · Phoenix, AZ",
-    quote:
-      "I hand someone a metal card and they assume my work is high-end before they've seen a single photo. The card sells the booking.",
+    proof: "Seeded live profile showing the premium default, gallery, booking-style links, and contact hand-off.",
   },
 ];
 
@@ -40,7 +39,7 @@ export default function CustomersPage() {
           Real cards, <span className="text-ink">real profiles</span>.
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-ink-500">
-          We&rsquo;d rather show one real customer than fake ten. This list grows as we ship.
+          No fake testimonials. Until a customer approves a story, we show live product proof and say exactly what it is.
         </p>
       </section>
 
@@ -54,7 +53,7 @@ export default function CustomersPage() {
             <p className="text-xs uppercase tracking-[0.2em] text-ink-700">@{c.handle}</p>
             <h2 className="mt-2 font-display text-2xl">{c.name}</h2>
             <p className="mt-1 text-sm text-ink-400">{c.role}</p>
-            <p className="mt-4 flex-1 text-sm text-ink-500">&ldquo;{c.quote}&rdquo;</p>
+            <p className="mt-4 flex-1 text-sm text-ink-500">{c.proof}</p>
             <span className="mt-5 text-sm text-ink-700">View live profile →</span>
           </Link>
         ))}

@@ -9,7 +9,27 @@ async function postJson(url: string, body: unknown = {}) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  return res.json().catch(() => ({})) as Promise<{ ok?: boolean; url?: string; error?: string }>;
+  return res.json().catch(() => ({})) as Promise<{ ok?: boolean; url?: string; error?: string; message?: string }>;
+}
+
+function displayError(data: { error?: string; message?: string }, fallback: string) {
+  if (data.message) return data.message;
+  switch (data.error) {
+    case "stripe_not_configured":
+      return "Stripe Connect is not configured yet. Add STRIPE_SECRET_KEY to your environment, restart the app, then try again.";
+    case "stripe_invalid_key":
+      return "Stripe rejected the configured API key. Check STRIPE_SECRET_KEY in your environment.";
+    case "seller_accounts_table_missing":
+      return "Seller payments are not set up in this database yet. Apply Supabase migration 0042_vcard_seller.sql, then refresh the schema cache.";
+    case "stripe_connect_not_enabled":
+      return "Stripe Connect is not enabled on this Stripe account yet. Enable Connect in the Stripe Dashboard, then try again.";
+    case "onboarding_incomplete":
+      return "Finish Stripe onboarding before opening the Express dashboard.";
+    case "not_connected":
+      return "Connect Stripe before opening the Express dashboard.";
+    default:
+      return data.error ?? fallback;
+  }
 }
 
 export function ConnectStripeButton({ label }: { label: string }) {
@@ -24,7 +44,7 @@ export function ConnectStripeButton({ label }: { label: string }) {
         window.location.assign(data.url);
         return;
       }
-      setError(data.error ?? "Could not start onboarding.");
+      setError(displayError(data, "Could not start onboarding."));
     });
   }
 
@@ -56,7 +76,7 @@ export function ManageStripeButton() {
         window.open(data.url, "_blank", "noopener,noreferrer");
         return;
       }
-      setError(data.error ?? "Could not open Stripe dashboard.");
+      setError(displayError(data, "Could not open Stripe dashboard."));
     });
   }
 
@@ -90,7 +110,7 @@ export function DisconnectStripeButton() {
         router.refresh();
         return;
       }
-      setError(data.error ?? "Could not disconnect.");
+      setError(displayError(data, "Could not disconnect."));
     });
   }
 

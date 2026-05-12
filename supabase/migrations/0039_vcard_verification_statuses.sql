@@ -1,4 +1,4 @@
--- 0032 vcard_verification_statuses — align DB status rules with verification workflow
+-- 0039 vcard_verification_statuses - align DB status rules with verification workflow
 
 do $$
 begin

@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function PaymentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ connected?: string }>;
+  searchParams: Promise<{ connected?: string; stripe_error?: string }>;
 }) {
   const u = await requireUser();
   const params = await searchParams;
+  const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== "sk_test_dummy");
   // If user just returned from Stripe onboarding, refresh status from Stripe.
   let account = await getSellerAccount(u.id);
   if (params.connected === "1" && account) {
@@ -45,6 +46,19 @@ export default async function PaymentsPage({
         aria-label="Stripe connection status"
         data-testid="payments-status-card"
       >
+        {!stripeConfigured ? (
+          <div className="rounded-card border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-100" data-testid="stripe-config-warning">
+            <p className="font-display text-base">Stripe Connect needs one setup step.</p>
+            <p className="mt-1 text-xs leading-5">
+              Add <span className="font-mono text-amber-50">STRIPE_SECRET_KEY</span> to this app&apos;s environment, restart the dev server or redeploy, then click Connect again.
+            </p>
+          </div>
+        ) : null}
+        {params.stripe_error ? (
+          <p className="rounded-card border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100" role="alert" data-testid="stripe-return-error">
+            Stripe onboarding could not reopen. Try Connect again; if it repeats, check the Stripe Connect setup and server logs.
+          </p>
+        ) : null}
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="font-display text-base">Stripe account</p>

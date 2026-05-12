@@ -5,6 +5,16 @@ import { unpairCardAction } from "./pair/actions";
 
 export const dynamic = "force-dynamic";
 
+type CardTapRow = {
+  card_id: string | null;
+  occurred_at: string | null;
+};
+
+type CardTapStats = {
+  total_taps: number;
+  last_tap_at: string | null;
+};
+
 export default async function CardsPage() {
   const user = await requireUser();
   const sb = await createClient();
@@ -14,6 +24,24 @@ export default async function CardsPage() {
     .select("id, serial, sku, status, paired_at, last_tap_at, total_taps, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
+
+  const cardIds = (cards ?? []).map((card) => card.id);
+  const { data: tapRows } = cardIds.length > 0
+    ? await sb
+        .from("vcard_taps")
+        .select("card_id, occurred_at")
+        .in("card_id", cardIds)
+    : { data: [] as CardTapRow[] };
+
+  const tapStats = buildCardTapStats((tapRows ?? []) as CardTapRow[]);
+  const visibleCards = (cards ?? []).map((card) => {
+    const stats = tapStats.get(card.id);
+    return {
+      ...card,
+      total_taps: stats?.total_taps ?? Number(card.total_taps ?? 0),
+      last_tap_at: stats?.last_tap_at ?? card.last_tap_at,
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -37,7 +65,7 @@ export default async function CardsPage() {
         </div>
       </header>
 
-      {(!cards || cards.length === 0) && (
+      {visibleCards.length === 0 && (
         <div className="rounded-lg border border-onyx-700 bg-onyx-900 p-6 text-center text-ivory-dim">
           <p>No cards paired yet.</p>
           <p className="mt-2 text-sm">
@@ -48,7 +76,7 @@ export default async function CardsPage() {
       )}
 
       <ul className="space-y-3">
-        {cards?.map((c) => (
+        {visibleCards.map((c) => (
           <li
             key={c.id}
             data-testid="card-row"
@@ -90,4 +118,21 @@ export default async function CardsPage() {
       </ul>
     </div>
   );
+}
+
+function buildCardTapStats(rows: CardTapRow[]) {
+  return rows.reduce<Map<string, CardTapStats>>((stats, row) => {
+    if (!row.card_id) return stats;
+
+    const current = stats.get(row.card_id) ?? { total_taps: 0, last_tap_at: null };
+    const nextLastTapAt = current.last_tap_at && row.occurred_at
+      ? (current.last_tap_at > row.occurred_at ? current.last_tap_at : row.occurred_at)
+      : (current.last_tap_at ?? row.occurred_at ?? null);
+
+    stats.set(row.card_id, {
+      total_taps: current.total_taps + 1,
+      last_tap_at: nextLastTapAt,
+    });
+    return stats;
+  }, new Map<string, CardTapStats>());
 }

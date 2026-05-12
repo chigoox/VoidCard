@@ -2551,7 +2551,7 @@ export default function EditorClient({
 
   function humanizeVersioningError(error: string | null | undefined) {
     if (error === "versioning_unavailable") {
-      return "Snapshots are temporarily unavailable because profile version history is not set up on this environment yet.";
+      return "Snapshots need the profile version history table. Apply Supabase migrations 0041_vcard_profile_versions.sql and 0047_vcard_profile_versions_repair.sql to the connected database, then refresh the Supabase/PostgREST schema cache.";
     }
     return error ?? null;
   }
@@ -2957,6 +2957,9 @@ export default function EditorClient({
               {versionsOpen ? "Hide history" : "Show history"}
             </button>
           </div>
+          <p className="text-xs leading-5 text-ivory-mute">
+            Snapshots save to <span className="font-mono text-ivory-dim">vcard_profile_versions</span>. If saving says setup is required, run migrations <span className="font-mono text-ivory-dim">0041</span> and <span className="font-mono text-ivory-dim">0047</span> against this Supabase project.
+          </p>
           <div className="flex flex-wrap items-center gap-2">
             <input
               type="text"

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Plan } from "@/lib/auth";
@@ -188,6 +189,25 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
               </div>
             </dl>
 
+            <div className="flex flex-wrap gap-2 border-t border-onyx-800 pt-3">
+              <Link
+                href={`/admin/users/${r.user_id}`}
+                className="btn-ghost px-3 py-2 text-xs"
+                data-testid={`user-open-${r.user_id}`}
+              >
+                Open admin page
+              </Link>
+              {r.username ? (
+                <Link
+                  href={`/u/${r.username}`}
+                  target="_blank"
+                  className="btn-ghost px-3 py-2 text-xs"
+                >
+                  Open live page
+                </Link>
+              ) : null}
+            </div>
+
             <div className="space-y-3 border-t border-onyx-800 pt-3">
               <form action={setUserVerified} className="flex items-center justify-between gap-3">
                 <input type="hidden" name="user_id" value={r.user_id} />
@@ -271,6 +291,13 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                 <td className="px-4 py-3 text-xs text-ivory-mute">{new Date(r.created_at).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Link
+                      href={`/admin/users/${r.user_id}`}
+                      className="btn-ghost px-3 py-2 text-xs"
+                      data-testid={`user-open-${r.user_id}`}
+                    >
+                      Open
+                    </Link>
                     <form action={setUserVerified}>
                       <input type="hidden" name="user_id" value={r.user_id} />
                       <input type="hidden" name="verified" value={r.verified ? "false" : "true"} />

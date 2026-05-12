@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { TrustStrip } from "@/components/trust-strip";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -17,24 +20,71 @@ const TILES = [
   { href: "/legal/security", title: "Security & disclosure", desc: "Vulnerability reporting + safe harbor." },
 ];
 
+const LIVE_PROOFS = [
+  "Stripe-hosted checkout, so VoidCard never sees card numbers.",
+  "Supabase row-level security and admin audit trails protect account data.",
+  "Privacy, terms, cookie, DPA, DPIA, subprocessors, and security pages are published.",
+  "Public changelog and status link are visible before purchase.",
+];
+
+const NEXT_PROOFS = [
+  "One-click account export ZIP in Account -> Privacy & data.",
+  "Self-serve account deletion with confirmation email.",
+  "Quarterly uptime/security summary in the changelog.",
+];
+
 export default function TrustPage() {
   return (
-    <main className="mx-auto max-w-4xl px-6 py-16">
-      <p className="text-xs uppercase tracking-[0.3em] text-ivory-mute">Trust</p>
-      <h1 className="mt-3 font-display text-4xl text-gold-grad">Built on onyx, secured in gold.</h1>
-      <p className="mt-4 max-w-2xl text-sm text-ivory-dim">
-        We treat your data like our own — encrypted in transit and at rest, isolated by row-level security, audited on every
-        admin action. Stripe handles cards (PCI SAQ-A); we never see them. You can export or delete everything at any time.
-      </p>
+    <main className="min-h-screen bg-white text-ink">
+      <SiteHeader />
 
-      <div className="mt-10 grid gap-3 md:grid-cols-2">
+      <section className="mx-auto max-w-4xl px-6 pb-12 pt-20 text-center">
+        <p className="text-sm uppercase tracking-[0.2em] text-ink-700">Trust</p>
+        <h1 className="mt-3 font-display text-5xl tracking-tight md:text-6xl">Proof beats promises.</h1>
+        <p className="mx-auto mt-5 max-w-2xl text-lg text-ink-500">
+          We publish the boring details because your card only works if people trust the page it opens.
+          Stripe handles payments, legal docs are public, and uptime is visible before you buy.
+        </p>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl gap-6 px-6 pb-16 md:grid-cols-2">
+        <div className="surface p-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-ink-700">Live now</p>
+          <ul className="mt-4 space-y-3 text-sm text-ink-500">
+            {LIVE_PROOFS.map((proof) => (
+              <li key={proof} className="flex gap-2"><span className="text-ink-700">·</span>{proof}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="surface p-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-ink-700">Next proof artifacts</p>
+          <ul className="mt-4 space-y-3 text-sm text-ink-500">
+            {NEXT_PROOFS.map((proof) => (
+              <li key={proof} className="flex gap-2"><span className="text-ink-700">·</span>{proof}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl gap-3 px-6 pb-16 md:grid-cols-2 lg:grid-cols-3">
         {TILES.map((t) => (
-          <Link key={t.href} href={t.href} className="card p-5 hover:border-gold/40">
-            <p className="font-display text-base text-ivory">{t.title}</p>
-            <p className="mt-1 text-sm text-ivory-mute">{t.desc}</p>
+          <Link key={t.href} href={t.href} className="surface p-5 transition hover:ring-1 hover:ring-ink/20">
+            <p className="font-display text-base text-ink">{t.title}</p>
+            <p className="mt-1 text-sm text-ink-500">{t.desc}</p>
           </Link>
         ))}
-      </div>
+        <a href="https://status.ed5enterprise.com" target="_blank" rel="noreferrer" className="surface p-5 transition hover:ring-1 hover:ring-ink/20">
+          <p className="font-display text-base text-ink">Status page</p>
+          <p className="mt-1 text-sm text-ink-500">Shared ED5 uptime and incident updates.</p>
+        </a>
+        <Link href="/changelog" className="surface p-5 transition hover:ring-1 hover:ring-ink/20">
+          <p className="font-display text-base text-ink">Public changelog</p>
+          <p className="mt-1 text-sm text-ink-500">What shipped, when, and why it matters.</p>
+        </Link>
+      </section>
+
+      <TrustStrip />
+      <SiteFooter />
     </main>
   );
 }

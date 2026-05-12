@@ -10,6 +10,7 @@ import { StoreSectionClient } from "./StoreSectionClient";
 import { BookingSectionClient } from "./BookingSectionClient";
 import { TipSectionClient } from "./TipSectionClient";
 import { LinkIconGlyph } from "./LinkIcon";
+import { BadgeCheck } from "lucide-react";
 
 const SURFACE_BORDER = "color-mix(in srgb, var(--vc-accent, #d4af37) 24%, transparent)";
 
@@ -145,7 +146,10 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
           <h1 className="relative z-10 mt-3 w-full break-words px-4 font-display text-2xl leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]" style={{ color: "var(--vc-fg, #f7f3ea)", maxWidth: "calc(100% - 2rem)", overflowWrap: "anywhere" }}>
             {p.name}
             {verified && p.showVerified ? (
-              <span className="ml-1" style={{ color: "var(--vc-accent, #d4af37)" }}>✓</span>
+              <span className="ml-1.5 inline-flex items-center align-middle" style={{ color: "var(--vc-accent, #d4af37)" }} title="Verified badge">
+                <BadgeCheck className="size-5 drop-shadow-[0_0_10px_rgba(212,175,55,0.28)]" aria-hidden />
+                <span className="sr-only">Verified badge</span>
+              </span>
             ) : null}
           </h1>
           {descriptors.length > 0 ? (

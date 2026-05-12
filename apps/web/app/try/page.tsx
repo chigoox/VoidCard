@@ -4,7 +4,7 @@ import TryClient from "./TryClient";
 
 export default function TryPage() {
   return (
-    <main className="home-theme min-h-screen bg-onyx-grad">
+    <main className="min-h-screen bg-paper-50 text-ink">
       <SiteHeader />
       <TryClient />
       <SiteFooter />

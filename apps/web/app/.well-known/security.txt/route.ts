@@ -1,4 +1,23 @@
-import { NextResponse } from "next/server";
+export const runtime = "edge";
+
+export function GET() {
+  return new Response(
+    [
+      "Contact: mailto:security@vcard.ed5enterprise.com",
+      "Policy: https://vcard.ed5enterprise.com/legal/security",
+      "Preferred-Languages: en",
+      "Canonical: https://vcard.ed5enterprise.com/.well-known/security.txt",
+      "Expires: 2027-05-11T00:00:00Z",
+      "",
+    ].join("\n"),
+    {
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "public, max-age=86400",
+      },
+    },
+  );
+}import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 

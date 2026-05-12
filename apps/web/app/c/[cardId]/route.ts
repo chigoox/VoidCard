@@ -50,29 +50,38 @@ export async function GET(req: Request, { params }: { params: Promise<{ cardId: 
     return new NextResponse("Profile unavailable", { status: 404 });
   }
 
-  // Fire-and-forget tap log + last_tap bookkeeping.
+  // Persist the tap before redirecting so the Edge runtime does not drop the write.
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "0.0.0.0";
   const ua = req.headers.get("user-agent") || "";
   const ref = req.headers.get("referer") || null;
   const ipHash = await hashIpEdge(ip);
+  const createdAt = new Date().toISOString();
 
-  void admin
-    .from("vcard_taps")
-    .insert({
-      user_id: card.user_id,
-      card_id: card.id,
+  let tapError: { message?: string | null } | null = null;
+  try {
+    const { error } = await admin
+      .from("vcard_taps")
+      .insert({
+        user_id: card.user_id,
+        card_id: card.id,
+        source: "nfc",
+        ip_hash: ipHash,
+        ua_hash: ua.slice(0, 200),
+        referrer: ref,
+        occurred_at: createdAt,
+      });
+    tapError = error;
+  } catch {
+    tapError = { message: "tap_insert_failed" };
+  }
+
+  if (!tapError) {
+    void queueWebhookEvent(card.user_id, "tap.created", {
       source: "nfc",
-      ip_hash: ipHash,
-      ua_hash: ua.slice(0, 200),
-      referrer: ref,
-    })
-    .then(() => queueWebhookEvent(card.user_id, "tap.created", { source: "nfc", card_id: card.id, created_at: new Date().toISOString() }))
-    .then(() => null, () => null);
-  void admin
-    .from("vcard_cards")
-    .update({ last_tap_at: new Date().toISOString() })
-    .eq("id", card.id)
-    .then(() => null, () => null);
+      card_id: card.id,
+      created_at: createdAt,
+    }).catch(() => null);
+  }
 
   const dest = new URL(`/u/${username}`, req.url);
   return NextResponse.redirect(dest, 302);

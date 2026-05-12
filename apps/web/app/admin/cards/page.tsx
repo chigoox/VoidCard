@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { batchCreateCards, disableCard } from "./actions";
 import { AdminNfcWriter } from "./AdminNfcWriter";
@@ -15,12 +16,13 @@ type Card = {
   created_at: string;
 };
 
-export default async function AdminCardsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
+export default async function AdminCardsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; user?: string }> }) {
   const sp = await searchParams;
   const sb = createAdminClient();
   let q = sb.from("vcard_cards").select("*").order("created_at", { ascending: false }).limit(200);
   if (sp.status) q = q.eq("status", sp.status);
   if (sp.q) q = q.ilike("serial", `%${sp.q}%`);
+  if (sp.user) q = q.eq("user_id", sp.user);
   const { data } = await q;
   const cards = (data as Card[] | null) ?? [];
 
@@ -29,10 +31,13 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl text-gold-grad">Cards</h1>
-          <p className="mt-1 text-sm text-ivory-mute">Latest 200 by creation date.</p>
+          <p className="mt-1 text-sm text-ivory-mute">
+            {sp.user ? `Cards for user ${sp.user.slice(0, 8)}.` : "Latest 200 by creation date."}
+          </p>
         </div>
         <form className="flex flex-wrap gap-2 text-sm">
           <input name="q" defaultValue={sp.q ?? ""} placeholder="serial" className="input" />
+          <input name="user" defaultValue={sp.user ?? ""} placeholder="user id" className="input" />
           <select name="status" defaultValue={sp.status ?? ""} className="input">
             <option value="">all</option>
             <option value="unprovisioned">unprovisioned</option>
@@ -90,7 +95,11 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
                 </div>
                 <div>
                   <dt className="text-[11px] uppercase tracking-widest text-ivory-mute">Owner</dt>
-                  <dd className="mt-1 text-ivory-mute">{c.user_id ? c.user_id.slice(0, 8) : "-"}</dd>
+                  <dd className="mt-1 text-ivory-mute">
+                    {c.user_id ? (
+                      <Link href={`/admin/users/${c.user_id}`} className="text-gold hover:underline">{c.user_id.slice(0, 8)}</Link>
+                    ) : "-"}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-[11px] uppercase tracking-widest text-ivory-mute">Last tap</dt>
@@ -137,7 +146,11 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
                     {c.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-xs text-ivory-mute">{c.user_id ? c.user_id.slice(0, 8) : "—"}</td>
+                <td className="px-4 py-3 text-xs text-ivory-mute">
+                  {c.user_id ? (
+                    <Link href={`/admin/users/${c.user_id}`} className="text-gold hover:underline">{c.user_id.slice(0, 8)}</Link>
+                  ) : "—"}
+                </td>
                 <td className="px-4 py-3 tabular-nums">{c.total_taps}</td>
                 <td className="px-4 py-3 text-xs text-ivory-mute">
                   {c.last_tap_at ? new Date(c.last_tap_at).toLocaleString() : "—"}

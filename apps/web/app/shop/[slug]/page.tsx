@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { CheckoutButton } from "@/components/checkout-button";
+import { TrustStrip } from "@/components/trust-strip";
 import { getCustomDesignAddonCents, getProductBySku, formatPrice, isCustomDesignAddonCardSku } from "@/lib/cms";
 import { buildMetadata } from "@/lib/seo";
 import { jsonLdScript, breadcrumbs } from "@/lib/jsonld";
@@ -172,6 +173,7 @@ export default async function ProductPage({
 
           <ul className="mt-10 space-y-3 text-sm text-ink-500">
             <li>· Pairs in under 30 seconds with any iPhone or Android</li>
+            <li>· Works without an app install for you or the person tapping</li>
             <li>· Cards never expire — update your profile any time</li>
             <li>· 30-day refund on unused cards</li>
             <li>· Stripe-secured checkout</li>
@@ -179,6 +181,7 @@ export default async function ProductPage({
         </div>
       </section>
 
+      <TrustStrip />
       <SiteFooter />
     </main>
   );

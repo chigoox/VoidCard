@@ -35,7 +35,25 @@ export default async function NotificationsPage() {
     <div className="space-y-4">
       <header>
         <h1 className="font-display text-2xl text-gold-grad">Notifications</h1>
+        <p className="mt-1 text-sm text-ivory-dim">This is where taps become momentum: profile activity, contact saves, orders, and weekly summaries.</p>
       </header>
+      <section className="grid gap-3 md:grid-cols-3">
+        <Link href="/share" className="card p-4 transition hover:border-gold/40">
+          <p className="text-xs uppercase tracking-widest text-ivory-mute">Next best action</p>
+          <p className="mt-1 font-display text-lg text-ivory">Share your QR</p>
+          <p className="mt-1 text-xs text-ivory-dim">More scans means more signal in this feed.</p>
+        </Link>
+        <Link href="/cards" className="card p-4 transition hover:border-gold/40">
+          <p className="text-xs uppercase tracking-widest text-ivory-mute">Hardware loop</p>
+          <p className="mt-1 font-display text-lg text-ivory">Track card taps</p>
+          <p className="mt-1 text-xs text-ivory-dim">See which cards are creating real meetings.</p>
+        </Link>
+        <Link href="/insights" className="card p-4 transition hover:border-gold/40">
+          <p className="text-xs uppercase tracking-widest text-ivory-mute">Retention loop</p>
+          <p className="mt-1 font-display text-lg text-ivory">Review insights</p>
+          <p className="mt-1 text-xs text-ivory-dim">Turn visits into better links and better follow-up.</p>
+        </Link>
+      </section>
       <section className="card p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -83,7 +101,14 @@ export default async function NotificationsPage() {
           </li>
         ))}
         {(notes ?? []).length === 0 && (
-          <p className="text-sm text-ivory-dim">All caught up. We&apos;ll ping you when someone taps your card.</p>
+          <div className="card border-dashed p-5 text-sm text-ivory-dim">
+            <p className="font-display text-lg text-ivory">No activity yet.</p>
+            <p className="mt-1">Share your profile or pair a card, then this feed becomes your tap history and follow-up prompt.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/share" className="btn-gold">Share profile</Link>
+              <Link href="/shop" className="btn-ghost">Get a card</Link>
+            </div>
+          </div>
         )}
       </ul>
     </div>

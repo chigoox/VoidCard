@@ -54,6 +54,10 @@ export default async function ShopPage() {
           Every card pairs to your profile in one tap. Update your links any time —
           the card never expires.
         </p>
+        <div className="mt-7 flex flex-wrap justify-center gap-3">
+          <Link href="/u/voidluxury" className="btn-outline">See what a tap opens</Link>
+          <Link href="/why-voidcard" className="btn-outline">Why it stays free</Link>
+        </div>
       </section>
 
       <section className="mx-auto grid max-w-7xl gap-6 px-6 pb-16 md:grid-cols-2 lg:grid-cols-3">
