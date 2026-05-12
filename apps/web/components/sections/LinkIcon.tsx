@@ -51,9 +51,53 @@ export const LINK_ICON_OPTIONS = [
 
 export type LinkIconName = (typeof LINK_ICON_OPTIONS)[number]["id"];
 
-const ICONS = new Map<string, LucideIcon>(LINK_ICON_OPTIONS.map((option) => [option.id, option.Icon]));
-
 export function LinkIconGlyph({ name, className }: { name: string; className?: string }) {
-  const Icon = ICONS.get(name) ?? Link;
-  return <Icon className={className ?? "size-4"} aria-hidden strokeWidth={2.1} />;
+  const iconClassName = className ?? "size-4";
+
+  switch (name) {
+    case "globe":
+      return <Globe className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "calendar":
+      return <Calendar className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "mail":
+      return <Mail className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "phone":
+      return <Phone className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "map-pin":
+      return <MapPin className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "instagram":
+    case "camera":
+      return <Camera className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "youtube":
+      return <Play className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "github":
+      return <Code className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "linkedin":
+    case "briefcase":
+      return <Briefcase className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "music":
+      return <Music className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "shop":
+      return <ShoppingBag className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "user":
+      return <User className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "star":
+      return <Star className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "heart":
+      return <Heart className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "video":
+      return <Video className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "message":
+      return <MessageCircle className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "payment":
+      return <CreditCard className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "file":
+      return <FileText className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "download":
+      return <Download className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    case "external":
+      return <ExternalLink className={iconClassName} aria-hidden strokeWidth={2.1} />;
+    default:
+      return <Link className={iconClassName} aria-hidden strokeWidth={2.1} />;
+  }
 }

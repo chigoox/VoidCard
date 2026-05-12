@@ -10,6 +10,7 @@ export type DbProduct = {
   finish: string | null;
   ships: string | null;
   badge: string | null;
+  image_url: string | null;
   price_cents: number;
   currency: string;
   stripe_price_id: string | null;

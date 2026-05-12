@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -17,14 +18,14 @@ export const metadata = buildMetadata({
 export const dynamic = "force-dynamic";
 
 const FALLBACK: DbProduct[] = [
-  { id: "f-card-pvc",       sku: "card-pvc",       name: "VoidCard PVC",     blurb: "Matte black PVC with gold-foil VoidCard mark. The everyday hand-off.",                          finish: "PVC · Gold foil",          ships: "Ships in 3–5 days",  badge: null,                price_cents: 1900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 10, metadata: { verified_included: false } },
-  { id: "f-card-metal",     sku: "card-metal",     name: "VoidCard Metal",   blurb: "Brushed stainless with a laser-etched monogram. Heavy in the hand.",                            finish: "Stainless · Laser etched", ships: "Ships in 5–7 days",  badge: "Includes Verified", price_cents: 2900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 20, metadata: { verified_included: true } },
-  { id: "f-card-custom",    sku: "card-custom",    name: "Custom Art",       blurb: "Your art, your finish. Requires Verified Badge before order.",                                  finish: "Custom · Foil/etch/print", ships: "Ships in 10–14 days",badge: "Verified-only",     price_cents: 4900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 30, metadata: { verified_included: true, requires_verified: true } },
-  { id: "f-keychain",       sku: "keychain",       name: "Keychain",         blurb: "NFC keychain in onyx leather. Same tap-to-share, fits on your keys.",                           finish: "Leather · NFC",            ships: "Ships in 3–5 days",  badge: null,                price_cents: 1500, currency: "usd", description: null, stripe_price_id: null, active: true, position: 40, metadata: {} },
-  { id: "f-stickers-5",     sku: "stickers-5",     name: "Stickers (5)",     blurb: "Pack of five NFC stickers. Stick them on laptops, guitars, lockers.",                           finish: "5× NFC vinyl",             ships: "Ships in 3–5 days",  badge: null,                price_cents:  900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 50, metadata: {} },
-  { id: "f-bundle-starter", sku: "bundle-starter", name: "Starter Bundle",   blurb: "1 metal card + keychain + 5 stickers. Best value for new founders.",                            finish: "Bundle",                   ships: "Ships in 5–7 days",  badge: "Includes Verified", price_cents: 3500, currency: "usd", description: null, stripe_price_id: null, active: true, position: 60, metadata: { verified_included: true } },
-  { id: "f-team-5pack",     sku: "team-5pack",     name: "Team 5-Pack",      blurb: "Five metal cards, brand kit ready. Built for studios and crews.",                               finish: "5× Stainless",             ships: "Ships in 7–10 days", badge: "Includes Verified", price_cents: 7900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 70, metadata: { verified_included: true } },
-  { id: "f-verified-badge", sku: "verified-badge", name: "Verified Badge",   blurb: "One-time upgrade. Required for custom art, apex domain, and non-HTTPS webhooks.",                finish: "Digital",                  ships: "Instant",            badge: null,                price_cents:  500, currency: "usd", description: null, stripe_price_id: null, active: true, position: 90, metadata: { digital: true } },
+  { id: "f-card-pvc",       sku: "card-pvc",       name: "VoidCard PVC",     blurb: "Matte black PVC with gold-foil VoidCard mark. The everyday hand-off.",                          finish: "PVC · Gold foil",          ships: "Ships in 3–5 days",  badge: null,                image_url: null, price_cents: 1900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 10, metadata: { verified_included: false } },
+  { id: "f-card-metal",     sku: "card-metal",     name: "VoidCard Metal",   blurb: "Brushed stainless with a laser-etched monogram. Heavy in the hand.",                            finish: "Stainless · Laser etched", ships: "Ships in 5–7 days",  badge: "Includes Verified", image_url: null, price_cents: 2900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 20, metadata: { verified_included: true } },
+  { id: "f-card-custom",    sku: "card-custom",    name: "Custom Art",       blurb: "Your art, your finish. Requires Verified Badge before order.",                                  finish: "Custom · Foil/etch/print", ships: "Ships in 10–14 days",badge: "Verified-only",     image_url: null, price_cents: 4900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 30, metadata: { verified_included: true, requires_verified: true } },
+  { id: "f-keychain",       sku: "keychain",       name: "Keychain",         blurb: "NFC keychain in onyx leather. Same tap-to-share, fits on your keys.",                           finish: "Leather · NFC",            ships: "Ships in 3–5 days",  badge: null,                image_url: null, price_cents: 1500, currency: "usd", description: null, stripe_price_id: null, active: true, position: 40, metadata: {} },
+  { id: "f-stickers-5",     sku: "stickers-5",     name: "Stickers (5)",     blurb: "Pack of five NFC stickers. Stick them on laptops, guitars, lockers.",                           finish: "5× NFC vinyl",             ships: "Ships in 3–5 days",  badge: null,                image_url: null, price_cents:  900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 50, metadata: {} },
+  { id: "f-bundle-starter", sku: "bundle-starter", name: "Starter Bundle",   blurb: "1 metal card + keychain + 5 stickers. Best value for new founders.",                            finish: "Bundle",                   ships: "Ships in 5–7 days",  badge: "Includes Verified", image_url: null, price_cents: 3500, currency: "usd", description: null, stripe_price_id: null, active: true, position: 60, metadata: { verified_included: true } },
+  { id: "f-team-5pack",     sku: "team-5pack",     name: "Team 5-Pack",      blurb: "Five metal cards, brand kit ready. Built for studios and crews.",                               finish: "5× Stainless",             ships: "Ships in 7–10 days", badge: "Includes Verified", image_url: null, price_cents: 7900, currency: "usd", description: null, stripe_price_id: null, active: true, position: 70, metadata: { verified_included: true } },
+  { id: "f-verified-badge", sku: "verified-badge", name: "Verified Badge",   blurb: "One-time upgrade. Required for custom art, apex domain, and non-HTTPS webhooks.",                finish: "Digital",                  ships: "Instant",            badge: null,                image_url: null, price_cents:  500, currency: "usd", description: null, stripe_price_id: null, active: true, position: 90, metadata: { digital: true } },
 ];
 
 export default async function ShopPage() {
@@ -58,12 +59,22 @@ export default async function ShopPage() {
       <section className="mx-auto grid max-w-7xl gap-6 px-6 pb-16 md:grid-cols-2 lg:grid-cols-3">
         {products.map((sku) => (
           <div key={sku.id} className="surface flex flex-col p-6">
-            <div className="aspect-[16/10] overflow-hidden rounded-card bg-white text-ink ring-1 ring-paper-200">
-              <div className="flex h-full items-center justify-center">
-                <div className="rounded-card bg-gold-grad/10 px-6 py-3 font-display text-2xl text-ink ring-1 ring-gold/40">
-                  {sku.name}
+            <div className="relative aspect-[16/10] overflow-hidden rounded-card bg-white text-ink ring-1 ring-paper-200">
+              {sku.image_url ? (
+                <Image
+                  src={sku.image_url}
+                  alt={sku.name}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <div className="rounded-card bg-gold-grad/10 px-6 py-3 font-display text-2xl text-ink ring-1 ring-gold/40">
+                    {sku.name}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="mt-5 flex items-start justify-between gap-3">
               <h2 className="font-display text-xl">{sku.name}</h2>

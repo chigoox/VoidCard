@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
@@ -66,9 +67,22 @@ export default async function ProductPage({
 
       <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-16 pt-12 md:grid-cols-2">
         <div className="surface aspect-[4/5] overflow-hidden p-6">
-          <div className="flex h-full items-center justify-center rounded-card bg-gold-grad/10 ring-1 ring-gold/30">
-            <div className="font-display text-3xl text-ink">{product.name}</div>
-          </div>
+          {product.image_url ? (
+            <div className="relative h-full w-full overflow-hidden rounded-card">
+              <Image
+                src={product.image_url}
+                alt={product.name}
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                priority
+              />
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center rounded-card bg-gold-grad/10 ring-1 ring-gold/30">
+              <div className="font-display text-3xl text-ink">{product.name}</div>
+            </div>
+          )}
         </div>
 
         <div>

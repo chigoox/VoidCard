@@ -1,7 +1,8 @@
 "use client";
 
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 type MobileNavProps = {
   isLoggedIn: boolean;
@@ -16,6 +17,16 @@ const NAV_LINKS = [
 
 export function MobileNav({ isLoggedIn }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   return (
     <div className="md:hidden">
@@ -23,24 +34,18 @@ export function MobileNav({ isLoggedIn }: MobileNavProps) {
         type="button"
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
+        aria-controls={menuId}
         onClick={() => setOpen((v) => !v)}
-        className="flex size-10 items-center justify-center rounded-full border border-paper-200 text-ink-500 hover:border-ink/20 hover:text-ink"
+        className="flex size-11 items-center justify-center rounded-full border border-paper-200 text-ink-500 transition hover:border-ink/20 hover:text-ink active:scale-[0.98]"
       >
-        {open ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <line x1="4" y1="8" x2="20" y2="8" />
-            <line x1="4" y1="16" x2="20" y2="16" />
-          </svg>
-        )}
+        {open ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
       </button>
 
       {open && (
-        <div className="absolute inset-x-0 top-full z-50 border-b border-paper-200 bg-white/95 shadow-md backdrop-blur-md">
+        <div
+          id={menuId}
+          className="fixed inset-x-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-50 border-b border-paper-200 bg-white/95 shadow-md backdrop-blur-md"
+        >
           <nav className="safe-menu-panel mx-auto max-w-7xl py-4">
             <ul className="space-y-1">
               {NAV_LINKS.map((link) => (
@@ -48,7 +53,7 @@ export function MobileNav({ isLoggedIn }: MobileNavProps) {
                   <Link
                     href={link.href}
                     onClick={() => setOpen(false)}
-                    className="block rounded-lg px-3 py-3 text-sm text-ink-500 hover:bg-paper-50 hover:text-ink"
+                    className="block min-h-11 rounded-lg px-3 py-3 text-sm text-ink-500 hover:bg-paper-50 hover:text-ink"
                   >
                     {link.label}
                   </Link>
@@ -68,7 +73,7 @@ export function MobileNav({ isLoggedIn }: MobileNavProps) {
                     <Link
                       href="/login"
                       onClick={() => setOpen(false)}
-                      className="block rounded-lg px-3 py-3 text-sm text-ink-500 hover:bg-paper-50 hover:text-ink"
+                      className="block min-h-11 rounded-lg px-3 py-3 text-sm text-ink-500 hover:bg-paper-50 hover:text-ink"
                     >
                       Sign in
                     </Link>

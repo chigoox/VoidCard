@@ -41,7 +41,27 @@ export async function upsertProduct(formData: FormData) {
     throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
   }
   const metadata = parseMeta(parsed.data.metadata_json);
+
+  // --- Image handling ---
+  // Prefer uploaded file; fall back to pasted URL; preserve existing if neither.
   const sb = createAdminClient();
+  let imageUrl: string | null = (formData.get("image_url") as string | null)?.trim() || null;
+  const imageFile = formData.get("image_file");
+  if (imageFile instanceof File && imageFile.size > 0) {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"];
+    if (!allowed.includes(imageFile.type)) throw new Error("Unsupported image type. Use JPEG, PNG, WebP, AVIF, or GIF.");
+    if (imageFile.size > 10 * 1024 * 1024) throw new Error("Image must be under 10 MB.");
+    const ext = (imageFile.name.split(".").pop() ?? "jpg").toLowerCase();
+    const storagePath = `products/${parsed.data.sku}/${Date.now()}.${ext}`;
+    const bytes = Buffer.from(await imageFile.arrayBuffer());
+    const { error: uploadError } = await sb.storage
+      .from("vcard-public")
+      .upload(storagePath, bytes, { contentType: imageFile.type, upsert: true });
+    if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
+    const { data: urlData } = sb.storage.from("vcard-public").getPublicUrl(storagePath);
+    imageUrl = urlData.publicUrl;
+  }
+
   const row = {
     sku: parsed.data.sku,
     name: parsed.data.name,
@@ -55,12 +75,13 @@ export async function upsertProduct(formData: FormData) {
     active: parsed.data.active,
     position: parsed.data.position,
     metadata,
+    ...(imageUrl !== null ? { image_url: imageUrl } : {}),
   };
   if (id) {
     const { error } = await sb.from("vcard_products").update(row).eq("id", id);
     if (error) throw new Error(error.message);
   } else {
-    const { error } = await sb.from("vcard_products").insert(row);
+    const { error } = await sb.from("vcard_products").insert({ ...row, image_url: imageUrl });
     if (error) throw new Error(error.message);
   }
   revalidatePath("/admin/products");

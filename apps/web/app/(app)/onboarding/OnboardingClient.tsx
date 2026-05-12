@@ -2,6 +2,7 @@
 
 import "client-only";
 
+import { Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -262,17 +263,17 @@ export default function OnboardingClient({
   return (
     <div className="space-y-6" data-testid="onboarding-page" data-step={step}>
       <header className="card p-6 sm:p-8">
-        <div className="flex items-center justify-between gap-4">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.24em] text-gold">Welcome</p>
-            <h1 className="mt-2 font-display text-3xl text-gold-grad">Let&rsquo;s set up your VoidCard</h1>
+            <h1 className="mt-2 text-balance font-display text-3xl text-gold-grad">Let&rsquo;s set up your VoidCard</h1>
             <p className="mt-2 text-sm text-ivory-dim">
               Step {Math.min(step + 1, ONBOARDING_TOTAL_STEPS)} of {ONBOARDING_TOTAL_STEPS}
             </p>
           </div>
           <button
             type="button"
-            className="btn-ghost px-3 py-2 text-xs"
+            className="btn-ghost min-h-11 px-3 py-2 text-xs sm:min-h-0"
             onClick={handleSkip}
             disabled={pending}
             data-testid="onboarding-skip"
@@ -345,7 +346,7 @@ export default function OnboardingClient({
           <div className="flex justify-end">
             <button
               type="button"
-              className="btn-gold"
+              className="btn-gold w-full sm:w-auto"
               onClick={submitUsername}
               disabled={pending || usernameStatus === "checking" || usernameStatus === "invalid" || usernameStatus === "taken" || usernameStatus === "reserved"}
               data-testid="username-continue"
@@ -391,7 +392,7 @@ export default function OnboardingClient({
             ) : null}
           </div>
           {avatarError ? <p className="text-xs text-red-300">{avatarError}</p> : null}
-          <div className="flex justify-between">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
             <button type="button" className="btn-ghost" onClick={() => go(1)} disabled={pending}>Back</button>
             <button
               type="button"
@@ -444,7 +445,7 @@ export default function OnboardingClient({
               <p className="mt-1 text-xs text-ivory-dim">Start empty and build it yourself.</p>
             </button>
           </div>
-          <div className="flex justify-between">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
             <button type="button" className="btn-ghost" onClick={() => go(2)} disabled={pending}>Back</button>
             <button type="button" className="btn-gold" onClick={submitVibe} disabled={pending} data-testid="vibe-continue">
               {pending ? "Applying…" : "Continue"}
@@ -465,6 +466,7 @@ export default function OnboardingClient({
                 <input
                   className={INPUT_CLASS}
                   placeholder="Label"
+                  aria-label={`Link ${i + 1} label`}
                   value={link.label}
                   maxLength={80}
                   onChange={(e) => updateLink(i, { label: e.target.value })}
@@ -473,18 +475,19 @@ export default function OnboardingClient({
                 <input
                   className={INPUT_CLASS}
                   placeholder="https://example.com"
+                  aria-label={`Link ${i + 1} URL`}
                   value={link.url}
                   onChange={(e) => updateLink(i, { url: e.target.value })}
                   data-testid={`link-url-${i}`}
                 />
                 <button
                   type="button"
-                  className="btn-ghost text-xs"
+                  className="btn-ghost min-h-11 text-xs sm:min-h-0"
                   onClick={() => removeLinkRow(i)}
                   disabled={links.length === 1}
-                  aria-label="Remove link"
+                  aria-label={`Remove link ${i + 1}`}
                 >
-                  ×
+                  <Trash2 className="size-4" aria-hidden />
                 </button>
               </li>
             ))}
@@ -498,7 +501,7 @@ export default function OnboardingClient({
           >
             + Add link
           </button>
-          <div className="flex justify-between">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
             <button type="button" className="btn-ghost" onClick={() => go(3)} disabled={pending}>Back</button>
             <button type="button" className="btn-gold" onClick={submitLinks} disabled={pending} data-testid="links-continue">
               {pending ? "Saving…" : "Continue"}
@@ -535,9 +538,9 @@ export default function OnboardingClient({
               {pushAccepted === "granted" ? "Enabled" : pushAccepted === "denied" ? "Dismissed" : "Enable web push"}
             </button>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <button type="button" className="btn-ghost" onClick={() => go(4)} disabled={pending}>Back</button>
-            <div className="flex gap-2">
+            <div className="grid gap-2 sm:flex">
               <button type="button" className="btn-ghost" onClick={shareProfile} data-testid="share-profile">
                 Share
               </button>
