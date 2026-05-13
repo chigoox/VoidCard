@@ -5,8 +5,7 @@ import { getUser } from "@/lib/auth";
 import { rateLimits } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
-import { applicationFeeFor, getPlatformFeeBps } from "@/lib/stripe-connect";
-import { loadPrimaryProfile } from "@/lib/profiles";
+import { applicationFeeFor, normalizeRevenueShareBps } from "@/lib/stripe-connect";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +27,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: account } = await admin
     .from("vcard_seller_accounts")
-    .select("user_id, stripe_account_id, charges_enabled")
+    .select("user_id, stripe_account_id, charges_enabled, revenue_share_bps")
     .eq("stripe_account_id", body.stripeAccountId)
     .maybeSingle();
   if (!account || !account.charges_enabled) {
@@ -42,8 +41,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   }
 
-  const sellerProfile = await loadPrimaryProfile(account.user_id);
-  const bps = await getPlatformFeeBps(sellerProfile?.plan ?? "free");
+  const bps = normalizeRevenueShareBps(account.revenue_share_bps);
   const fee = applicationFeeFor(body.amountCents, bps);
   const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const successPath = body.profileUsername ? `/u/${encodeURIComponent(body.profileUsername)}?tip=1` : "/?tip=1";
@@ -73,7 +71,7 @@ export async function POST(req: Request) {
         kind: "tip",
         seller_user_id: account.user_id,
         buyer_user_id: buyer?.id ?? "",
-        platform_fee_bps: String(bps),
+        revenue_share_bps: String(bps),
       },
       payment_intent_data: {
         application_fee_amount: fee,

@@ -30,7 +30,7 @@ export async function GET() {
     "status",
     "buyer_email",
     "total",
-    "platform_fee",
+    "revenue_share",
     "currency",
     "items",
     "tracking_number",

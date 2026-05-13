@@ -3,9 +3,8 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { applicationFeeFor, getPlatformFeeBps } from "@/lib/stripe-connect";
+import { applicationFeeFor, normalizeRevenueShareBps } from "@/lib/stripe-connect";
 import { getSellerProduct } from "@/lib/seller-products";
-import { loadPrimaryProfile } from "@/lib/profiles";
 import { rateLimits } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -14,7 +13,7 @@ export const dynamic = "force-dynamic";
 /**
  * POST { productId, variantId?, qty?, profileUsername? } → Stripe Checkout URL.
  * Creates a destination charge to the seller's connected account, with a
- * platform application fee.
+ * optional seller-selected revenue share.
  */
 export async function POST(req: Request) {
   let body: { productId?: string; variantId?: string; qty?: number; profileUsername?: string } = {};
@@ -46,7 +45,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: account } = await admin
     .from("vcard_seller_accounts")
-    .select("stripe_account_id, charges_enabled, details_submitted")
+    .select("stripe_account_id, charges_enabled, details_submitted, revenue_share_bps")
     .eq("user_id", product.owner_user_id)
     .maybeSingle();
   if (!account || !account.stripe_account_id) {
@@ -56,10 +55,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "seller_not_ready" }, { status: 409 });
   }
 
-  // Look up seller's plan to compute platform fee tier.
-  const sellerProfile = await loadPrimaryProfile(product.owner_user_id);
-  const sellerPlan = sellerProfile?.plan ?? "free";
-  const bps = await getPlatformFeeBps(sellerPlan);
+  const bps = normalizeRevenueShareBps(account.revenue_share_bps);
 
   const buyer = await getUser();
   const origin =
@@ -120,7 +116,7 @@ export async function POST(req: Request) {
         variant_id: variant?.id ?? "",
         seller_user_id: product.owner_user_id,
         buyer_user_id: buyer?.id ?? "",
-        platform_fee_bps: String(bps),
+        revenue_share_bps: String(bps),
       },
       payment_intent_data: {
         application_fee_amount: fee,

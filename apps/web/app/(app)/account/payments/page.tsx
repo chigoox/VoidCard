@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { getSellerAccount, refreshSellerAccount } from "@/lib/stripe-connect";
+import {
+  DEFAULT_REVENUE_SHARE_BPS,
+  getSellerAccount,
+  normalizeRevenueShareBps,
+  refreshSellerAccount,
+} from "@/lib/stripe-connect";
 import { listSellerProducts } from "@/lib/seller-products";
-import { ConnectStripeButton, DisconnectStripeButton, ManageStripeButton } from "./client";
+import { ConnectStripeButton, DisconnectStripeButton, ManageStripeButton, RevenueShareControl } from "./client";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +41,7 @@ export default async function PaymentsPage({
         <h1 className="font-display text-2xl text-gold-grad">Sell on your VoidCard profile</h1>
         <p className="max-w-prose text-sm text-ivory-dim">
           Connect a Stripe account to accept secure payments directly on your profile.
-          Funds go to your Stripe balance, with a small platform fee. Stripe handles the
+          Funds go to your Stripe balance. VoidCard platform fees are 0%; you choose whether to share a percentage of each sale. Stripe handles the
           login, KYC, taxes, and payouts — we never see your card or bank info.
         </p>
       </header>
@@ -89,9 +94,15 @@ export default async function PaymentsPage({
           <ul className="space-y-1 text-xs text-ivory-mute">
             <li>• Stripe-hosted onboarding — log in with your existing account or create one.</li>
             <li>• Identity verification + payout bank account live on Stripe&apos;s side.</li>
-            <li>• Your earnings go directly to you; we collect a platform fee on each sale.</li>
+            <li>• Your earnings go directly to you; revenue sharing starts at 10% and is optional.</li>
           </ul>
         ) : null}
+
+        {account ? (
+          <RevenueShareControl initialBps={normalizeRevenueShareBps(account.revenue_share_bps)} />
+        ) : (
+          <RevenueShareControl initialBps={DEFAULT_REVENUE_SHARE_BPS} disabled />
+        )}
       </section>
 
       <section className="card space-y-3 p-5" data-testid="payments-products-card">

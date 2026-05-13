@@ -20,6 +20,9 @@ test.describe("seller storefront", () => {
     await page.goto("/account/payments");
     await expect(page.getByTestId("payments-page")).toBeVisible();
     await expect(page.getByTestId("payments-status-card")).toBeVisible();
+    await expect(page.getByTestId("revenue-share-control")).toBeVisible();
+    await expect(page.getByTestId("revenue-share-range")).toBeVisible();
+    await expect(page.getByTestId("revenue-share-percent")).toHaveValue("10");
     // Either "Connect with Stripe" (not connected) or "Open Stripe dashboard" (connected) must be present.
     const connect = page.getByTestId("connect-stripe");
     const manage = page.getByTestId("manage-stripe");

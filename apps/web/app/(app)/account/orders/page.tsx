@@ -45,7 +45,7 @@ export default async function OrdersPage() {
   const orders = (data ?? []) as Order[];
 
   const grossCents = orders.reduce((acc, o) => acc + o.total_cents, 0);
-  const feesCents = orders.reduce((acc, o) => acc + o.application_fee_cents, 0);
+  const revenueShareCents = orders.reduce((acc, o) => acc + o.application_fee_cents, 0);
   const currency = orders[0]?.currency ?? "usd";
 
   return (
@@ -83,8 +83,8 @@ export default async function OrdersPage() {
           <p className="font-display text-2xl text-gold">{formatMoney(grossCents, currency)}</p>
         </div>
         <div className="card p-4">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Platform fees</p>
-          <p className="font-display text-2xl text-ivory-dim">{formatMoney(feesCents, currency)}</p>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Revenue share</p>
+          <p className="font-display text-2xl text-ivory-dim">{formatMoney(revenueShareCents, currency)}</p>
         </div>
       </div>
 
@@ -147,7 +147,7 @@ export default async function OrdersPage() {
                     {formatMoney(o.total_cents, o.currency)}
                   </p>
                   <p className="font-mono text-[11px] text-ivory-mute">
-                    fee {formatMoney(o.application_fee_cents, o.currency)}
+                    share {formatMoney(o.application_fee_cents, o.currency)}
                   </p>
                   {o.status === "paid" ? (
                     <div className="flex flex-col items-end gap-1 pt-1">

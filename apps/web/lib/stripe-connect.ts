@@ -1,8 +1,9 @@
 import "server-only";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSetting } from "@/lib/cms";
-import type { Plan } from "@/lib/auth";
+
+export const DEFAULT_REVENUE_SHARE_BPS = 1000;
+export const MAX_REVENUE_SHARE_BPS = 10000;
 
 export type SellerAccount = {
   user_id: string;
@@ -13,9 +14,15 @@ export type SellerAccount = {
   details_submitted: boolean;
   charges_enabled: boolean;
   payouts_enabled: boolean;
+  revenue_share_bps: number;
   capabilities: Record<string, unknown> | null;
   requirements: Record<string, unknown> | null;
 };
+
+export function normalizeRevenueShareBps(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_REVENUE_SHARE_BPS;
+  return Math.max(0, Math.min(MAX_REVENUE_SHARE_BPS, Math.floor(value)));
+}
 
 function isRecoverableStripeAccountError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? "");
@@ -232,22 +239,18 @@ export async function refreshSellerAccount(userId: string): Promise<SellerAccoun
   return (data as SellerAccount | null) ?? existing;
 }
 
-/**
- * Platform fee (basis points) for a given plan.
- */
-export async function getPlatformFeeBps(plan: Plan): Promise<number> {
-  const free = (await getSetting<number>("seller.platform_fee_bps")) ?? 500;
-  const pro = (await getSetting<number>("seller.platform_fee_bps_pro")) ?? 250;
-  const team = (await getSetting<number>("seller.platform_fee_bps_team")) ?? 100;
-  switch (plan) {
-    case "free":
-      return free;
-    case "pro":
-      return pro;
-    case "team":
-    case "enterprise":
-      return team;
-  }
+export async function updateSellerRevenueShareBps(userId: string, bps: number): Promise<SellerAccount | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("vcard_seller_accounts")
+    .update({
+      revenue_share_bps: normalizeRevenueShareBps(bps),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .select("*")
+    .maybeSingle();
+  return (data as SellerAccount | null) ?? null;
 }
 
 export function applicationFeeFor(amountCents: number, bps: number): number {

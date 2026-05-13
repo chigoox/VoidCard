@@ -154,6 +154,7 @@ Admin = `profiles.role === 'admin'` (single source of truth). Use the `requireAd
    - Replacement card (existing pairing transferred) — **$9**
 2. **Pro / Team subscriptions** (recurring).
 3. **Verified badge** ($5 one-time, optional).
+4. **Optional seller revenue share** — platform fees are 0%; sellers can share 0-100% of Store/tip revenue, defaulting to 10%.
 
 ### 1.3 Free-tier "fair use" guards
 Free profiles get the small footer link `Powered by VoidCard`. No tap caps, no view caps, no link caps. Storage cap (5 GB) is the only hard limit. This makes Free genuinely shareable so it serves as the viral acquisition channel for cards.
