@@ -16,6 +16,24 @@ function randomSerial(): string {
   return s;
 }
 
+const CardIdSchema = z.string().uuid();
+
+function parseCardId(formData: FormData): string {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!CardIdSchema.safeParse(id).success) {
+    throw new Error("Invalid card id.");
+  }
+  return id;
+}
+
+async function revalidateCardAdminPaths(userId?: string | null) {
+  revalidatePath("/admin/cards");
+  if (userId) {
+    revalidatePath(`/admin/cards?user=${userId}`);
+    revalidatePath(`/admin/users/${userId}`);
+  }
+}
+
 export async function batchCreateCards(formData: FormData) {
   const u = await requireAdmin();
   const count = Math.max(1, Math.min(500, Number(formData.get("count") ?? 25)));
@@ -59,13 +77,78 @@ export async function pairCard(formData: FormData) {
 
 export async function disableCard(formData: FormData) {
   const u = await requireAdmin();
-  const id = String(formData.get("id") ?? "");
-  if (!id) throw new Error("missing id");
+  const id = parseCardId(formData);
   const sb = createAdminClient();
+  const { data: card, error: cardError } = await sb
+    .from("vcard_cards")
+    .select("id, status, user_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (cardError) throw new Error(cardError.message);
+  if (!card) throw new Error("Card not found.");
+  if (card.status === "lost") {
+    await revalidateCardAdminPaths(card.user_id);
+    return;
+  }
+
   const { error } = await sb.from("vcard_cards").update({ status: "lost" }).eq("id", id);
   if (error) throw new Error(error.message);
   await audit({ action: "admin.cards.disable", actorId: u.id, targetKind: "vcard_cards", targetId: id });
-  revalidatePath("/admin/cards");
+  await revalidateCardAdminPaths(card.user_id);
+}
+
+export async function reactivateCard(formData: FormData) {
+  const u = await requireAdmin();
+  const id = parseCardId(formData);
+  const sb = createAdminClient();
+  const { data: card, error: cardError } = await sb
+    .from("vcard_cards")
+    .select("id, status, user_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (cardError) throw new Error(cardError.message);
+  if (!card) throw new Error("Card not found.");
+
+  const nextStatus = card.user_id ? "active" : "sold";
+  const { error } = await sb.from("vcard_cards").update({ status: nextStatus }).eq("id", id);
+  if (error) throw new Error(error.message);
+
+  await audit({
+    action: "admin.cards.reactivate",
+    actorId: u.id,
+    targetKind: "vcard_cards",
+    targetId: id,
+    diff: { from: card.status, to: nextStatus },
+  });
+  await revalidateCardAdminPaths(card.user_id);
+}
+
+export async function deleteCard(formData: FormData) {
+  const u = await requireAdmin();
+  const id = parseCardId(formData);
+  const sb = createAdminClient();
+  const { data: card, error: cardError } = await sb
+    .from("vcard_cards")
+    .select("id, serial, user_id, status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (cardError) throw new Error(cardError.message);
+  if (!card) throw new Error("Card not found.");
+
+  const { error } = await sb.from("vcard_cards").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  await audit({
+    action: "admin.cards.delete",
+    actorId: u.id,
+    targetKind: "vcard_cards",
+    targetId: id,
+    diff: { serial: card.serial, status: card.status },
+  });
+  await revalidateCardAdminPaths(card.user_id);
 }
 
 /** Mark a card as provisioned (NFC URL written, ready to ship). status: unprovisioned → sold */

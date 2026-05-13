@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { batchCreateCards, disableCard } from "./actions";
+import { loadPrimaryProfile } from "@/lib/profiles";
+import { batchCreateCards } from "./actions";
 import { AdminNfcWriter } from "./AdminNfcWriter";
+import { AdminCardActions } from "./AdminCardActions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,36 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
   if (sp.user) q = q.eq("user_id", sp.user);
   const { data } = await q;
   const cards = (data as Card[] | null) ?? [];
+  const ownerIds = Array.from(new Set(cards.flatMap((card) => (card.user_id ? [card.user_id] : []))));
+  const owners = new Map(
+    await Promise.all(
+      ownerIds.map(async (userId) => {
+        const profile = await loadPrimaryProfile(userId);
+        const displayName = profile?.displayName?.trim() || null;
+        const username = profile?.username ? `@${profile.username}` : null;
+
+        return [
+          userId,
+          {
+            primary: displayName ?? username ?? userId.slice(0, 8),
+            secondary: displayName && username ? username : null,
+          },
+        ] as const;
+      }),
+    ),
+  );
+
+  function renderOwner(userId: string | null) {
+    if (!userId) return "-";
+
+    const owner = owners.get(userId);
+    return (
+      <Link href={`/admin/users/${userId}`} className="block min-w-0 text-gold hover:underline">
+        <span className="block truncate">{owner?.primary ?? userId.slice(0, 8)}</span>
+        {owner?.secondary ? <span className="block text-[11px] text-ivory-mute">{owner.secondary}</span> : null}
+      </Link>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -95,11 +127,7 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
                 </div>
                 <div>
                   <dt className="text-[11px] uppercase tracking-widest text-ivory-mute">Owner</dt>
-                  <dd className="mt-1 text-ivory-mute">
-                    {c.user_id ? (
-                      <Link href={`/admin/users/${c.user_id}`} className="text-gold hover:underline">{c.user_id.slice(0, 8)}</Link>
-                    ) : "-"}
-                  </dd>
+                  <dd className="mt-1 text-ivory-mute">{renderOwner(c.user_id)}</dd>
                 </div>
                 <div>
                   <dt className="text-[11px] uppercase tracking-widest text-ivory-mute">Last tap</dt>
@@ -109,10 +137,7 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
 
               <div className="flex items-center justify-between gap-3 border-t border-onyx-800 pt-3">
                 <AdminNfcWriter cardId={c.id} serial={c.serial} currentStatus={c.status} />
-                <form action={disableCard}>
-                  <input type="hidden" name="id" value={c.id} />
-                  <button className="text-xs text-red-400 hover:underline" type="submit">disable</button>
-                </form>
+                <AdminCardActions cardId={c.id} status={c.status} userId={c.user_id} />
               </div>
             </div>
           ))
@@ -147,9 +172,7 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
                   </span>
                 </td>
                 <td className="px-4 py-3 text-xs text-ivory-mute">
-                  {c.user_id ? (
-                    <Link href={`/admin/users/${c.user_id}`} className="text-gold hover:underline">{c.user_id.slice(0, 8)}</Link>
-                  ) : "—"}
+                  {c.user_id ? renderOwner(c.user_id) : "—"}
                 </td>
                 <td className="px-4 py-3 tabular-nums">{c.total_taps}</td>
                 <td className="px-4 py-3 text-xs text-ivory-mute">
@@ -159,10 +182,7 @@ export default async function AdminCardsPage({ searchParams }: { searchParams: P
                   <AdminNfcWriter cardId={c.id} serial={c.serial} currentStatus={c.status} />
                 </td>
                 <td className="px-4 py-3">
-                  <form action={disableCard}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <button className="text-xs text-red-400 hover:underline" type="submit">disable</button>
-                  </form>
+                  <AdminCardActions cardId={c.id} status={c.status} userId={c.user_id} />
                 </td>
               </tr>
             ))}
