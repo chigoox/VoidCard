@@ -13,6 +13,10 @@ function isMissingProfileVersionsTableError(error: { message?: string | null; co
   return error?.code === "PGRST205" || message.includes("schema cache") || message.includes("could not find the table");
 }
 
+function versionProfileId(profile: { id: string; ownerUserId: string }) {
+  return profile.id === PRIMARY_PROFILE_ID ? profile.ownerUserId : profile.id;
+}
+
 async function syncLeadForms(userId: string, profileId: string, sections: SectionsRecord) {
   const formSections = sections.filter(
     (section): section is Extract<SectionRecord, { type: "form" }> => section.type === "form",
@@ -134,12 +138,13 @@ export async function listVersions(profileId?: string) {
   const u = await requireUser();
   const profile = await getManagedProfile(u.id, profileId ?? null);
   if (!profile) return { ok: false as const, error: "profile_not_found", versions: [] };
+  const resolvedProfileId = versionProfileId(profile);
   const sb = await createClient();
   const { data, error } = await sb
     .from("vcard_profile_versions")
     .select("id, label, created_at")
     .eq("owner_user_id", u.id)
-    .eq("profile_id", profile.id)
+    .eq("profile_id", resolvedProfileId)
     .order("created_at", { ascending: false })
     .limit(50);
   if (isMissingProfileVersionsTableError(error)) {
@@ -154,11 +159,12 @@ export async function snapshotVersion(input: unknown, label: string | null, prof
   const sections = Sections.parse(input);
   const profile = await getManagedProfile(u.id, profileId ?? null);
   if (!profile) return { ok: false as const, error: "profile_not_found" };
+  const resolvedProfileId = versionProfileId(profile);
   const sb = await createClient();
   const trimmed = (label ?? "").trim().slice(0, 80) || null;
   const { error } = await sb.from("vcard_profile_versions").insert({
     owner_user_id: u.id,
-    profile_id: profile.id,
+    profile_id: resolvedProfileId,
     label: trimmed,
     sections,
     theme: profile.theme ?? null,
@@ -173,7 +179,7 @@ export async function snapshotVersion(input: unknown, label: string | null, prof
     .from("vcard_profile_versions")
     .select("id, created_at")
     .eq("owner_user_id", u.id)
-    .eq("profile_id", profile.id)
+    .eq("profile_id", resolvedProfileId)
     .order("created_at", { ascending: false })
     .range(50, 200);
   if (extras && extras.length > 0) {
@@ -187,6 +193,7 @@ export async function restoreVersion(versionId: string, profileId?: string) {
   const u = await requireUser();
   const profile = await getManagedProfile(u.id, profileId ?? null);
   if (!profile) return { ok: false as const, error: "profile_not_found" };
+  const resolvedProfileId = versionProfileId(profile);
   const sb = await createClient();
   const { data, error } = await sb
     .from("vcard_profile_versions")
@@ -197,7 +204,7 @@ export async function restoreVersion(versionId: string, profileId?: string) {
     return { ok: false as const, error: "versioning_unavailable" };
   }
   if (error || !data) return { ok: false as const, error: "version_not_found" };
-  if (data.owner_user_id !== u.id || data.profile_id !== profile.id) return { ok: false as const, error: "forbidden" };
+  if (data.owner_user_id !== u.id || data.profile_id !== resolvedProfileId) return { ok: false as const, error: "forbidden" };
   const parsed = Sections.safeParse(data.sections);
   if (!parsed.success) return { ok: false as const, error: "invalid_sections" };
   return {

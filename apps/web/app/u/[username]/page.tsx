@@ -167,11 +167,14 @@ export default async function PublicProfilePage({
   const sections = parsed.success ? parsed.data : [];
   const { integrations } = readProfileIntegrations(profile.customCss ?? "");
   const actionAfterIndex = sections.findIndex((section) => section.visible !== false && section.type === "header");
+  const headerSection = sections.find((section) => section.visible !== false && section.type === "header");
+  const showSaveContact = headerSection?.type === "header" ? headerSection.props.showSaveContact ?? true : true;
   const profileActions = (
     <PublicProfileActions
       displayName={displayName}
       profileUrl={`${SITE_URL}/u/${handle}`}
       vcardUrl={`/u/${handle}/vcard.vcf`}
+      showSaveContact={showSaveContact}
     />
   );
 

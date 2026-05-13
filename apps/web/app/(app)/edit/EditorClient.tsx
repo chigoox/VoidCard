@@ -1038,8 +1038,15 @@ function SectionEditorFields({
           <Field label="Tagline" className="md:col-span-2">
             <textarea className={TEXTAREA_CLASS_NAME} value={p.tagline ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, tagline: event.target.value || undefined } })} />
           </Field>
+          <Field label="Saved contact name" className="md:col-span-2">
+            <input className={INPUT_CLASS_NAME} value={p.saveContactName ?? ""} placeholder={p.name || p.handle ? p.name || `@${p.handle}` : "Name saved to contacts"} maxLength={120} onChange={(event) => onChange({ ...section, props: { ...p, saveContactName: event.target.value || undefined } })} />
+          </Field>
           <MediaField label="Avatar URL" value={p.avatarUrl ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, avatarUrl: value || undefined } })} />
           <MediaField label="Cover URL" value={p.coverUrl ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, coverUrl: value || undefined } })} />
+          <label className="flex items-center gap-2 text-sm text-ivory md:col-span-2">
+            <input type="checkbox" checked={p.showSaveContact ?? true} onChange={(event) => onChange({ ...section, props: { ...p, showSaveContact: event.target.checked } })} className="size-4 rounded border-onyx-700 bg-onyx-950" />
+            Show Save Contact button
+          </label>
           <label className="flex items-center gap-2 text-sm text-ivory md:col-span-2">
             <input type="checkbox" checked={p.showVerified} onChange={(event) => onChange({ ...section, props: { ...p, showVerified: event.target.checked } })} className="size-4 rounded border-onyx-700 bg-onyx-950" />
             Show verified badge
@@ -2198,7 +2205,7 @@ export default function EditorClient({
     const base = { id, type, visible: true } as const;
     let nextSection: SectionRecord;
     switch (type) {
-      case "header": nextSection = { ...base, type, props: { name: "Your name", descriptors: [], showVerified: true, coverFullBleed: false, coverShadow: false } }; break;
+      case "header": nextSection = { ...base, type, props: { name: "Your name", descriptors: [], showSaveContact: true, showVerified: true, coverFullBleed: false, coverShadow: false } }; break;
       case "link": nextSection = { ...base, type, props: { label: "New link", url: "https://example.com", style: "pill" } }; break;
       case "phone": nextSection = { ...base, type, props: { label: "Call", phone: "+1 555 0100" } }; break;
       case "email": nextSection = { ...base, type, props: { label: "Email", email: "hello@example.com", subject: "Hello" } }; break;
@@ -3160,7 +3167,7 @@ export default function EditorClient({
         </div> : null}
 
         {/* ─── Sections tab ─── */}
-        {editorTab === "sections" ? <div className="flex flex-col gap-4">
+        {editorTab === "sections" ? <div className="flex flex-col gap-4 pb-28 md:pb-0">
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
           <SortableContext items={sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>

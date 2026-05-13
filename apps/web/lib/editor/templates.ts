@@ -253,7 +253,7 @@ export const SECTION_TEMPLATES: Template[] = [
 ];
 
 function h(props: { name: string; handle: string; tagline: string }): SectionRecord {
-  return { id: id(), type: "header", visible: true, props: { ...props, showVerified: true, coverFullBleed: false, coverShadow: false } };
+  return { id: id(), type: "header", visible: true, props: { ...props, showSaveContact: true, showVerified: true, coverFullBleed: false, coverShadow: false } };
 }
 function link(label: string, url: string): SectionRecord {
   return { id: id(), type: "link", visible: true, props: { label, url, style: "pill" } };

@@ -63,6 +63,7 @@ type DraftShape = {
 };
 type HeaderProps = {
   name: string;
+  showSaveContact: boolean;
   showVerified: boolean;
   coverFullBleed: boolean;
   coverShadow: boolean;
@@ -87,6 +88,7 @@ const DEFAULT_HEADER_SECTION: HeaderSection = {
     name: "Your Name",
     handle: "yourhandle",
     tagline: "Founder · creator · always shipping.",
+    showSaveContact: true,
     showVerified: true,
     coverFullBleed: false,
     coverShadow: false,
@@ -962,6 +964,7 @@ function createHeaderSection(profile: HeaderProfile): Extract<Section, { type: "
       name: profile.name,
       handle: sanitizeHandle(profile.handle) || "yourhandle",
       tagline: profile.tagline,
+      showSaveContact: true,
       showVerified: true,
       coverFullBleed: false,
       coverShadow: false,

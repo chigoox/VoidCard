@@ -52,6 +52,8 @@ const Header = Base.extend({
     handle: z.string().optional(),
     descriptors: z.array(z.string().trim().min(1).max(32)).max(6).optional(),
     tagline: z.string().optional(),
+    saveContactName: z.string().trim().max(120).optional(),
+    showSaveContact: z.boolean().default(true),
     showVerified: z.boolean().default(true),
     coverFullBleed: z.boolean().default(false),
     coverShadow: z.boolean().default(false),

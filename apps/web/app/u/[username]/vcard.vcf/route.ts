@@ -25,6 +25,7 @@ function pickContact(sections: SectionLike[] | null | undefined): {
   org?: string;
   title?: string;
   address?: string;
+  name?: string;
 } {
   const out: Record<string, string> = {};
   if (!Array.isArray(sections)) return out;
@@ -47,6 +48,8 @@ function pickContact(sections: SectionLike[] | null | undefined): {
       out.email ??= props.email;
     }
     if (section.type === "header") {
+      if (typeof props.saveContactName === "string") out.name ??= props.saveContactName;
+      if (typeof props.name === "string") out.name ??= props.name;
       if (typeof props.title === "string") out.title ??= props.title;
       if (typeof props.company === "string") out.org ??= props.company;
     }
@@ -80,7 +83,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ username: 
   }
 
   const contact = pickContact(profile.sections as SectionLike[] | null);
-  const fullName = profile.displayName ?? handle;
+  const fullName = contact.name?.trim() || profile.displayName?.trim() || `@${handle}`;
   const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com"}/u/${handle}`;
 
   const lines = [
