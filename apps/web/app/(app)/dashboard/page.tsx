@@ -76,41 +76,43 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      <section className="card p-5" data-testid="activation-checklist">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-gold">Activation</p>
-            <h2 className="mt-1 font-display text-2xl text-ivory">Get from signup to first tap.</h2>
-            <p className="mt-1 text-sm text-ivory-dim">
-              {activationDone} of {activationItems.length} done. The goal is a profile someone can open, save, and remember.
-            </p>
-          </div>
-          <Link href={publicPath ? "/share" : "/edit"} className="btn-gold self-start sm:self-auto">
-            {publicPath ? "Share now" : "Continue setup"}
-          </Link>
-        </div>
-        <div className="mt-5 grid gap-2 md:grid-cols-4">
-          {activationItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="rounded-card border border-onyx-700 bg-onyx-950/70 p-4 transition hover:border-gold/40"
-            >
-              <span
-                className={[
-                  "inline-flex size-7 items-center justify-center rounded-full border text-xs font-semibold",
-                  item.done ? "border-gold/50 bg-gold/10 text-gold" : "border-onyx-600 text-ivory-mute",
-                ].join(" ")}
-                aria-hidden
-              >
-                {item.done ? "✓" : ""}
-              </span>
-              <p className="mt-3 text-sm font-medium text-ivory">{item.label}</p>
-              <p className="mt-1 text-xs text-ivory-mute">{item.action}</p>
+      {activationDone < activationItems.length ? (
+        <section className="card p-5" data-testid="activation-checklist">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-gold">Activation</p>
+              <h2 className="mt-1 font-display text-2xl text-ivory">Get from signup to first tap.</h2>
+              <p className="mt-1 text-sm text-ivory-dim">
+                {activationDone} of {activationItems.length} done. The goal is a profile someone can open, save, and remember.
+              </p>
+            </div>
+            <Link href={publicPath ? "/share" : "/edit"} className="btn-gold self-start sm:self-auto">
+              {publicPath ? "Share now" : "Continue setup"}
             </Link>
-          ))}
-        </div>
-      </section>
+          </div>
+          <div className="mt-5 grid gap-2 md:grid-cols-4">
+            {activationItems.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="rounded-card border border-onyx-700 bg-onyx-950/70 p-4 transition hover:border-gold/40"
+              >
+                <span
+                  className={[
+                    "inline-flex size-7 items-center justify-center rounded-full border text-xs font-semibold",
+                    item.done ? "border-gold/50 bg-gold/10 text-gold" : "border-onyx-600 text-ivory-mute",
+                  ].join(" ")}
+                  aria-hidden
+                >
+                  {item.done ? "✓" : ""}
+                </span>
+                <p className="mt-3 text-sm font-medium text-ivory">{item.label}</p>
+                <p className="mt-1 text-xs text-ivory-mute">{item.action}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="card p-5">

@@ -25,6 +25,8 @@ type Props = {
   onAssetAdded?: (asset: MediaItem) => void;
   /** URLs that are already selected by the caller. */
   selectedUrls?: string[];
+  /** Copy shown when this picker is adding media to another form. */
+  selectionLabel?: string;
   /** AI tab is only useful for images. Hidden for video. */
   enableAi?: boolean;
 };
@@ -35,7 +37,16 @@ const SIZES = [
   { value: "1792x1024", label: "Landscape 1792×1024" },
 ] as const;
 
-export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded, selectedUrls = [], enableAi = true }: Props) {
+export function MediaManagerModal({
+  open,
+  kind,
+  onSelect,
+  onClose,
+  onAssetAdded,
+  selectedUrls = [],
+  selectionLabel,
+  enableAi = true,
+}: Props) {
   const [tab, setTab] = useState<"library" | "ai">("library");
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,6 +66,7 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
 
   const showAi = enableAi && kind === "image";
   const selectedUrlSet = useMemo(() => new Set(selectedUrls), [selectedUrls]);
+  const selectedCount = selectedUrls.length;
 
   const fetchPage = useCallback(
     async (reset = false) => {
@@ -205,12 +217,20 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
     >
       <div
         className="card safe-max-h-screen flex min-h-0 w-full flex-col gap-3 overflow-hidden rounded-t-card border border-onyx-700 bg-onyx-950 p-3 sm:w-[min(calc(100vw-2rem),48rem)] sm:rounded-card sm:p-4"
-        style={{ height: "min(44rem, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem))" }}
+        style={{
+          height: "calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem)",
+          maxHeight: "44rem",
+        }}
       >
         <div className="flex shrink-0 items-center justify-between gap-3">
-          <h2 className="text-base font-medium text-ivory">
-            {kind === "image" ? "Image library" : "Video library"}
-          </h2>
+          <div className="min-w-0">
+            <h2 className="text-base font-medium text-ivory">
+              {kind === "image" ? "Image library" : "Video library"}
+            </h2>
+            {selectionLabel ? (
+              <p className="mt-0.5 text-xs text-ivory-mute">{selectionLabel}</p>
+            ) : null}
+          </div>
           <button type="button" className="btn-ghost px-2 py-1 text-sm" onClick={onClose} aria-label="Close">
             ×
           </button>
@@ -238,7 +258,7 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
         ) : null}
 
         {tab === "library" ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             <div className="grid shrink-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
               <input
                 type="search"
@@ -258,16 +278,17 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
                 <option value="ai">AI-generated</option>
               </select>
             </div>
-            <div className="grid min-h-0 flex-1 content-start grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4" data-testid="media-library-scroll">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 touch-pan-y" data-testid="media-library-scroll">
+              <div className="grid auto-rows-fr grid-cols-2 gap-2 pb-2 sm:grid-cols-3 md:grid-cols-4">
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className={`group relative aspect-square overflow-hidden rounded-card border bg-onyx-950 ${selectedUrlSet.has(item.url) ? "border-gold ring-1 ring-gold/70" : "border-onyx-800"}`}
+                  className={`group relative aspect-square min-h-0 overflow-hidden rounded-card border bg-onyx-950 ${selectedUrlSet.has(item.url) ? "border-gold ring-2 ring-gold/80" : "border-onyx-800"}`}
                 >
                   <button
                     type="button"
                     onClick={() => onSelect(item)}
-                    className="absolute inset-0 block w-full"
+                    className="absolute inset-0 block h-full w-full"
                     title={item.prompt || ""}
                     aria-pressed={selectedUrlSet.has(item.url)}
                     data-testid={`media-item-${item.id}`}
@@ -280,15 +301,23 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
                     )}
                   </button>
                   {selectedUrlSet.has(item.url) ? (
-                    <span className="pointer-events-none absolute bottom-1 left-1 rounded-pill bg-gold px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-onyx-950">
-                      Selected
+                    <span className="pointer-events-none absolute left-1 top-1 rounded-pill bg-gold px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-onyx-950 shadow-gold">
+                      Added
                     </span>
                   ) : null}
-                  {item.source === "ai" ? (
+                  {item.source === "ai" && !selectedUrlSet.has(item.url) ? (
                     <span className="absolute left-1 top-1 rounded-pill bg-black/70 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-gold">
                       AI
                     </span>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => onSelect(item)}
+                    className={`absolute bottom-1 left-1 right-1 rounded-card px-2 py-1.5 text-xs font-medium shadow-soft transition ${selectedUrlSet.has(item.url) ? "bg-gold text-onyx-950" : "bg-black/80 text-ivory hover:bg-gold hover:text-onyx-950"}`}
+                    aria-label={selectedUrlSet.has(item.url) ? "Image already added" : "Add image"}
+                  >
+                    {selectedUrlSet.has(item.url) ? "Added" : "Add"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(item.id)}
@@ -304,10 +333,11 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
                   Your library is empty. Upload an image or generate one with AI.
                 </p>
               ) : null}
+              </div>
             </div>
             {error ? <p className="text-xs text-red-300">{error}</p> : null}
             <div className="flex shrink-0 items-center justify-between text-xs text-ivory-mute">
-              <span>{items.length} item{items.length === 1 ? "" : "s"}</span>
+              <span>{items.length} item{items.length === 1 ? "" : "s"}{selectedCount > 0 ? ` · ${selectedCount} added` : ""}</span>
               {hasMore ? (
                 <button
                   type="button"

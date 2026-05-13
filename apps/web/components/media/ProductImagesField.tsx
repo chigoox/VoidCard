@@ -226,6 +226,7 @@ export function ProductImagesField({
         kind="image"
         onClose={() => setModalOpen(false)}
         selectedUrls={images}
+        selectionLabel={`Tap Add on each image you want. ${images.length}/${maxImages} selected.`}
         onSelect={(asset) => appendImages([asset.url], "library image")}
         onAssetAdded={(asset) => appendImages([asset.url], "generated image")}
       />

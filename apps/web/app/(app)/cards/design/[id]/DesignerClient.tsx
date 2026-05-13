@@ -163,6 +163,50 @@ function snapItem(item: DesignItem, x: number, y: number) {
   };
 }
 
+function scaleItem(item: DesignItem, factor: number): DesignItem {
+  const before = itemSize(item);
+  const centerX = item.x + before.width / 2;
+  const centerY = item.y + before.height / 2;
+
+  if (item.type === "text") {
+    const nextFontSize = Math.max(8, Math.min(240, Math.round(item.fontSize * factor)));
+    const sizeFactor = nextFontSize / item.fontSize;
+    const nextWidth = item.width ? Math.max(20, item.width * sizeFactor) : undefined;
+    const after = itemSize({ ...item, fontSize: nextFontSize, width: nextWidth });
+    return {
+      ...item,
+      x: centerX - after.width / 2,
+      y: centerY - after.height / 2,
+      fontSize: nextFontSize,
+      width: nextWidth,
+    };
+  }
+
+  const nextWidth = Math.max(4, Math.min(CARD_W * 2, item.width * factor));
+  const nextHeight = Math.max(4, Math.min(CARD_H * 2, item.height * factor));
+  return {
+    ...item,
+    x: centerX - nextWidth / 2,
+    y: centerY - nextHeight / 2,
+    width: nextWidth,
+    height: nextHeight,
+  };
+}
+
+function designItemLabel(item: DesignItem, index: number) {
+  if (item.type === "text") {
+    const text = item.text.trim();
+    return text ? `Text: ${text.slice(0, 24)}` : `Text ${index + 1}`;
+  }
+  if (item.type === "rect") {
+    if (item.id === "bg") return "Background";
+    if (item.height <= 4) return `Line ${index + 1}`;
+    return `Shape ${index + 1}`;
+  }
+  if (item.src.includes("profile-qr")) return "QR code";
+  return `Image ${index + 1}`;
+}
+
 function uploadErrorMessage(code: unknown) {
   switch (code) {
     case "mime_not_allowed":
@@ -870,6 +914,27 @@ export function DesignerClient(props: {
     );
   }
 
+  function scaleSelected(factor: number) {
+    if (!selectedId) return;
+    updateItems((arr) => arr.map((i) => (i.id === selectedId ? scaleItem(i, factor) : i)));
+  }
+
+  function zoomOutOrScaleSelected() {
+    if (selected) {
+      scaleSelected(0.9);
+      return;
+    }
+    setZoomLevel(zoom - 0.25);
+  }
+
+  function zoomInOrScaleSelected() {
+    if (selected) {
+      scaleSelected(1.1);
+      return;
+    }
+    setZoomLevel(zoom + 0.25);
+  }
+
   function commitTextEdit() {
     if (!editingTextId) return;
     const value = textDraft;
@@ -1050,49 +1115,95 @@ export function DesignerClient(props: {
         </div>
       </div>
 
-      {/* Tools — horizontal scrollable on mobile */}
-      <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
-        <ToolPill onClick={undo} testid="tool-undo" label="↶" title="Undo" disabled={pastDocs.length === 0} />
-        <ToolPill onClick={redo} testid="tool-redo" label="↷" title="Redo" disabled={futureDocs.length === 0} />
-        <label className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-onyx-700 bg-onyx-900 px-3 py-1.5 text-xs text-ivory-dim hover:border-gold/40 hover:text-ivory">
-          Template
-          <select
-            data-testid="tool-template"
-            className="bg-transparent text-ivory outline-none"
-            defaultValue=""
-            onChange={(event) => {
-              applyTemplate(event.target.value);
-              event.target.value = "";
-            }}
+      {/* Tools */}
+      <div className="space-y-2 rounded-lg border border-onyx-700 bg-onyx-950 p-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ToolPill onClick={undo} testid="tool-undo" label="↶" title="Undo" disabled={pastDocs.length === 0} />
+          <ToolPill onClick={redo} testid="tool-redo" label="↷" title="Redo" disabled={futureDocs.length === 0} />
+          <label className="inline-flex min-w-[11rem] shrink-0 items-center gap-1.5 rounded-full border border-onyx-700 bg-onyx-900 px-3 py-1.5 text-xs text-ivory-dim hover:border-gold/40 hover:text-ivory">
+            Template
+            <select
+              data-testid="tool-template"
+              className="min-w-0 bg-transparent text-ivory outline-none"
+              defaultValue=""
+              onChange={(event) => {
+                applyTemplate(event.target.value);
+                event.target.value = "";
+              }}
+            >
+              <option value="" disabled>Choose</option>
+              {TEMPLATES.map((template) => (
+                <option key={template.id} value={template.id}>{template.name}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <ToolPill onClick={exportPng} testid="tool-export" label="↓ PNG" />
+            <ToolPill
+              onClick={zoomOutOrScaleSelected}
+              testid="tool-zoom-out"
+              label="−"
+              title={selected ? "Scale selected smaller" : "Zoom out"}
+              disabled={!selected && zoom <= 1}
+            />
+            <ToolPill
+              onClick={zoomInOrScaleSelected}
+              testid="tool-zoom-in"
+              label="+"
+              title={selected ? "Scale selected larger" : "Zoom in"}
+              disabled={!selected && zoom >= 2.5}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+          <ToolPill onClick={addText} testid="tool-text" label="+ Text" />
+          <ToolPill onClick={addRect} testid="tool-rect" label="+ Shape" />
+          <ToolPill onClick={() => void addQr()} testid="tool-qr" label={addingQr ? "Adding…" : "+ QR"} disabled={addingQr} />
+          <label
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-onyx-700 bg-onyx-900 px-3 py-1.5 text-xs text-ivory-dim hover:border-gold/40 hover:text-ivory"
+            data-testid="tool-image"
           >
-            <option value="" disabled>Choose</option>
-            {TEMPLATES.map((template) => (
-              <option key={template.id} value={template.id}>{template.name}</option>
-            ))}
-          </select>
-        </label>
-        <ToolPill onClick={addText} testid="tool-text" label="+ Text" />
-        <ToolPill onClick={addRect} testid="tool-rect" label="+ Shape" />
-        <ToolPill onClick={() => void addQr()} testid="tool-qr" label={addingQr ? "Adding…" : "+ QR"} disabled={addingQr} />
-        <label
-          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-onyx-700 bg-onyx-900 px-3 py-1.5 text-xs text-ivory-dim hover:border-gold/40 hover:text-ivory"
-          data-testid="tool-image"
-        >
-          {uploadingImage ? "Uploading…" : "+ Image"}
-          <input
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onAddImage(f);
-              e.target.value = "";
-            }}
-          />
-        </label>
-        <ToolPill onClick={exportPng} testid="tool-export" label="↓ PNG" />
-        <ToolPill onClick={() => setZoomLevel(zoom - 0.25)} testid="tool-zoom-out" label="−" title="Zoom out" disabled={zoom <= 1} />
-        <ToolPill onClick={() => setZoomLevel(zoom + 0.25)} testid="tool-zoom-in" label="+" title="Zoom in" disabled={zoom >= 2.5} />
+            {uploadingImage ? "Uploading…" : "+ Image"}
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void onAddImage(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="space-y-2 rounded-lg border border-onyx-700 bg-onyx-950 p-2" data-testid="design-layers">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <p className="text-xs uppercase tracking-widest text-ivory-mute">Elements</p>
+          <span className="text-[11px] text-ivory-mute">{items.length}</span>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+          {items.map((item, index) => ({ item, index })).reverse().map(({ item, index }) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSelectedId(item.id)}
+              data-testid={`design-layer-${item.id}`}
+              aria-pressed={selectedId === item.id}
+              className={[
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition",
+                selectedId === item.id
+                  ? "border-gold bg-gold/10 text-gold"
+                  : "border-onyx-700 bg-onyx-900 text-ivory-dim hover:border-gold/40 hover:text-ivory",
+              ].join(" ")}
+            >
+              <span className="size-2 rounded-full" style={{ backgroundColor: item.type === "image" ? "#f5e7c4" : item.fill }} aria-hidden />
+              {designItemLabel(item, index)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Inspector — bottom sheet on mobile */}
@@ -1113,6 +1224,25 @@ export function DesignerClient(props: {
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-1 text-xs text-ivory-dim">
+              <span className="mr-1">Scale</span>
+              <button
+                type="button"
+                onClick={() => scaleSelected(0.9)}
+                className="rounded border border-onyx-700 px-2 py-1 text-ivory-dim hover:text-ivory"
+                data-testid="ins-scale-down"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                onClick={() => scaleSelected(1.1)}
+                className="rounded border border-onyx-700 px-2 py-1 text-ivory-dim hover:text-ivory"
+                data-testid="ins-scale-up"
+              >
+                +
+              </button>
+            </div>
             {(selected.type === "text" || selected.type === "rect") && (
               <label className="inline-flex items-center gap-2 text-xs text-ivory-dim">
                 Color

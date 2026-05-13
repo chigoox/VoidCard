@@ -8,6 +8,7 @@ export type GalleryLayout = "grid" | "masonry" | "carousel";
 
 const SWIPE_DISTANCE_PX = 48;
 const SWIPE_AXIS_RATIO = 1.25;
+const CAROUSEL_SLIDE_CLASS = "aspect-[4/5] flex-none overflow-hidden snap-center snap-always";
 
 function preloadImageSrc(src: string, onReady: (src: string) => void) {
   const image = new Image();
@@ -160,7 +161,7 @@ export function GallerySectionClient({
 
   const list = images.map((image, index) => {
     if (layout === "carousel") {
-      return <Tile key={index} image={image} index={index} className={carouselFullWidth ? "aspect-[16/9] min-w-full flex-shrink-0 snap-center snap-always" : "aspect-square min-w-[60%] flex-shrink-0 snap-center"} />;
+      return <Tile key={index} image={image} index={index} className={carouselFullWidth ? `${CAROUSEL_SLIDE_CLASS} w-full basis-full` : `${CAROUSEL_SLIDE_CLASS} w-[88%] basis-[88%]`} />;
     }
     if (layout === "masonry") {
       return (
@@ -175,7 +176,7 @@ export function GallerySectionClient({
   let container: ReactNode;
   if (layout === "carousel") {
     container = (
-      <div className={["flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-smooth", carouselFullWidth ? "-mx-4 sm:-mx-6" : ""].join(" ").trim()} style={{ scrollPaddingLeft: carouselFullWidth ? 0 : 8 }}>
+      <div className={["flex w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-smooth", carouselFullWidth ? "-mx-4 sm:-mx-6" : ""].join(" ").trim()} style={{ scrollPaddingLeft: carouselFullWidth ? 0 : 8 }}>
         {list}
       </div>
     );
