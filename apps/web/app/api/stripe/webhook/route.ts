@@ -112,6 +112,7 @@ export async function POST(req: Request) {
       if (mode === "payment" && session.metadata?.kind === "seller") {
         const sellerUserId = (session.metadata?.seller_user_id as string) ?? null;
         const productId = (session.metadata?.product_id as string) ?? null;
+        const variantId = (session.metadata?.variant_id as string) || null;
         const buyerUserId = (session.metadata?.buyer_user_id as string) || null;
 
         let sellerAccountId = "";
@@ -131,6 +132,8 @@ export async function POST(req: Request) {
           const product = li.price?.product as Stripe.Product | null;
           return {
             product_id: product?.metadata?.product_id ?? productId ?? "",
+            variant_id: product?.metadata?.variant_id ?? variantId ?? "",
+            variant_name: product?.metadata?.variant_name ?? "",
             name: product?.name ?? "",
             quantity: li.quantity ?? 1,
             amount_total: li.amount_total ?? 0,
@@ -196,15 +199,29 @@ export async function POST(req: Request) {
         if (productId) {
           const { data: prod } = await admin
             .from("vcard_seller_products")
-            .select("inventory")
+            .select("inventory, variants")
             .eq("id", productId)
             .maybeSingle();
-          if (prod && typeof prod.inventory === "number") {
+          if (prod) {
             const qty = items.reduce((acc, it) => acc + (it.quantity || 1), 0);
-            await admin
-              .from("vcard_seller_products")
-              .update({ inventory: Math.max(0, prod.inventory - qty) })
-              .eq("id", productId);
+            const updates: { inventory?: number; variants?: unknown[] } = {};
+            if (typeof prod.inventory === "number") {
+              updates.inventory = Math.max(0, prod.inventory - qty);
+            }
+            if (variantId && Array.isArray(prod.variants)) {
+              updates.variants = prod.variants.map((entry) => {
+                if (!entry || typeof entry !== "object") return entry;
+                const variant = entry as { id?: unknown; inventory?: unknown };
+                if (variant.id !== variantId || typeof variant.inventory !== "number") return entry;
+                return { ...entry, inventory: Math.max(0, variant.inventory - qty) };
+              });
+            }
+            if (Object.keys(updates).length > 0) {
+              await admin
+                .from("vcard_seller_products")
+                .update(updates)
+                .eq("id", productId);
+            }
           }
         }
         break;

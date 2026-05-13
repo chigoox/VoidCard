@@ -36,6 +36,30 @@ const ghostStyle: CSSProperties = {
   background: "transparent",
 };
 
+function socialIconName(platform: string) {
+  switch (platform) {
+    case "instagram":
+    case "snapchat":
+      return "camera";
+    case "tiktok":
+      return "music";
+    case "youtube":
+      return "youtube";
+    case "github":
+      return "github";
+    case "linkedin":
+      return "linkedin";
+    case "threads":
+      return "message";
+    case "facebook":
+      return "user";
+    case "x":
+      return "external";
+    default:
+      return "link";
+  }
+}
+
 function scheduleLabel(provider: "calcom" | "calendly" | "ed5") {
   switch (provider) {
     case "calcom":
@@ -294,6 +318,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
     }
     case "social": {
       const p = section.props;
+      const displayMode = p.displayMode ?? "iconLabel";
       return (
         <div className="flex flex-wrap justify-center gap-3">
           {p.items.map((item) => (
@@ -302,10 +327,12 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
               href={socialHref(item.platform, item.handle)}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-pill px-3 py-1 text-xs uppercase tracking-widest"
+              className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs uppercase tracking-widest"
               style={pillStyle}
+              aria-label={item.platform}
             >
-              {item.platform}
+              {displayMode !== "label" ? <LinkIconGlyph name={socialIconName(item.platform)} className="size-3.5" /> : null}
+              {displayMode !== "icon" ? <span>{item.platform}</span> : null}
             </a>
           ))}
         </div>

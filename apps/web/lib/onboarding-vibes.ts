@@ -40,7 +40,7 @@ export const VIBES: readonly Vibe[] = [
     themeId: "neon-grid",
     build: ({ displayName }) => [
       header(displayName, "Creator · making things"),
-      { id: uid(), type: "social", visible: true, props: { items: [] } },
+      { id: uid(), type: "social", visible: true, props: { displayMode: "iconLabel", items: [] } },
       divider(),
       { id: uid(), type: "gallery", visible: true, props: { images: [], layout: "grid", lightbox: true, carouselFullWidth: false, filters: [], showCategoryStories: false } },
     ],
@@ -81,7 +81,7 @@ export const VIBES: readonly Vibe[] = [
       header(displayName, "Available for new work"),
       { id: uid(), type: "markdown", visible: true, props: { md: "## About\n\nA short bio about who you are and what you do." } },
       divider(),
-      { id: uid(), type: "social", visible: true, props: { items: [] } },
+      { id: uid(), type: "social", visible: true, props: { displayMode: "iconLabel", items: [] } },
     ],
   },
   {
@@ -93,7 +93,7 @@ export const VIBES: readonly Vibe[] = [
       header(displayName, "New music out now"),
       { id: uid(), type: "spotify", visible: true, props: { uri: "spotify:artist:0OdUWJ0sBjDrqHygGUXeCF" } },
       divider(),
-      { id: uid(), type: "social", visible: true, props: { items: [] } },
+      { id: uid(), type: "social", visible: true, props: { displayMode: "iconLabel", items: [] } },
     ],
   },
   {
@@ -105,7 +105,7 @@ export const VIBES: readonly Vibe[] = [
       header(displayName, "Shop the drop"),
       { id: uid(), type: "markdown", visible: true, props: { md: "## Featured\n\nAdd product links here." } },
       divider(),
-      { id: uid(), type: "social", visible: true, props: { items: [] } },
+      { id: uid(), type: "social", visible: true, props: { displayMode: "iconLabel", items: [] } },
     ],
   },
   {

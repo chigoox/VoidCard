@@ -26,6 +26,8 @@ export async function GET(req: Request) {
     name: p.name,
     description: p.description,
     image_url: p.image_url,
+    image_urls: p.image_urls,
+    variants: p.variants.filter((variant) => variant.active),
     price_cents: p.price_cents,
     currency: p.currency,
     shippable: p.shippable,

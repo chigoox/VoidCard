@@ -8,6 +8,7 @@ export const SECTION_TYPES = [
 ] as const;
 
 export const STORE_LAYOUTS = ["grid", "list"] as const;
+export const SOCIAL_DISPLAY_MODES = ["icon", "iconLabel", "label"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
 export const SECTION_ANIMATIONS = [
@@ -135,6 +136,7 @@ const Spacer = Base.extend({ type: z.literal("spacer"), props: z.object({ height
 const Social = Base.extend({
   type: z.literal("social"),
   props: z.object({
+    displayMode: z.enum(SOCIAL_DISPLAY_MODES).default("iconLabel"),
     items: z.array(z.object({
       platform: z.enum(["instagram", "tiktok", "x", "linkedin", "youtube", "threads", "github", "facebook", "snapchat"]),
       handle: z.string(),

@@ -38,12 +38,14 @@ import {
   SECTION_ANIMATION_TRIGGERS,
   SECTION_TYPES,
   GALLERY_LAYOUTS,
+  SOCIAL_DISPLAY_MODES,
   type Section as SectionRecord,
   type Sections,
 } from "@/lib/sections/types";
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
 import { BrandedQR } from "@/components/BrandedQR";
 import { LINK_ICON_OPTIONS, LinkIconGlyph } from "@/components/sections/LinkIcon";
+import { uploadMediaAsset } from "@/components/media/upload-media-asset";
 import { THEME_PRESETS, getThemePreset, themeToCss } from "@/lib/themes/presets";
 import { SECTION_TEMPLATES } from "@/lib/editor/templates";
 import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/editor/styleStudio";
@@ -75,6 +77,11 @@ const SOCIAL_PLATFORMS = [
   "facebook",
   "snapchat",
 ] as const;
+const SOCIAL_DISPLAY_LABELS: Record<(typeof SOCIAL_DISPLAY_MODES)[number], string> = {
+  icon: "Icon only",
+  iconLabel: "Icon and word",
+  label: "Word only",
+};
 const FORM_FIELD_TYPES = ["text", "email", "phone", "textarea"] as const;
 const SCHEDULE_PROVIDERS = ["calcom", "calendly", "ed5"] as const;
 const INPUT_CLASS_NAME =
@@ -96,70 +103,6 @@ type PendingImageCrop = { file: File; src: string; clipped?: number };
 
 function sanitizeCss(css: string) {
   return css.replace(/@import[^;]+;/gi, "").replace(/javascript:/gi, "").replace(/expression\s*\(/gi, "");
-}
-
-function uploadErrorMessage(code: unknown) {
-  switch (code) {
-    case "mime_not_allowed":
-      return "That file type is not allowed.";
-    case "storage_quota_exceeded":
-      return "Storage quota exceeded for this account.";
-    case "too_large":
-      return "That file is too large.";
-    default:
-      return "Upload failed. Try again.";
-  }
-}
-
-async function uploadMediaAsset(file: File, kind: "image" | "video") {
-  const signResponse = await fetch("/api/media/sign", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      filename: file.name,
-      mime: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-      kind,
-      visibility: "public",
-    }),
-  });
-  const signBody = await signResponse.json().catch(() => ({}));
-  if (!signResponse.ok || !signBody.ok) {
-    throw new Error(uploadErrorMessage(signBody.error));
-  }
-
-  const uploadResponse = await fetch(signBody.signedUrl as string, {
-    method: "PUT",
-    headers: { "content-type": file.type || "application/octet-stream" },
-    body: file,
-  });
-  if (!uploadResponse.ok) {
-    throw new Error("Upload failed. Try again.");
-  }
-
-  const finalizeResponse = await fetch("/api/media/finalize", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      bucket: signBody.bucket,
-      path: signBody.path,
-      kind,
-      mime: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-    }),
-  });
-  const finalizeBody = await finalizeResponse.json().catch(() => ({}));
-  if (!finalizeResponse.ok || !finalizeBody.ok || typeof finalizeBody.url !== "string") {
-    throw new Error(uploadErrorMessage(finalizeBody.error));
-  }
-
-  return {
-    id: String(finalizeBody.media.id),
-    kind,
-    mime: file.type || null,
-    url: finalizeBody.url as string,
-    createdAt: new Date().toISOString(),
-  } satisfies MediaLibraryItem;
 }
 
 function fileNameToAlt(name: string) {
@@ -1501,6 +1444,15 @@ function SectionEditorFields({
       const p = section.props;
       return (
         <div className="space-y-3">
+          <Field label="Display">
+            <select
+              className={INPUT_CLASS_NAME}
+              value={p.displayMode ?? "iconLabel"}
+              onChange={(event) => onChange({ ...section, props: { ...p, displayMode: event.target.value as (typeof SOCIAL_DISPLAY_MODES)[number] } })}
+            >
+              {SOCIAL_DISPLAY_MODES.map((mode) => <option key={mode} value={mode}>{SOCIAL_DISPLAY_LABELS[mode]}</option>)}
+            </select>
+          </Field>
           {p.items.map((item, itemIndex) => (
             <div key={`${section.id}-social-${itemIndex}`} className="grid gap-3 rounded-card border border-onyx-800 bg-onyx-950/60 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
               <Field label="Platform">
@@ -1754,6 +1706,8 @@ type OwnedSellerProduct = {
   currency: string;
   active: boolean;
   imageUrl: string | null;
+  imageUrls: string[];
+  variantCount: number;
 };
 
 let ownedSellerProductsCache: OwnedSellerProduct[] | null = null;
@@ -1874,6 +1828,7 @@ function StoreSectionEditorRow({
             {products.map((prod) => {
               const checked = p.productIds.includes(prod.id);
               const orderIdx = p.productIds.indexOf(prod.id);
+              const imageUrl = prod.imageUrls[0] ?? prod.imageUrl;
               return (
                 <li
                   key={prod.id}
@@ -1886,15 +1841,16 @@ function StoreSectionEditorRow({
                       onChange={() => toggle(prod.id)}
                       className="size-4 rounded border-onyx-700 bg-onyx-950"
                     />
-                    {prod.imageUrl ? (
+                    {imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={prod.imageUrl} alt="" className="size-8 rounded-card object-cover" />
+                      <img src={imageUrl} alt="" className="size-8 rounded-card object-cover" />
                     ) : (
                       <div className="size-8 rounded-card border border-onyx-700 bg-onyx-900" />
                     )}
                     <span className="flex-1 truncate text-sm text-ivory">
                       {prod.name}
                       {!prod.active ? <span className="ml-2 text-[10px] uppercase tracking-widest text-ivory-mute">inactive</span> : null}
+                      {prod.variantCount > 0 ? <span className="ml-2 text-[10px] uppercase tracking-widest text-ivory-mute">{prod.variantCount} variants</span> : null}
                     </span>
                     <span className="font-mono text-xs text-gold">
                       ${(prod.priceCents / 100).toFixed(2)} {prod.currency.toUpperCase()}
@@ -2249,7 +2205,7 @@ export default function EditorClient({
       case "image": nextSection = { ...base, type, props: { src: "https://placehold.co/600x600", alt: "", rounded: true, fullWidth: false } }; break;
       case "spotify": nextSection = { ...base, type, props: { uri: "spotify:track:11dFghVXANMlKmJXsNCbNl" } }; break;
       case "youtube": nextSection = { ...base, type, props: { id: "dQw4w9WgXcQ" } }; break;
-      case "social": nextSection = { ...base, type, props: { items: [{ platform: "instagram", handle: "voidluxury" }] } }; break;
+      case "social": nextSection = { ...base, type, props: { displayMode: "iconLabel", items: [{ platform: "instagram", handle: "voidluxury" }] } }; break;
       case "qr": nextSection = { ...base, type, props: { url: `https://vcard.ed5enterprise.com/u/${username}` } }; break;
       case "schedule": nextSection = { ...base, type, props: { provider: "calcom", url: "https://cal.com/your" } }; break;
       case "tip": nextSection = { ...base, type, props: { stripeAccountId: "acct_xxx", amounts: [200, 500, 1000] } }; break;

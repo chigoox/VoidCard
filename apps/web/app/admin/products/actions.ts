@@ -20,6 +20,7 @@ const ProductSchema = z.object({
   active: z.coerce.boolean(),
   position: z.coerce.number().int().min(0).max(10000),
   metadata_json: z.string().max(4000).optional(),
+  image_urls_json: z.string().max(24000).optional(),
 });
 
 function parseMeta(raw: string | undefined) {
@@ -33,6 +34,33 @@ function parseMeta(raw: string | undefined) {
   throw new Error("metadata_json must be a JSON object");
 }
 
+function parseImageUrls(raw: string | undefined, fallback: string | null): string[] {
+  const urls: string[] = [];
+  if (raw?.trim()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error("image_urls_json must be a JSON array");
+    }
+    if (!Array.isArray(parsed)) throw new Error("image_urls_json must be a JSON array");
+    for (const entry of parsed) {
+      if (typeof entry !== "string") continue;
+      const url = entry.trim();
+      if (url) urls.push(url);
+    }
+  }
+  if (urls.length === 0 && fallback) urls.push(fallback);
+
+  const unique = Array.from(new Set(urls)).slice(0, 12);
+  for (const url of unique) {
+    if (url.length > 2000 || !/^https?:\/\//.test(url)) {
+      throw new Error("Product images must be http(s) URLs");
+    }
+  }
+  return unique;
+}
+
 export async function upsertProduct(formData: FormData) {
   await requireAdmin();
   const id = (formData.get("id") as string | null) || null;
@@ -43,9 +71,10 @@ export async function upsertProduct(formData: FormData) {
   const metadata = parseMeta(parsed.data.metadata_json);
 
   // --- Image handling ---
-  // Prefer uploaded file; fall back to pasted URL; preserve existing if neither.
+  // Preserve image_url as the primary image while image_urls stores the full gallery.
   const sb = createAdminClient();
   let imageUrl: string | null = (formData.get("image_url") as string | null)?.trim() || null;
+  let imageUrls = parseImageUrls(parsed.data.image_urls_json, imageUrl);
   const imageFile = formData.get("image_file");
   if (imageFile instanceof File && imageFile.size > 0) {
     const allowed = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"];
@@ -60,7 +89,9 @@ export async function upsertProduct(formData: FormData) {
     if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
     const { data: urlData } = sb.storage.from("vcard-public").getPublicUrl(storagePath);
     imageUrl = urlData.publicUrl;
+    imageUrls = [imageUrl, ...imageUrls.filter((url) => url !== imageUrl)].slice(0, 12);
   }
+  imageUrl = imageUrls[0] ?? null;
 
   const row = {
     sku: parsed.data.sku,
@@ -75,13 +106,14 @@ export async function upsertProduct(formData: FormData) {
     active: parsed.data.active,
     position: parsed.data.position,
     metadata,
-    ...(imageUrl !== null ? { image_url: imageUrl } : {}),
+    image_url: imageUrl,
+    image_urls: imageUrls,
   };
   if (id) {
     const { error } = await sb.from("vcard_products").update(row).eq("id", id);
     if (error) throw new Error(error.message);
   } else {
-    const { error } = await sb.from("vcard_products").insert({ ...row, image_url: imageUrl });
+    const { error } = await sb.from("vcard_products").insert(row);
     if (error) throw new Error(error.message);
   }
   revalidatePath("/admin/products");

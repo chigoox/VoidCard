@@ -12,12 +12,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST { productId, qty?, profileUsername? } → Stripe Checkout URL.
+ * POST { productId, variantId?, qty?, profileUsername? } → Stripe Checkout URL.
  * Creates a destination charge to the seller's connected account, with a
  * platform application fee.
  */
 export async function POST(req: Request) {
-  let body: { productId?: string; qty?: number; profileUsername?: string } = {};
+  let body: { productId?: string; variantId?: string; qty?: number; profileUsername?: string } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -33,6 +33,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "unknown_product" }, { status: 404 });
   }
   if (product.inventory !== null && product.inventory <= 0) {
+    return NextResponse.json({ ok: false, error: "out_of_stock" }, { status: 409 });
+  }
+  const variant = body.variantId ? product.variants.find((entry) => entry.id === body.variantId && entry.active) ?? null : null;
+  if (body.variantId && !variant) {
+    return NextResponse.json({ ok: false, error: "unknown_variant" }, { status: 404 });
+  }
+  if (variant?.inventory !== null && variant?.inventory !== undefined && variant.inventory <= 0) {
     return NextResponse.json({ ok: false, error: "out_of_stock" }, { status: 409 });
   }
 
@@ -67,8 +74,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "rate_limited" }, { status: 429 });
   }
 
-  const lineTotal = product.price_cents * qty;
-  const fee = applicationFeeFor(lineTotal, bps);
+  const unitAmount = product.price_cents + (variant?.price_delta_cents ?? 0);
+  if (unitAmount < 0) {
+    return NextResponse.json({ ok: false, error: "invalid_variant_price" }, { status: 400 });
+  }
+  const fee = applicationFeeFor(unitAmount * qty, bps);
+  const productImages = product.image_urls.length > 0 ? product.image_urls : product.image_url ? [product.image_url] : [];
 
   const successPath = body.profileUsername
     ? `/u/${encodeURIComponent(body.profileUsername)}?ok=1`
@@ -78,12 +89,17 @@ export async function POST(req: Request) {
     quantity: qty,
     price_data: {
       currency: (product.currency || "usd").toLowerCase(),
-      unit_amount: product.price_cents,
+      unit_amount: unitAmount,
       product_data: {
-        name: product.name,
+        name: variant ? `${product.name} - ${variant.name}` : product.name,
         description: product.description ?? undefined,
-        images: product.image_url ? [product.image_url] : undefined,
-        metadata: { product_id: product.id, seller_user_id: product.owner_user_id },
+        images: productImages.length > 0 ? productImages.slice(0, 8) : undefined,
+        metadata: {
+          product_id: product.id,
+          seller_user_id: product.owner_user_id,
+          variant_id: variant?.id ?? "",
+          variant_name: variant?.name ?? "",
+        },
       },
     },
   };
@@ -101,6 +117,7 @@ export async function POST(req: Request) {
       metadata: {
         kind: "seller",
         product_id: product.id,
+        variant_id: variant?.id ?? "",
         seller_user_id: product.owner_user_id,
         buyer_user_id: buyer?.id ?? "",
         platform_fee_bps: String(bps),
@@ -111,6 +128,7 @@ export async function POST(req: Request) {
         metadata: {
           kind: "seller",
           product_id: product.id,
+          variant_id: variant?.id ?? "",
           seller_user_id: product.owner_user_id,
         },
       },

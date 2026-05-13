@@ -22,6 +22,7 @@ const FormShape = z.object({
     .optional()
     .transform((v) => (v ? v : null))
     .refine((v) => v === null || /^https?:\/\//.test(v), "Image URL must start with http(s)://"),
+  image_urls_json: z.string().max(24000).optional(),
   price_cents: z.coerce.number().int().min(0).max(10_000_000),
   currency: z
     .string()
@@ -29,19 +30,76 @@ const FormShape = z.object({
     .min(3)
     .max(3)
     .transform((v) => v.toLowerCase()),
-  inventory: z
-    .union([z.coerce.number().int().min(0), z.literal("")])
-    .optional()
-    .transform((v) => (v === "" || v === undefined ? null : (v as number))),
+  inventory: z.preprocess(
+    (v) => (v === "" || v === undefined ? null : v),
+    z.coerce.number().int().min(0).nullable(),
+  ),
+  variants_json: z.string().max(50000).optional(),
   shippable: z.preprocess((v) => v === "on" || v === true, z.boolean()),
   digital: z.preprocess((v) => v === "on" || v === true, z.boolean()),
   active: z.preprocess((v) => v === "on" || v === true, z.boolean()),
 });
 
+const VariantShape = z.object({
+  id: z.string().trim().min(1).max(80),
+  name: z.string().trim().max(80),
+  price_delta_cents: z.coerce.number().int().min(-10_000_000).max(10_000_000),
+  inventory: z.preprocess(
+    (v) => (v === "" || v === undefined ? null : v),
+    z.coerce.number().int().min(0).nullable(),
+  ),
+  active: z.preprocess((v) => v !== false, z.boolean()),
+});
+
+function parseImageUrls(raw: string | undefined, fallback: string | null): string[] {
+  const urls: string[] = [];
+  if (raw?.trim()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error("image_urls_json must be a JSON array");
+    }
+    if (!Array.isArray(parsed)) throw new Error("image_urls_json must be a JSON array");
+    for (const entry of parsed) {
+      if (typeof entry !== "string") continue;
+      const url = entry.trim();
+      if (url) urls.push(url);
+    }
+  }
+  if (urls.length === 0 && fallback) urls.push(fallback);
+
+  const unique = Array.from(new Set(urls)).slice(0, 12);
+  for (const url of unique) {
+    if (url.length > 2000 || !/^https?:\/\//.test(url)) {
+      throw new Error("Product images must be http(s) URLs");
+    }
+  }
+  return unique;
+}
+
+function parseVariants(raw: string | undefined) {
+  if (!raw?.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("variants_json must be a JSON array");
+  }
+  if (!Array.isArray(parsed)) throw new Error("variants_json must be a JSON array");
+  return parsed
+    .map((entry) => VariantShape.parse(entry))
+    .filter((variant) => variant.name.length > 0)
+    .slice(0, 50);
+}
+
 function parseForm(form: FormData) {
   const obj: Record<string, unknown> = {};
   for (const [k, v] of form.entries()) obj[k] = v;
-  return FormShape.parse(obj);
+  const parsed = FormShape.parse(obj);
+  const imageUrls = parseImageUrls(parsed.image_urls_json, parsed.image_url);
+  const variants = parseVariants(parsed.variants_json);
+  return { ...parsed, image_urls: imageUrls, image_url: imageUrls[0] ?? null, variants };
 }
 
 export async function createProductAction(form: FormData) {
@@ -55,6 +113,8 @@ export async function createProductAction(form: FormData) {
     name: parsed.name,
     description: parsed.description ?? null,
     image_url: parsed.image_url ?? null,
+    image_urls: parsed.image_urls,
+    variants: parsed.variants,
     price_cents: parsed.price_cents,
     currency: parsed.currency,
     inventory: parsed.inventory,
@@ -79,6 +139,8 @@ export async function updateProductAction(id: string, form: FormData) {
     name: parsed.name,
     description: parsed.description ?? null,
     image_url: parsed.image_url ?? null,
+    image_urls: parsed.image_urls,
+    variants: parsed.variants,
     price_cents: parsed.price_cents,
     currency: parsed.currency,
     inventory: parsed.inventory,

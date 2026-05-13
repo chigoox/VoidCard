@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { ProductImagesField } from "@/components/media/ProductImagesField";
 import { upsertProduct } from "./actions";
 import { type DbProduct } from "@/lib/cms";
 
@@ -47,39 +47,7 @@ export function ProductForm({ product, title }: Props) {
           <Field label="Position"><input name="position" type="number" defaultValue={p?.position ?? 100} className="input" /></Field>
         </div>
 
-        {/* Product image */}
-        <div className="space-y-3 rounded-card border border-onyx-700/60 p-4">
-          <span className="block text-xs uppercase tracking-widest text-ivory-mute">Product image</span>
-          {p?.image_url && (
-            <div className="relative h-48 w-full overflow-hidden rounded-card bg-onyx-900">
-              <Image
-                src={p.image_url}
-                alt={p.name}
-                fill
-                className="object-contain"
-                unoptimized={p.image_url.startsWith("blob:")}
-              />
-            </div>
-          )}
-          <label className="block">
-            <span className="text-xs text-ivory-mute">Upload new image (JPEG, PNG, WebP, AVIF, GIF · max 10 MB)</span>
-            <input
-              name="image_file"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
-              className="mt-1.5 block w-full text-sm text-ivory-mute file:mr-3 file:rounded-pill file:border-0 file:bg-onyx-700 file:px-3 file:py-1.5 file:text-xs file:text-ivory hover:file:bg-onyx-600"
-            />
-          </label>
-          <Field label="Or paste image URL" hint="Leave blank to keep the uploaded file or existing image.">
-            <input
-              name="image_url"
-              type="url"
-              defaultValue={p?.image_url ?? ""}
-              className="input"
-              placeholder="https://..."
-            />
-          </Field>
-        </div>
+        <ProductImagesField initialImages={p ? (p.image_urls.length > 0 ? p.image_urls : p.image_url ? [p.image_url] : []) : []} />
 
         {/* Stripe Price ID is no longer required: checkout uses inline price_data from this row. */}
         <input type="hidden" name="stripe_price_id" value={p?.stripe_price_id ?? ""} />

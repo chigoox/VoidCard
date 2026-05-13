@@ -8,6 +8,8 @@ export type SellerProduct = {
   name: string;
   description: string | null;
   image_url: string | null;
+  image_urls: string[];
+  variants: SellerProductVariant[];
   price_cents: number;
   currency: string;
   inventory: number | null;
@@ -19,10 +21,28 @@ export type SellerProduct = {
   updated_at: string;
 };
 
+export type SellerProductVariant = {
+  id: string;
+  name: string;
+  price_delta_cents: number;
+  inventory: number | null;
+  active: boolean;
+};
+
+const SellerProductVariantInput = z.object({
+  id: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(80),
+  price_delta_cents: z.number().int().min(-10_000_000).max(10_000_000).default(0),
+  inventory: z.number().int().min(0).nullable().default(null),
+  active: z.boolean().default(true),
+});
+
 export const SellerProductInput = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).nullable().optional(),
   image_url: z.string().url().nullable().optional(),
+  image_urls: z.array(z.string().url()).max(12).default([]),
+  variants: z.array(SellerProductVariantInput).max(50).default([]),
   price_cents: z.number().int().min(0).max(10_000_000),
   currency: z.string().trim().length(3).default("usd"),
   inventory: z.number().int().min(0).nullable().optional(),
@@ -32,6 +52,22 @@ export const SellerProductInput = z.object({
 });
 export type SellerProductInput = z.infer<typeof SellerProductInput>;
 
+type SellerProductRow = Omit<SellerProduct, "image_urls" | "variants"> & { image_urls?: unknown; variants?: unknown };
+
+function normalizeImageUrls(value: unknown, imageUrl: string | null): string[] {
+  const urls = Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+  if (urls.length > 0) return urls;
+  return imageUrl ? [imageUrl] : [];
+}
+
+function normalizeProduct(row: SellerProductRow): SellerProduct {
+  return {
+    ...row,
+    image_urls: normalizeImageUrls(row.image_urls, row.image_url),
+    variants: SellerProductVariantInput.array().max(50).catch([]).parse(row.variants),
+  };
+}
+
 export async function listSellerProducts(ownerUserId: string): Promise<SellerProduct[]> {
   const admin = createAdminClient();
   const { data } = await admin
@@ -40,7 +76,7 @@ export async function listSellerProducts(ownerUserId: string): Promise<SellerPro
     .eq("owner_user_id", ownerUserId)
     .order("position", { ascending: true })
     .order("created_at", { ascending: false });
-  return (data as SellerProduct[] | null) ?? [];
+  return ((data as SellerProductRow[] | null) ?? []).map(normalizeProduct);
 }
 
 export async function getSellerProduct(id: string): Promise<SellerProduct | null> {
@@ -50,7 +86,7 @@ export async function getSellerProduct(id: string): Promise<SellerProduct | null
     .select("*")
     .eq("id", id)
     .maybeSingle();
-  return (data as SellerProduct | null) ?? null;
+  return data ? normalizeProduct(data as SellerProductRow) : null;
 }
 
 export async function getSellerProductsByIds(ids: string[]): Promise<SellerProduct[]> {
@@ -61,7 +97,7 @@ export async function getSellerProductsByIds(ids: string[]): Promise<SellerProdu
     .select("*")
     .in("id", ids)
     .eq("active", true);
-  return (data as SellerProduct[] | null) ?? [];
+  return ((data as SellerProductRow[] | null) ?? []).map(normalizeProduct);
 }
 
 export async function insertSellerProduct(
@@ -75,7 +111,7 @@ export async function insertSellerProduct(
     .select("*")
     .single();
   if (error || !data) throw new Error(error?.message ?? "insert_failed");
-  return data as SellerProduct;
+  return normalizeProduct(data as SellerProductRow);
 }
 
 export async function updateSellerProduct(
@@ -92,7 +128,7 @@ export async function updateSellerProduct(
     .select("*")
     .single();
   if (error) return null;
-  return (data as SellerProduct | null) ?? null;
+  return data ? normalizeProduct(data as SellerProductRow) : null;
 }
 
 export async function deleteSellerProduct(ownerUserId: string, id: string): Promise<boolean> {

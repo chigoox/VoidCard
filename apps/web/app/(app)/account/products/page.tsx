@@ -62,16 +62,18 @@ export default async function ProductsIndex() {
         </div>
       ) : (
         <ul className="grid gap-3 md:grid-cols-2" data-testid="products-list">
-          {products.map((p) => (
+          {products.map((p) => {
+            const imageUrl = p.image_urls[0] ?? p.image_url;
+            return (
             <li
               key={p.id}
               className="card flex items-start gap-3 p-4"
               data-testid={`product-row-${p.id}`}
             >
-              {p.image_url ? (
+              {imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={p.image_url}
+                  src={imageUrl}
                   alt=""
                   className="size-16 shrink-0 rounded-card object-cover"
                 />
@@ -107,6 +109,18 @@ export default async function ProductsIndex() {
                       <span>{p.inventory} in stock</span>
                     </>
                   ) : null}
+                  {p.image_urls.length > 1 ? (
+                    <>
+                      <span>·</span>
+                      <span>{p.image_urls.length} images</span>
+                    </>
+                  ) : null}
+                  {p.variants.length > 0 ? (
+                    <>
+                      <span>·</span>
+                      <span>{p.variants.length} variants</span>
+                    </>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <Link
@@ -119,7 +133,8 @@ export default async function ProductsIndex() {
                 </div>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

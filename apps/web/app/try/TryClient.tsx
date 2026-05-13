@@ -132,6 +132,7 @@ const DEFAULT_DRAFT: DraftShape = {
       type: "social",
       visible: true,
       props: {
+        displayMode: "iconLabel",
         items: [
           { platform: "instagram", handle: "yourhandle" },
           { platform: "linkedin", handle: "yourhandle" },
@@ -1023,7 +1024,7 @@ function createSocialSection(
     id: crypto.randomUUID(),
     type: "social",
     visible: true,
-    props: { items },
+    props: { displayMode: "iconLabel", items },
   };
 }
 

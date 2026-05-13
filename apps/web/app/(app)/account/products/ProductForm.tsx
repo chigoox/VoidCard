@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ProductImagesField } from "@/components/media/ProductImagesField";
 import { createProductAction, updateProductAction } from "./actions";
 
 const INPUT_CLASS_NAME =
@@ -13,6 +14,8 @@ export type ProductFormValues = {
   name: string;
   description: string;
   image_url: string;
+  image_urls: string[];
+  variants: ProductVariantFormValue[];
   price_cents: number;
   currency: string;
   inventory: number | null;
@@ -21,10 +24,20 @@ export type ProductFormValues = {
   active: boolean;
 };
 
+export type ProductVariantFormValue = {
+  id: string;
+  name: string;
+  price_delta_cents: number;
+  inventory: number | null;
+  active: boolean;
+};
+
 const EMPTY: ProductFormValues = {
   name: "",
   description: "",
   image_url: "",
+  image_urls: [],
+  variants: [],
   price_cents: 1000,
   currency: "usd",
   inventory: null,
@@ -43,9 +56,9 @@ export function ProductForm({
   const initial = product ?? EMPTY;
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
-  const [imageUrl, setImageUrl] = useState(initial.image_url);
   const [priceCents, setPriceCents] = useState(initial.price_cents);
   const [currency, setCurrency] = useState(initial.currency);
+  const [variants, setVariants] = useState<ProductVariantFormValue[]>(initial.variants);
   const [inventory, setInventory] = useState<string>(
     initial.inventory === null ? "" : String(initial.inventory),
   );
@@ -55,6 +68,23 @@ export function ProductForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+
+  function addVariant() {
+    setVariants((current) => [
+      ...current,
+      {
+        id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `variant-${Date.now()}`,
+        name: "New option",
+        price_delta_cents: 0,
+        inventory: null,
+        active: true,
+      },
+    ].slice(0, 50));
+  }
+
+  function updateVariant(index: number, next: Partial<ProductVariantFormValue>) {
+    setVariants((current) => current.map((variant, currentIndex) => currentIndex === index ? { ...variant, ...next } : variant));
+  }
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -122,18 +152,71 @@ export function ProductForm({
         />
       </label>
 
-      <label className="block space-y-1">
-        <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">
-          Image URL (optional)
-        </span>
-        <input
-          name="image_url"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          className={INPUT_CLASS_NAME}
-          placeholder="https://…"
-        />
-      </label>
+      <ProductImagesField initialImages={initial.image_urls.length > 0 ? initial.image_urls : initial.image_url ? [initial.image_url] : []} />
+
+      <div className="space-y-3 rounded-card border border-onyx-800 bg-onyx-950/40 p-3">
+        <input type="hidden" name="variants_json" value={JSON.stringify(variants)} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Variants</span>
+          <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={addVariant} disabled={variants.length >= 50}>
+            Add variant
+          </button>
+        </div>
+        {variants.length === 0 ? (
+          <p className="text-xs text-ivory-mute">Add options like size, color, or finish. Variant stock can stay blank for unlimited.</p>
+        ) : (
+          <div className="space-y-2">
+            {variants.map((variant, index) => (
+              <div key={variant.id} className="grid gap-2 rounded-card border border-onyx-800 bg-onyx-950/60 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <label className="block space-y-1">
+                  <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Name</span>
+                  <input
+                    value={variant.name}
+                    onChange={(event) => updateVariant(index, { name: event.target.value })}
+                    className={INPUT_CLASS_NAME}
+                    placeholder="Black / XL / Metal"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Price delta</span>
+                  <input
+                    type="number"
+                    step={1}
+                    value={variant.price_delta_cents}
+                    onChange={(event) => updateVariant(index, { price_delta_cents: Number(event.target.value || 0) })}
+                    className={INPUT_CLASS_NAME}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">Stock</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={variant.inventory === null ? "" : String(variant.inventory)}
+                    onChange={(event) => updateVariant(index, { inventory: event.target.value === "" ? null : Number(event.target.value) })}
+                    className={INPUT_CLASS_NAME}
+                    placeholder="Unlimited"
+                  />
+                </label>
+                <div className="flex items-end gap-2">
+                  <label className="mb-2 flex items-center gap-2 text-sm text-ivory">
+                    <input
+                      type="checkbox"
+                      checked={variant.active}
+                      onChange={(event) => updateVariant(index, { active: event.target.checked })}
+                      className="size-4 rounded border-onyx-700 bg-onyx-950"
+                    />
+                    Active
+                  </label>
+                  <button type="button" className="btn-ghost mb-1 px-2 py-1 text-xs" onClick={() => setVariants((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="grid gap-3 md:grid-cols-3">
         <label className="block space-y-1">

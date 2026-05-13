@@ -251,6 +251,8 @@ export async function listOwnedSellerProducts() {
       currency: p.currency,
       active: p.active,
       imageUrl: p.image_url,
+      imageUrls: p.image_urls,
+      variantCount: p.variants.length,
     })),
   };
 }

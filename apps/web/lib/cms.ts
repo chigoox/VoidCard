@@ -11,6 +11,7 @@ export type DbProduct = {
   ships: string | null;
   badge: string | null;
   image_url: string | null;
+  image_urls: string[];
   price_cents: number;
   currency: string;
   stripe_price_id: string | null;
@@ -22,6 +23,21 @@ export type DbProduct = {
     digital?: boolean;
   };
 };
+
+type DbProductRow = Omit<DbProduct, "image_urls"> & { image_urls?: unknown };
+
+function normalizeProductImages(value: unknown, imageUrl: string | null): string[] {
+  const urls = Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+  if (urls.length > 0) return urls;
+  return imageUrl ? [imageUrl] : [];
+}
+
+function normalizeProduct(row: DbProductRow): DbProduct {
+  return {
+    ...row,
+    image_urls: normalizeProductImages(row.image_urls, row.image_url),
+  };
+}
 
 export type DbPlan = {
   id: string;
@@ -55,7 +71,7 @@ export async function listProducts(opts: { includeInactive?: boolean } = {}): Pr
     const sb = createAdminClient();
     const q = sb.from("vcard_products").select("*").order("position", { ascending: true });
     const { data } = opts.includeInactive ? await q : await q.eq("active", true);
-    return (data as DbProduct[] | null) ?? [];
+    return ((data as DbProductRow[] | null) ?? []).map(normalizeProduct);
   } catch {
     return [];
   }
@@ -65,7 +81,7 @@ export async function getProductBySku(sku: string): Promise<DbProduct | null> {
   try {
     const sb = createAdminClient();
     const { data } = await sb.from("vcard_products").select("*").eq("sku", sku).maybeSingle();
-    return (data as DbProduct | null) ?? null;
+    return data ? normalizeProduct(data as DbProductRow) : null;
   } catch {
     return null;
   }

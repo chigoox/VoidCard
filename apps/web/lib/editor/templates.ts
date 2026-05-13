@@ -259,7 +259,7 @@ function link(label: string, url: string): SectionRecord {
   return { id: id(), type: "link", visible: true, props: { label, url, style: "pill" } };
 }
 function social(items: { platform: "instagram" | "tiktok" | "x" | "linkedin" | "youtube" | "threads" | "github" | "facebook" | "snapchat"; handle: string }[]): SectionRecord {
-  return { id: id(), type: "social", visible: true, props: { items } };
+  return { id: id(), type: "social", visible: true, props: { displayMode: "iconLabel", items } };
 }
 function yt(vid: string): SectionRecord {
   return { id: id(), type: "youtube", visible: true, props: { id: vid } };

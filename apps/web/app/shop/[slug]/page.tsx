@@ -39,6 +39,7 @@ export default async function ProductPage({
       : undefined;
   const isCustomCard = product.sku === "card-custom";
   const supportsCustomDesignAddon = isCustomDesignAddonCardSku(product.sku);
+  const productImages = product.image_urls.length > 0 ? product.image_urls : product.image_url ? [product.image_url] : [];
   const customDesignAddonCents = supportsCustomDesignAddon ? await getCustomDesignAddonCents() : 0;
   const wantsCustomDesignAddon = supportsCustomDesignAddon && (query?.custom_design === "1" || Boolean(designId));
   const orderTotalCents = product.price_cents + (wantsCustomDesignAddon && designId ? customDesignAddonCents : 0);
@@ -67,11 +68,11 @@ export default async function ProductPage({
       <SiteHeader />
 
       <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-16 pt-12 md:grid-cols-2">
-        <div className="surface aspect-[4/5] overflow-hidden p-6">
-          {product.image_url ? (
-            <div className="relative h-full w-full overflow-hidden rounded-card">
+        <div className="surface space-y-3 overflow-hidden p-6">
+          {productImages[0] ? (
+            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-card">
               <Image
-                src={product.image_url}
+                src={productImages[0]}
                 alt={product.name}
                 fill
                 className="object-contain"
@@ -80,10 +81,25 @@ export default async function ProductPage({
               />
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center rounded-card bg-gold-grad/10 ring-1 ring-gold/30">
+            <div className="flex aspect-[4/5] items-center justify-center rounded-card bg-gold-grad/10 ring-1 ring-gold/30">
               <div className="font-display text-3xl text-ink">{product.name}</div>
             </div>
           )}
+          {productImages.length > 1 ? (
+            <div className="grid grid-cols-4 gap-2">
+              {productImages.slice(1, 5).map((image, index) => (
+                <div key={`${image}-${index}`} className="relative aspect-square overflow-hidden rounded-card ring-1 ring-paper-200">
+                  <Image
+                    src={image}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="96px"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div>

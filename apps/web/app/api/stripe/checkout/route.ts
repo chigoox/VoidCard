@@ -101,6 +101,7 @@ async function shopLineItem(
     if (!product.price_cents || product.price_cents <= 0) return null;
     const meta = (product.metadata ?? {}) as Record<string, unknown>;
     const shippable = sku !== "verified-badge" && meta.shippable !== false;
+    const productImages = product.image_urls.length > 0 ? product.image_urls : product.image_url ? [product.image_url] : [];
     return {
       shippable,
       currency: (product.currency || "usd").toLowerCase(),
@@ -112,6 +113,7 @@ async function shopLineItem(
           product_data: {
             name: product.name,
             description: product.blurb ?? undefined,
+            images: productImages.length > 0 ? productImages.slice(0, 8) : undefined,
             metadata: { sku: product.sku },
           },
         },
