@@ -17,6 +17,65 @@ export type SellerAccount = {
   requirements: Record<string, unknown> | null;
 };
 
+function isRecoverableStripeAccountError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const lower = message.toLowerCase();
+
+  return (
+    lower.includes("no such account")
+    || lower.includes("does not exist")
+    || lower.includes("not a valid account")
+    || (lower.includes("connected account") && lower.includes("platform"))
+    || lower.includes("deleted")
+  );
+}
+
+async function loadLiveStripeAccount(accountId: string) {
+  const account = await stripe.accounts.retrieve(accountId);
+  if ("deleted" in account && account.deleted) {
+    throw new Error(`Connected account ${accountId} was deleted.`);
+  }
+  return account;
+}
+
+async function persistSellerAccount(params: {
+  userId: string;
+  accountId: string;
+  account: Awaited<ReturnType<typeof loadLiveStripeAccount>>;
+  existing: SellerAccount | null;
+}): Promise<SellerAccount> {
+  const admin = createAdminClient();
+  const payload = {
+    stripe_account_id: params.accountId,
+    account_type: "express",
+    country: params.account.country ?? null,
+    default_currency: params.account.default_currency ?? null,
+    details_submitted: params.account.details_submitted ?? false,
+    charges_enabled: params.account.charges_enabled ?? false,
+    payouts_enabled: params.account.payouts_enabled ?? false,
+    capabilities: (params.account.capabilities ?? {}) as Record<string, unknown>,
+    requirements: (params.account.requirements ?? {}) as unknown as Record<string, unknown>,
+    updated_at: new Date().toISOString(),
+  };
+
+  const builder = params.existing
+    ? admin
+        .from("vcard_seller_accounts")
+        .update(payload)
+        .eq("user_id", params.userId)
+    : admin
+        .from("vcard_seller_accounts")
+        .insert({
+          user_id: params.userId,
+          ...payload,
+          connected_at: new Date().toISOString(),
+        });
+
+  const { data, error } = await builder.select("*").single();
+  if (error || !data) throw new Error(error?.message ?? "seller_account_insert_failed");
+  return data as SellerAccount;
+}
+
 export async function getSellerAccount(userId: string): Promise<SellerAccount | null> {
   const admin = createAdminClient();
   const { data } = await admin
@@ -41,17 +100,32 @@ export async function getOrCreateExpressAccount(params: {
   country?: string;
 }): Promise<SellerAccount> {
   const existing = await getSellerAccount(params.userId);
-  if (existing) return existing;
+
+  if (existing?.stripe_account_id) {
+    try {
+      const account = await loadLiveStripeAccount(existing.stripe_account_id);
+      return await persistSellerAccount({
+        userId: params.userId,
+        accountId: existing.stripe_account_id,
+        account,
+        existing,
+      });
+    } catch (error) {
+      if (!isRecoverableStripeAccountError(error)) {
+        throw error;
+      }
+    }
+  }
 
   // 1) Try to reuse an existing acct from Boox.
   const reused = await fetchSisterStripeAccountId(params.userId);
 
   let accountId = "";
-  let accountSnapshot: Awaited<ReturnType<typeof stripe.accounts.retrieve>> | null = null;
+  let accountSnapshot: Awaited<ReturnType<typeof loadLiveStripeAccount>> | null = null;
   if (reused) {
     accountId = reused;
     try {
-      accountSnapshot = await stripe.accounts.retrieve(accountId);
+      accountSnapshot = await loadLiveStripeAccount(accountId);
     } catch {
       // If the acct id stored in Boox is invalid for our Stripe account,
       // fall through to creating a new one.
@@ -75,27 +149,12 @@ export async function getOrCreateExpressAccount(params: {
     accountSnapshot = created;
   }
 
-  const account = accountSnapshot;
-
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("vcard_seller_accounts")
-    .insert({
-      user_id: params.userId,
-      stripe_account_id: accountId,
-      account_type: "express",
-      country: account.country ?? null,
-      default_currency: account.default_currency ?? null,
-      details_submitted: account.details_submitted ?? false,
-      charges_enabled: account.charges_enabled ?? false,
-      payouts_enabled: account.payouts_enabled ?? false,
-      capabilities: (account.capabilities ?? {}) as Record<string, unknown>,
-      requirements: (account.requirements ?? {}) as unknown as Record<string, unknown>,
-    })
-    .select("*")
-    .single();
-  if (error || !data) throw new Error(error?.message ?? "seller_account_insert_failed");
-  return data as SellerAccount;
+  return await persistSellerAccount({
+    userId: params.userId,
+    accountId,
+    account: accountSnapshot,
+    existing,
+  });
 }
 
 /**
