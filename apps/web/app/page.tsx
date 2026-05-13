@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -70,6 +71,29 @@ const FEATURE_GROUPS = [
   },
 ] as const;
 
+const SHOWCASE_CASES = [
+  {
+    eyebrow: "Consultations and clinics",
+    title: "Share credentials and next steps in one handoff.",
+    body:
+      "A polished card can open a profile with booking, directions, intake links, and contact details without asking someone to type or search.",
+    href: "/customers",
+    cta: "See customer types",
+    src: "/marketing/doctor-use-case.png",
+    alt: "A doctor hands a VoidCard to a patient while the matching profile is open on a phone.",
+  },
+  {
+    eyebrow: "Brands, founders, and teams",
+    title: "Look premium before the first sentence lands.",
+    body:
+      "Luxury brands, stylists, and event teams can hand over something physical that still routes to a profile updated in real time.",
+    href: "/contact",
+    cta: "Ask about team orders",
+    src: "/marketing/premium-duo.png",
+    alt: "Two women hold premium VoidCards in a luxury interior.",
+  },
+] as const;
+
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-white text-ink">
@@ -100,54 +124,42 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Phone preview — Onyx Gold product look */}
-        <div className="flex w-full justify-center">
-          <div className="phone-frame">
-            {/* status bar notch */}
-            <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center pt-3">
-              <div className="h-[26px] w-[110px] rounded-full bg-black" />
-            </div>
-            <div className="flex h-full flex-col overflow-y-auto bg-onyx-950 text-ivory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {/* cover image strip */}
-              <div className="h-32 w-full shrink-0 bg-gradient-to-br from-onyx-900 to-onyx-800" />
-              {/* avatar — overlaps cover */}
-              <div className="-mt-10 flex flex-col items-center px-5">
-                <div className="size-20 shrink-0 rounded-full border-4 border-onyx-950 bg-gold-grad" />
-                <div className="mt-2 flex items-center gap-1.5">
-                  <h2 className="font-display text-lg font-semibold leading-tight">Void Luxury Detailing</h2>
-                  <span className="text-gold text-xs">✓</span>
-                </div>
-                <p className="mt-0.5 text-xs text-ivory-dim">@voidluxury · Auto detailing studio</p>
+        <div className="flex w-full justify-center md:justify-end">
+          <div className="w-full max-w-[35rem]">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[32px] border border-black/10 bg-black shadow-[0_30px_90px_-45px_rgba(10,10,10,0.65)]">
+              <Image
+                src="/marketing/handoff-hero.png"
+                alt="A VoidCard metal card is handed over while the matching profile is open on a phone."
+                fill
+                priority
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 44vw, 560px"
+              />
+              <div className="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/20 to-transparent" />
+              <div className="absolute left-5 top-5 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.22em] text-white/80 backdrop-blur">
+                No app required
               </div>
-              {/* links section */}
-              <div className="mt-4 space-y-2 px-4">
+              <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
+                <p className="text-xs uppercase tracking-[0.24em] text-white/65">Real-world handoff</p>
+                <p className="mt-3 max-w-sm text-sm leading-6 text-white/80 md:text-base">
+                  One tap opens the live profile immediately, so the conversation keeps moving instead of waiting for someone to search, scan, or type.
+                </p>
+              </div>
+            </div>
+
+            <div className="-mt-10 ml-auto mr-4 max-w-[16rem] rounded-[24px] border border-black/10 bg-white/95 p-4 shadow-[0_24px_60px_-35px_rgba(10,10,10,0.35)] backdrop-blur">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-500">What opens</p>
+              <div className="mt-3 space-y-2 text-sm text-ink-500">
                 {[
-                  { label: "Book a service", icon: "📅" },
-                  { label: "Instagram", icon: "📷" },
-                  { label: "TikTok", icon: "▶" },
-                  { label: "Save my contact", icon: "👤" },
+                  "Contact card and save-to-phone",
+                  "Booking or lead capture",
+                  "Social, website, and live updates",
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between rounded-[14px] border border-onyx-700 bg-onyx-900 px-4 py-3 text-sm">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-base">{item.icon}</span>
-                      <span className="text-ivory">{item.label}</span>
-                    </div>
-                    <span className="text-gold text-xs">→</span>
+                  <div key={item} className="flex items-start gap-2">
+                    <span className="mt-1 size-1.5 shrink-0 rounded-full bg-ink" />
+                    <span>{item}</span>
                   </div>
                 ))}
-              </div>
-              {/* gallery strip */}
-              <div className="mt-4 px-4">
-                <p className="mb-2 text-[10px] uppercase tracking-widest text-ivory-mute">Gallery</p>
-                <div className="grid grid-cols-3 gap-1 overflow-hidden rounded-[14px]">
-                  {["from-amber-900/60 to-onyx-900", "from-onyx-800 to-onyx-900", "from-gold/20 to-onyx-900"].map((g, i) => (
-                    <div key={i} className={`aspect-square w-full bg-gradient-to-br ${g}`} />
-                  ))}
-                </div>
-              </div>
-              {/* powered-by */}
-              <div className="mt-auto pb-3 pt-5 text-center text-[9px] uppercase tracking-widest text-ivory-mute/50">
-                Powered by VoidCard
               </div>
             </div>
           </div>
@@ -188,6 +200,42 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-7xl px-6 py-12">
+        <div className="relative overflow-hidden rounded-[32px] border border-black/10 bg-black shadow-[0_30px_90px_-45px_rgba(10,10,10,0.5)]">
+          <div className="relative aspect-[16/11] md:aspect-[16/7]">
+            <Image
+              src="/marketing/luxury-banner.png"
+              alt="Two women hold VoidCards in a dark luxury interior."
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 1280px"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.46)_46%,rgba(0,0,0,0.12)_100%)]" />
+          </div>
+
+          <div className="absolute inset-0 flex items-end md:items-center">
+            <div className="max-w-2xl p-6 text-white md:p-10">
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/60">Luxury-first branding</p>
+              <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight md:text-5xl">
+                Built to feel expensive before you upgrade anything.
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-white/75 md:text-base">
+                The card is the hook. The live profile makes the handoff last, so a strong first impression turns into a profile people can actually act on.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/shop" className="btn-primary">See card finishes</Link>
+                <Link
+                  href="/why-voidcard"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 px-5 py-3 text-sm font-medium text-white transition hover:border-white/40 hover:bg-white/10"
+                >
+                  Why it stays free
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="mx-auto max-w-7xl px-6 py-24">
         <div className="max-w-3xl">
           <p className="text-sm uppercase tracking-[0.2em] text-ink-700">Feature set</p>
@@ -218,6 +266,48 @@ export default function HomePage() {
               </Link>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 pb-24">
+        <div className="grid gap-8 lg:grid-cols-[0.9fr,1.1fr] lg:items-start">
+          <div className="max-w-xl">
+            <p className="eyebrow">Use cases</p>
+            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink md:text-5xl">
+              Made for the rooms where polish and follow-through both matter.
+            </h2>
+            <p className="mt-4 text-lg text-ink-500">
+              These are the moments VoidCard actually solves: a premium first impression backed by a live profile that can book, route, capture, or convert on the spot.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/customers" className="btn-outline">Explore customer types</Link>
+              <Link href="/contact" className="btn-outline">Talk about team orders</Link>
+            </div>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            {SHOWCASE_CASES.map((item) => (
+              <article key={item.title} className="surface overflow-hidden">
+                <div className="relative aspect-[4/5]">
+                  <Image
+                    src={item.src}
+                    alt={item.alt}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 30vw"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-ink-700">{item.eyebrow}</p>
+                  <h3 className="mt-3 font-display text-2xl text-ink">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-ink-500">{item.body}</p>
+                  <Link href={item.href} className="mt-5 inline-block text-sm font-medium text-ink underline-offset-4 hover:underline">
+                    {item.cta} →
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
