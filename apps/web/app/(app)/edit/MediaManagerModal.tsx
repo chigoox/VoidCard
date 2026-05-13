@@ -36,6 +36,7 @@ const SIZES = [
   { value: "1024x1792", label: "Portrait 1024×1792" },
   { value: "1792x1024", label: "Landscape 1792×1024" },
 ] as const;
+const EMPTY_SELECTED_URLS: string[] = [];
 
 export function MediaManagerModal({
   open,
@@ -43,7 +44,7 @@ export function MediaManagerModal({
   onSelect,
   onClose,
   onAssetAdded,
-  selectedUrls = [],
+  selectedUrls: selectedUrlsProp,
   selectionLabel,
   enableAi = true,
 }: Props) {
@@ -55,6 +56,7 @@ export function MediaManagerModal({
   const [sourceFilter, setSourceFilter] = useState<"all" | "upload" | "ai">("all");
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [optimisticSelectedUrls, setOptimisticSelectedUrls] = useState<string[]>([]);
 
   // AI tab state
   const [prompt, setPrompt] = useState("");
@@ -64,9 +66,19 @@ export function MediaManagerModal({
   const [aiBusy, startAi] = useTransition();
   const [aiError, setAiError] = useState<string | null>(null);
 
+  const selectedUrls = selectedUrlsProp ?? EMPTY_SELECTED_URLS;
+  const tracksSelectedUrls = selectedUrlsProp !== undefined;
   const showAi = enableAi && kind === "image";
-  const selectedUrlSet = useMemo(() => new Set(selectedUrls), [selectedUrls]);
-  const selectedCount = selectedUrls.length;
+  const selectedUrlSet = useMemo(() => new Set([...selectedUrls, ...optimisticSelectedUrls]), [optimisticSelectedUrls, selectedUrls]);
+  const selectedCount = selectedUrlSet.size;
+
+  function handleSelect(asset: MediaItem) {
+    if (tracksSelectedUrls) {
+      if (selectedUrlSet.has(asset.url)) return;
+      setOptimisticSelectedUrls((current) => current.includes(asset.url) ? current : [...current, asset.url]);
+    }
+    onSelect(asset);
+  }
 
   const fetchPage = useCallback(
     async (reset = false) => {
@@ -178,7 +190,7 @@ export function MediaManagerModal({
         if (typeof json.creditsRemaining === "number") setCredits(json.creditsRemaining);
         setItems((prev) => [asset, ...prev]);
         onAssetAdded?.(asset);
-        onSelect(asset);
+        handleSelect(asset);
       } catch {
         setAiError("Network error. Try again.");
       }
@@ -287,7 +299,7 @@ export function MediaManagerModal({
                 >
                   <button
                     type="button"
-                    onClick={() => onSelect(item)}
+                    onClick={() => handleSelect(item)}
                     className="absolute inset-0 block h-full w-full"
                     title={item.prompt || ""}
                     aria-pressed={selectedUrlSet.has(item.url)}
@@ -312,7 +324,7 @@ export function MediaManagerModal({
                   ) : null}
                   <button
                     type="button"
-                    onClick={() => onSelect(item)}
+                    onClick={() => handleSelect(item)}
                     className={`absolute bottom-1 left-1 right-1 rounded-card px-2 py-1.5 text-xs font-medium shadow-soft transition ${selectedUrlSet.has(item.url) ? "bg-gold text-onyx-950" : "bg-black/80 text-ivory hover:bg-gold hover:text-onyx-950"}`}
                     aria-label={selectedUrlSet.has(item.url) ? "Image already added" : "Add image"}
                   >

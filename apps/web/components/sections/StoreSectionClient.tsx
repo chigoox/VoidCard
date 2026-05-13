@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 type StoreLayout = "grid" | "list";
@@ -28,6 +28,19 @@ type PublicProductVariant = {
 };
 
 const SURFACE_BORDER = "color-mix(in srgb, var(--vc-accent, #d4af37) 24%, transparent)";
+const THEME_VARIABLES = ["--vc-bg", "--vc-bg-2", "--vc-fg", "--vc-fg-mute", "--vc-accent", "--vc-radius"] as const;
+
+type ThemeStyle = CSSProperties & Partial<Record<(typeof THEME_VARIABLES)[number], string>>;
+
+function readThemeStyle(element: HTMLElement | null): ThemeStyle {
+  if (!element || typeof window === "undefined") return {};
+  const computed = window.getComputedStyle(element);
+  return THEME_VARIABLES.reduce<ThemeStyle>((style, variable) => {
+    const value = computed.getPropertyValue(variable).trim();
+    if (value) style[variable] = value;
+    return style;
+  }, {});
+}
 
 function fmtMoney(cents: number, currency: string) {
   try {
@@ -62,11 +75,7 @@ export function StoreSectionClient({
 
   useEffect(() => {
     let cancelled = false;
-    if (productIds.length === 0) {
-      setProducts([]);
-      return;
-    }
-    setError(null);
+    if (productIds.length === 0) return;
     fetch(`/api/seller/products?ids=${encodeURIComponent(idsKey)}`)
       .then((r) => r.json())
       .then((d: { ok?: boolean; products?: PublicProduct[]; error?: string }) => {
@@ -77,6 +86,7 @@ export function StoreSectionClient({
           const ordered = productIds
             .map((id) => byId.get(id))
             .filter((p): p is PublicProduct => Boolean(p));
+          setError(null);
           setProducts(ordered);
         } else {
           setError(d.error ?? "Could not load products.");
@@ -176,6 +186,8 @@ function ProductCard({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalThemeStyle, setModalThemeStyle] = useState<ThemeStyle>({});
+  const productRef = useRef<HTMLDivElement>(null);
   const images = useMemo(
     () => (product.image_urls && product.image_urls.length > 0 ? product.image_urls : product.image_url ? [product.image_url] : []),
     [product.image_url, product.image_urls],
@@ -220,46 +232,80 @@ function ProductCard({
     });
   }
 
+  function openDetails() {
+    setModalThemeStyle(readThemeStyle(productRef.current));
+    setModalOpen(true);
+  }
+
   return (
     <>
       <div
+        ref={productRef}
         data-vc-product={product.id}
         role="button"
         tabIndex={0}
-        onClick={() => setModalOpen(true)}
+        onClick={openDetails}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            setModalOpen(true);
+            openDetails();
           }
         }}
-        className={layout === "list" ? "group flex cursor-pointer gap-3 p-3 transition hover:-translate-y-0.5" : "group flex cursor-pointer flex-col gap-2 p-3 transition hover:-translate-y-0.5"}
+        className={layout === "list" ? "group grid cursor-pointer grid-cols-[6.75rem_minmax(0,1fr)] gap-3 overflow-hidden p-2.5 transition hover:-translate-y-0.5" : "group flex cursor-pointer flex-col gap-2.5 overflow-hidden p-2.5 transition hover:-translate-y-0.5"}
         style={{
-          background: "var(--vc-bg-2, #141414)",
+          background: "linear-gradient(180deg, color-mix(in srgb, var(--vc-bg-2, #141414) 94%, var(--vc-accent, #d4af37)), var(--vc-bg-2, #141414))",
           border: `1px solid ${SURFACE_BORDER}`,
           borderRadius: "var(--vc-radius, 14px)",
           color: "var(--vc-fg, #f7f3ea)",
-          boxShadow: "0 14px 30px color-mix(in srgb, var(--vc-bg, #0a0a0a) 28%, transparent)",
+          boxShadow: "0 18px 42px -28px color-mix(in srgb, var(--vc-bg, #0a0a0a) 72%, transparent), inset 0 1px 0 color-mix(in srgb, var(--vc-fg, #f7f3ea) 10%, transparent)",
         }}
         aria-label={`View ${product.name} details`}
       >
-        {images[visibleImageIndex] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={images[visibleImageIndex]}
-            alt={product.name}
-            loading="lazy"
-            decoding="async"
-            className={
-              layout === "list"
-                ? "size-20 shrink-0 object-cover"
-                : "h-32 w-full object-cover"
-            }
-            style={{ borderRadius: "calc(var(--vc-radius, 14px) - 4px)" }}
-          />
-        ) : null}
-        <div className="flex flex-1 flex-col gap-1">
-          <p className="font-display text-sm">{product.name}</p>
+        <div
+          className={layout === "list" ? "relative aspect-square min-h-0 overflow-hidden" : "relative aspect-[4/3] overflow-hidden"}
+          style={{ borderRadius: "calc(var(--vc-radius, 14px) - 5px)", background: "color-mix(in srgb, var(--vc-accent, #d4af37) 12%, var(--vc-bg, #0a0a0a))" }}
+        >
+          {images[visibleImageIndex] ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={images[visibleImageIndex]}
+              alt={product.name}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>
+              No image
+            </div>
+          )}
+          <div className="absolute inset-x-0 bottom-0 h-16" style={{ background: "linear-gradient(to top, color-mix(in srgb, var(--vc-bg, #0a0a0a) 72%, transparent), transparent)" }} />
+          <span
+            className="absolute left-2 top-2 rounded-pill px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]"
+            style={{
+              background: outOfStock ? "rgba(127, 29, 29, 0.9)" : "color-mix(in srgb, var(--vc-bg, #0a0a0a) 74%, transparent)",
+              color: outOfStock ? "#fee2e2" : "var(--vc-fg, #f7f3ea)",
+              border: `1px solid ${outOfStock ? "rgba(254, 202, 202, 0.28)" : SURFACE_BORDER}`,
+            }}
+          >
+            {outOfStock ? "Sold out" : product.digital ? "Digital" : product.shippable ? "Ships" : "Available"}
+          </span>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 px-1 pb-1">
+          <div className="min-w-0 space-y-1">
+            <p className="line-clamp-2 break-words font-display text-[15px] leading-tight">{product.name}</p>
+            {showPrice ? (
+              <span
+                className="inline-flex rounded-pill px-2.5 py-1 font-mono text-sm font-semibold"
+                style={{
+                  background: "color-mix(in srgb, var(--vc-accent, #d4af37) 14%, transparent)",
+                  color: "var(--vc-accent, #d4af37)",
+                }}
+              >
+                {fmtMoney(displayPriceCents, product.currency)}
+              </span>
+            ) : null}
+          </div>
           {images.length > 1 ? (
             <div className="flex gap-1 py-1" aria-label={`${product.name} images`} onClick={(event) => event.stopPropagation()}>
               {images.map((image, index) => (
@@ -270,6 +316,7 @@ function ProductCard({
                   className="size-8 overflow-hidden rounded-[6px] border"
                   style={{
                     borderColor: index === visibleImageIndex ? "var(--vc-accent, #d4af37)" : SURFACE_BORDER,
+                    boxShadow: index === visibleImageIndex ? "0 0 0 1px color-mix(in srgb, var(--vc-accent, #d4af37) 45%, transparent)" : "none",
                     opacity: index === visibleImageIndex ? 1 : 0.72,
                   }}
                   aria-label={`Show image ${index + 1}`}
@@ -282,7 +329,7 @@ function ProductCard({
           ) : null}
           {product.description ? (
             <p
-              className="line-clamp-2 text-xs"
+              className="line-clamp-2 text-xs leading-5"
               style={{ color: "var(--vc-fg-mute, #a8a39a)" }}
             >
               {product.description}
@@ -308,17 +355,7 @@ function ProductCard({
               ))}
             </select>
           ) : null}
-          <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-            {showPrice ? (
-              <span
-                className="font-mono text-sm"
-                style={{ color: "var(--vc-accent, #d4af37)" }}
-              >
-                {fmtMoney(displayPriceCents, product.currency)}
-              </span>
-            ) : (
-              <span />
-            )}
+          <div className="mt-auto pt-1">
             <button
               type="button"
               onClick={(event) => {
@@ -326,10 +363,11 @@ function ProductCard({
                 buy();
               }}
               disabled={pending || outOfStock}
-              className="rounded-pill px-3 py-1.5 text-xs font-medium uppercase tracking-[0.18em]"
+              className="w-full rounded-pill px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition enabled:group-hover:brightness-110"
               style={{
                 background: "var(--vc-accent, #d4af37)",
                 color: "var(--vc-bg, #0a0a0a)",
+                boxShadow: "0 12px 28px -18px color-mix(in srgb, var(--vc-accent, #d4af37) 90%, transparent)",
                 opacity: pending ? 0.7 : 1,
               }}
               data-testid={`buy-${product.id}`}
@@ -360,6 +398,7 @@ function ProductCard({
         pending={pending}
         outOfStock={outOfStock}
         error={error}
+        themeStyle={modalThemeStyle}
         onBuy={buy}
         onClose={() => setModalOpen(false)}
       />
@@ -383,6 +422,7 @@ function ProductDetailsModal({
   pending,
   outOfStock,
   error,
+  themeStyle,
   onBuy,
   onClose,
 }: {
@@ -401,6 +441,7 @@ function ProductDetailsModal({
   pending: boolean;
   outOfStock: boolean;
   error: string | null;
+  themeStyle: ThemeStyle;
   onBuy: () => void;
   onClose: () => void;
 }) {
@@ -424,12 +465,17 @@ function ProductDetailsModal({
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
+      style={{
+        ...themeStyle,
+        background: "color-mix(in srgb, var(--vc-bg, #0a0a0a) 82%, transparent)",
+      }}
     >
       <div
-        className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[18px] border shadow-2xl sm:max-h-[min(44rem,calc(100dvh-3rem))] sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(18rem,0.9fr)]"
+        className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col overflow-hidden border shadow-2xl sm:max-h-[min(44rem,calc(100dvh-3rem))] sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(18rem,0.9fr)]"
         style={{
-          background: "var(--vc-bg-2, #141414)",
+          background: "linear-gradient(180deg, color-mix(in srgb, var(--vc-bg-2, #141414) 95%, var(--vc-accent, #d4af37)), var(--vc-bg-2, #141414))",
           borderColor: SURFACE_BORDER,
+          borderRadius: "calc(var(--vc-radius, 14px) + 6px)",
           color: "var(--vc-fg, #f7f3ea)",
         }}
       >

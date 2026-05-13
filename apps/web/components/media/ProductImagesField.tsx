@@ -56,10 +56,11 @@ export function ProductImagesField({
   const remaining = Math.max(0, maxImages - images.length);
 
   function appendImages(nextImages: string[], source: string) {
+    const currentCount = images.length;
     const merged = normalizeImages([...images, ...nextImages]).slice(0, maxImages);
-    const added = merged.length - images.length;
+    const added = merged.length - currentCount;
     const clipped = nextImages.length - added;
-    setImages(merged);
+    setImages((current) => normalizeImages([...current, ...nextImages]).slice(0, maxImages));
     setMessage(
       added > 0
         ? `${added} ${source} added${clipped > 0 ? `; ${clipped} skipped` : ""}.`
