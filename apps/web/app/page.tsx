@@ -223,7 +223,12 @@ export default function HomePage() {
                 The card is the hook. The live profile makes the handoff last, so a strong first impression turns into a profile people can actually act on.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/shop" className="btn-primary">See card finishes</Link>
+                <Link
+                  href="/shop"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-medium text-ink shadow-soft transition hover:bg-paper-100"
+                >
+                  See card finishes
+                </Link>
                 <Link
                   href="/why-voidcard"
                   className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 px-5 py-3 text-sm font-medium text-white transition hover:border-white/40 hover:bg-white/10"
