@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 
 export type MediaItem = {
@@ -23,6 +23,8 @@ type Props = {
   onClose: () => void;
   /** Bubble new assets (uploads/AI generations) up to the editor library. */
   onAssetAdded?: (asset: MediaItem) => void;
+  /** URLs that are already selected by the caller. */
+  selectedUrls?: string[];
   /** AI tab is only useful for images. Hidden for video. */
   enableAi?: boolean;
 };
@@ -33,7 +35,7 @@ const SIZES = [
   { value: "1792x1024", label: "Landscape 1792×1024" },
 ] as const;
 
-export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded, enableAi = true }: Props) {
+export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded, selectedUrls = [], enableAi = true }: Props) {
   const [tab, setTab] = useState<"library" | "ai">("library");
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,6 +54,7 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
   const [aiError, setAiError] = useState<string | null>(null);
 
   const showAi = enableAi && kind === "image";
+  const selectedUrlSet = useMemo(() => new Set(selectedUrls), [selectedUrls]);
 
   const fetchPage = useCallback(
     async (reset = false) => {
@@ -201,8 +204,8 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
       data-testid="media-manager-modal"
     >
       <div
-        className="card safe-max-h-screen flex min-h-0 w-full flex-col gap-3 overflow-hidden rounded-t-card border border-onyx-700 bg-onyx-950 p-4 sm:max-w-3xl sm:rounded-card"
-        style={{ height: "min(42rem, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem))" }}
+        className="card safe-max-h-screen flex min-h-0 w-full flex-col gap-3 overflow-hidden rounded-t-card border border-onyx-700 bg-onyx-950 p-3 sm:w-[min(calc(100vw-2rem),48rem)] sm:rounded-card sm:p-4"
+        style={{ height: "min(44rem, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 1.5rem))" }}
       >
         <div className="flex shrink-0 items-center justify-between gap-3">
           <h2 className="text-base font-medium text-ivory">
@@ -236,19 +239,19 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
 
         {tab === "library" ? (
           <div className="flex min-h-0 flex-1 flex-col gap-3">
-            <div className="flex shrink-0 flex-wrap gap-2">
+            <div className="grid shrink-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
               <input
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search prompts (AI images)"
-                className="min-w-0 flex-1 rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2 text-sm text-ivory outline-none focus:border-gold/60"
+                className="min-w-0 rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2 text-sm text-ivory outline-none focus:border-gold/60"
                 data-testid="media-search"
               />
               <select
                 value={sourceFilter}
                 onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
-                className="rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2 text-sm text-ivory"
+                className="w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2 text-sm text-ivory sm:w-auto"
               >
                 <option value="all">All sources</option>
                 <option value="upload">Uploaded</option>
@@ -257,21 +260,30 @@ export function MediaManagerModal({ open, kind, onSelect, onClose, onAssetAdded,
             </div>
             <div className="grid min-h-0 flex-1 content-start grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4" data-testid="media-library-scroll">
               {items.map((item) => (
-                <div key={item.id} className="group relative overflow-hidden rounded-card border border-onyx-800 bg-onyx-950">
+                <div
+                  key={item.id}
+                  className={`group relative aspect-square overflow-hidden rounded-card border bg-onyx-950 ${selectedUrlSet.has(item.url) ? "border-gold ring-1 ring-gold/70" : "border-onyx-800"}`}
+                >
                   <button
                     type="button"
                     onClick={() => onSelect(item)}
-                    className="block w-full"
+                    className="absolute inset-0 block w-full"
                     title={item.prompt || ""}
+                    aria-pressed={selectedUrlSet.has(item.url)}
                     data-testid={`media-item-${item.id}`}
                   >
                     {item.kind === "image" ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.url} alt={item.prompt ?? ""} className="aspect-square w-full object-cover" loading="lazy" />
+                      <img src={item.url} alt={item.prompt ?? ""} className="h-full w-full object-cover" loading="lazy" />
                     ) : (
-                      <video src={item.url} className="aspect-square w-full object-cover" muted />
+                      <video src={item.url} className="h-full w-full object-cover" muted />
                     )}
                   </button>
+                  {selectedUrlSet.has(item.url) ? (
+                    <span className="pointer-events-none absolute bottom-1 left-1 rounded-pill bg-gold px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-onyx-950">
+                      Selected
+                    </span>
+                  ) : null}
                   {item.source === "ai" ? (
                     <span className="absolute left-1 top-1 rounded-pill bg-black/70 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-gold">
                       AI

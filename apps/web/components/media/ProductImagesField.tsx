@@ -225,6 +225,7 @@ export function ProductImagesField({
         open={modalOpen}
         kind="image"
         onClose={() => setModalOpen(false)}
+        selectedUrls={images}
         onSelect={(asset) => appendImages([asset.url], "library image")}
         onAssetAdded={(asset) => appendImages([asset.url], "generated image")}
       />
