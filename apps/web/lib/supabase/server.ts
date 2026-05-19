@@ -1,6 +1,6 @@
 import "server-only";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { Database } from "./database.types";
 import { getCookieDomain } from "./cookie-domain";
 
@@ -8,6 +8,8 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
 export async function createClient() {
   const cookieStore = await cookies();
+  const headerStore = await headers();
+  const requestHost = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -21,7 +23,7 @@ export async function createClient() {
             for (const { name, value, options } of toSet) {
               cookieStore.set(name, value, {
                 ...options,
-                domain: getCookieDomain(options?.domain),
+                domain: getCookieDomain(options?.domain, requestHost),
                 sameSite: "lax",
                 secure: process.env.NODE_ENV === "production",
               });

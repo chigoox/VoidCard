@@ -76,6 +76,18 @@ export default function OnboardingClient({
 
   const progressPct = useMemo(() => Math.round((step / ONBOARDING_TOTAL_STEPS) * 100), [step]);
 
+  function navigateTo(target: string) {
+    if (typeof window !== "undefined") {
+      window.location.assign(target);
+      return;
+    }
+    router.replace(target);
+  }
+
+  function resolvePairHref() {
+    return nextHref.startsWith("/cards/pair") ? nextHref : "/cards/pair";
+  }
+
   function go(next: number) {
     setError(null);
     setStepState(Math.max(0, Math.min(ONBOARDING_TOTAL_STEPS, next)));
@@ -85,7 +97,7 @@ export default function OnboardingClient({
     void capture("onboarding_skip", { from_step: step });
     startTransition(async () => {
       await dismissOnboarding();
-      router.replace(nextHref);
+      navigateTo(nextHref);
     });
   }
 
@@ -229,7 +241,7 @@ export default function OnboardingClient({
       void capture("onboarding_completed", { published: publish });
       setConfettiOn(true);
       window.setTimeout(() => {
-        router.replace(nextHref);
+        navigateTo(nextHref);
       }, 1500);
     });
   }
@@ -237,7 +249,7 @@ export default function OnboardingClient({
   function handleGoToPair() {
     startTransition(async () => {
       await dismissOnboarding();
-      router.replace("/cards/pair");
+      navigateTo(resolvePairHref());
     });
   }
 

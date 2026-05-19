@@ -206,7 +206,7 @@ export async function proxy(req: NextRequest) {
           for (const { name, value, options } of toSet) {
             res.cookies.set(name, value, {
               ...options,
-              domain: getCookieDomain(options?.domain),
+              domain: getCookieDomain(options?.domain, req.headers.get("x-forwarded-host") ?? req.headers.get("host")),
               sameSite: "lax",
               secure: process.env.NODE_ENV === "production",
             });

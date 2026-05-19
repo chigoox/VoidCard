@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import { uploadMediaAsset } from "@/components/media/upload-media-asset";
 
 export type MediaItem = {
   id: string;
@@ -57,6 +58,9 @@ export function MediaManagerModal({
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [optimisticSelectedUrls, setOptimisticSelectedUrls] = useState<string[]>([]);
+  const [status, setStatus] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadBusy, startUpload] = useTransition();
 
   // AI tab state
   const [prompt, setPrompt] = useState("");
@@ -78,6 +82,65 @@ export function MediaManagerModal({
       setOptimisticSelectedUrls((current) => current.includes(asset.url) ? current : [...current, asset.url]);
     }
     onSelect(asset);
+  }
+
+  function mediaKindPrefix() {
+    return kind === "image" ? "image/" : "video/";
+  }
+
+  function mediaKindLabel() {
+    return kind === "image" ? "images" : "videos";
+  }
+
+  function handleUploadChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []).filter((file) => file.type.startsWith(mediaKindPrefix()));
+    input.value = "";
+    if (files.length === 0) return;
+
+    setError(null);
+    setStatus(null);
+    setUploadProgress(0);
+
+    startUpload(async () => {
+      const uploaded: MediaItem[] = [];
+      let failures = 0;
+
+      for (const [index, file] of files.entries()) {
+        try {
+          const asset = await uploadMediaAsset(file, kind, {
+            onProgress: (progress) => {
+              setUploadProgress(Math.max(0, Math.min(100, Math.round((((index + progress / 100) / files.length) * 100)))));
+            },
+          });
+          uploaded.push({
+            id: asset.id,
+            kind: asset.kind,
+            mime: asset.mime,
+            url: asset.url,
+            createdAt: asset.createdAt,
+            source: "upload",
+          });
+        } catch {
+          failures += 1;
+        }
+
+        setUploadProgress(Math.round((((index + 1) / files.length) * 100)));
+      }
+
+      if (uploaded.length > 0) {
+        setItems((current) => [...uploaded, ...current]);
+        uploaded.forEach((asset) => onAssetAdded?.(asset));
+      }
+
+      if (uploaded.length > 0) {
+        setStatus(`${uploaded.length} ${mediaKindLabel()} uploaded${failures > 0 ? `; ${failures} failed` : ""}.`);
+      } else if (failures > 0) {
+        setError(failures === 1 ? "Upload failed. Try again." : `${failures} uploads failed. Try again.`);
+      }
+
+      setUploadProgress(null);
+    });
   }
 
   const fetchPage = useCallback(
@@ -271,7 +334,7 @@ export function MediaManagerModal({
 
         {tab === "library" ? (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-            <div className="grid shrink-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="grid shrink-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
               <input
                 type="search"
                 value={search}
@@ -280,6 +343,18 @@ export function MediaManagerModal({
                 className="min-w-0 rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2 text-sm text-ivory outline-none focus:border-gold/60"
                 data-testid="media-search"
               />
+              <label className="btn-ghost inline-flex cursor-pointer items-center justify-center px-3 py-2 text-xs">
+                <span>{uploadBusy ? `Uploading… ${uploadProgress ?? 0}%` : `Upload ${kind}`}</span>
+                <input
+                  type="file"
+                  accept={kind === "image" ? "image/*" : "video/*"}
+                  multiple
+                  className="hidden"
+                  onChange={handleUploadChange}
+                  disabled={uploadBusy}
+                  data-testid="media-upload"
+                />
+              </label>
               <select
                 value={sourceFilter}
                 onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
@@ -290,6 +365,15 @@ export function MediaManagerModal({
                 <option value="ai">AI-generated</option>
               </select>
             </div>
+            {uploadProgress !== null ? (
+              <div className="space-y-1">
+                <div className="h-1.5 overflow-hidden rounded-full bg-onyx-900">
+                  <div className="h-full bg-gold transition-[width]" style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <p className="text-xs text-ivory-mute">Uploading… {uploadProgress}%</p>
+              </div>
+            ) : null}
+            {status ? <p className="text-xs text-ivory-mute">{status}</p> : null}
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 touch-pan-y" data-testid="media-library-scroll">
               <div className="grid auto-rows-fr grid-cols-2 gap-2 pb-2 sm:grid-cols-3 md:grid-cols-4">
               {items.map((item) => (
