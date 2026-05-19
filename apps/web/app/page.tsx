@@ -79,8 +79,8 @@ const SHOWCASE_CASES = [
       "A polished card can open a profile with booking, directions, intake links, and contact details without asking someone to type or search.",
     href: "/customers",
     cta: "See customer types",
-    src: "/marketing/doctor-use-case.png",
-    alt: "A doctor hands a VoidCard to a patient while the matching profile is open on a phone.",
+    src: "/marketing/premium-duo.png",
+    alt: "Two women hold premium VoidCards in a luxury interior.",
   },
   {
     eyebrow: "Brands, founders, and teams",
@@ -89,8 +89,8 @@ const SHOWCASE_CASES = [
       "Luxury brands, stylists, and event teams can hand over something physical that still routes to a profile updated in real time.",
     href: "/contact",
     cta: "Ask about team orders",
-    src: "/marketing/premium-duo.png",
-    alt: "Two women hold premium VoidCards in a luxury interior.",
+    src: "/marketing/doctor-use-case.png",
+    alt: "A doctor hands a VoidCard to a patient while the matching profile is open on a phone.",
   },
 ] as const;
 
@@ -202,7 +202,7 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-7xl px-6 py-12">
         <div className="relative overflow-hidden rounded-[32px] border border-black/10 bg-black shadow-[0_30px_90px_-45px_rgba(10,10,10,0.5)]">
-          <div className="relative aspect-[16/11] md:aspect-[16/7]">
+          <div className="relative min-h-[30rem] md:aspect-[16/7] md:min-h-0">
             <Image
               src="/marketing/luxury-banner.png"
               alt="Two women hold VoidCards in a dark luxury interior."
