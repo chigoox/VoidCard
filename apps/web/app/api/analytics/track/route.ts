@@ -12,6 +12,7 @@ type TrackBody = {
   source?: string;
   cardId?: string;
   shortlinkId?: string;
+  variantId?: string;
   utm?: Record<string, string>;
   referrer?: string;
 };
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
 
   const ipHash = await hashIpEdge(ip);
   const ua = req.headers.get("user-agent") || "";
+  const uaHash = await hashTextEdge(ua);
   const geo = geoFromHeaders(req.headers);
 
   const { error } = await admin.from("vcard_taps").insert({
@@ -71,7 +73,7 @@ export async function POST(req: Request) {
     shortlink_id: body.shortlinkId ?? null,
     source: (body.source ?? "embed").slice(0, 16),
     ip_hash: ipHash,
-    ua_hash: ua.slice(0, 200),
+    ua_hash: uaHash,
     country: geo.country,
     region: geo.region,
     city: geo.city,
@@ -81,6 +83,10 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ ok: false, error: "internal" }, { status: 500 });
 
+  if (body.variantId) {
+    void incrementVariantViews(admin, body.variantId, userId).catch(() => null);
+  }
+
   void queueWebhookEvent(userId, "tap.created", {
     source: (body.source ?? "embed").slice(0, 16),
     card_id: body.cardId ?? null,
@@ -89,6 +95,23 @@ export async function POST(req: Request) {
     created_at: new Date().toISOString(),
   }).catch(() => null);
   return NextResponse.json({ ok: true });
+}
+
+async function incrementVariantViews(admin: ReturnType<typeof createAdminClient>, variantId: string, userId: string) {
+  const { data } = await admin
+    .from("vcard_ab_variants")
+    .select("views")
+    .eq("id", variantId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!data) return;
+  await admin.from("vcard_ab_variants").update({ views: Number(data.views ?? 0) + 1 }).eq("id", variantId).eq("user_id", userId);
+}
+
+async function hashTextEdge(value: string) {
+  const data = new TextEncoder().encode(value);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
 
 function geoFromHeaders(headers: Headers) {

@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
 import { GOOGLE_FONT_FAMILIES, googleFontUrl } from "@/lib/fonts/google";
 import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
+import { revalidatePublicProfile } from "@/lib/public-profile-cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function gateFonts(plan: string, bonusStorageBytes: number) {
@@ -49,7 +50,7 @@ export async function createFontRecord(input: unknown) {
   await admin.from("vcard_profile_ext").update({ custom_font_url: parsed.data.url }).eq("user_id", u.id);
   revalidatePath("/settings");
   revalidatePath("/fonts");
-  if (u.username) revalidatePath(`/u/${u.username}`);
+  revalidatePublicProfile(u.username);
 }
 
 export async function saveGoogleFont(formData: FormData) {
@@ -74,7 +75,7 @@ export async function saveGoogleFont(formData: FormData) {
   await admin.from("vcard_profile_ext").upsert({ user_id: u.id, custom_font_url: url }, { onConflict: "user_id" });
   revalidatePath("/settings");
   revalidatePath("/fonts");
-  if (u.username) revalidatePath(`/u/${u.username}`);
+  revalidatePublicProfile(u.username);
 }
 
 export async function setActiveFont(formData: FormData) {
@@ -94,7 +95,7 @@ export async function setActiveFont(formData: FormData) {
   await admin.from("vcard_profile_ext").upsert({ user_id: u.id, custom_font_url: data.url }, { onConflict: "user_id" });
   revalidatePath("/settings");
   revalidatePath("/fonts");
-  if (u.username) revalidatePath(`/u/${u.username}`);
+  revalidatePublicProfile(u.username);
 }
 
 export async function deleteFont(formData: FormData) {
@@ -135,5 +136,5 @@ export async function deleteFont(formData: FormData) {
 
   revalidatePath("/settings");
   revalidatePath("/fonts");
-  if (u.username) revalidatePath(`/u/${u.username}`);
+  revalidatePublicProfile(u.username);
 }

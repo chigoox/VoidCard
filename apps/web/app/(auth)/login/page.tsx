@@ -87,13 +87,26 @@ function LoginPageContent() {
     e.preventDefault();
     setMsg(null);
     start(async () => {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setMsg({ kind: "err", text: error.message });
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, password, next: nextPath }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (res.status === 429) {
+            setMsg({ kind: "err", text: "Too many requests. Slow down." });
+          } else {
+            setMsg({ kind: "err", text: data?.error ?? "Something went wrong." });
+          }
+          return;
+        }
+        window.location.assign(typeof data?.redirectTo === "string" ? data.redirectTo : buildCallbackPath(nextPath));
+      } catch {
+        setMsg({ kind: "err", text: "Network error." });
         return;
       }
-      router.replace(buildCallbackPath(nextPath));
     });
   }
 

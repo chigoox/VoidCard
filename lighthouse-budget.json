@@ -1,0 +1,14 @@
+[
+  {
+    "path": "/u/demo",
+    "resourceSizes": [
+      { "resourceType": "script", "budget": 70 },
+      { "resourceType": "image", "budget": 350 },
+      { "resourceType": "total", "budget": 750 }
+    ],
+    "resourceCounts": [
+      { "resourceType": "script", "budget": 18 },
+      { "resourceType": "third-party", "budget": 8 }
+    ]
+  }
+]

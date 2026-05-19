@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Sections } from "@/lib/sections/types";
+import { revalidatePublicProfile } from "@/lib/public-profile-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,7 +55,7 @@ export async function GET(req: Request) {
         continue;
       }
       published.push({ source: "primary", id: row.user_id, username: row.username });
-      if (row.username) revalidatePath(`/u/${row.username}`);
+      revalidatePublicProfile(row.username);
     } catch (err) {
       errors.push({
         source: "primary",
@@ -86,7 +86,7 @@ export async function GET(req: Request) {
         continue;
       }
       published.push({ source: "secondary", id: row.id, username: row.username });
-      if (row.username) revalidatePath(`/u/${row.username}`);
+      revalidatePublicProfile(row.username);
     } catch (err) {
       errors.push({
         source: "secondary",

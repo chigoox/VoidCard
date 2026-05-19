@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
 import { hashProfilePassword } from "@/lib/profile-password";
 import { getManagedProfile, updateManagedProfile } from "@/lib/profiles";
+import { revalidatePublicProfile } from "@/lib/public-profile-cache";
 import { setCustomCss } from "../edit/actions";
 
 const Settings = z.object({
@@ -36,7 +37,7 @@ export async function saveSettings(input: unknown): Promise<{ ok: true } | { ok:
   }
 
   revalidatePath("/settings");
-  if (profile.publicPath) revalidatePath(profile.publicPath);
+  revalidatePublicProfile(profile.publicPath);
   return { ok: true };
 }
 
@@ -72,6 +73,6 @@ export async function saveProfilePassword(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/settings");
-  if (profile.publicPath) revalidatePath(profile.publicPath);
+  revalidatePublicProfile(profile.publicPath);
   return { ok: true, enabled: !shouldClear };
 }

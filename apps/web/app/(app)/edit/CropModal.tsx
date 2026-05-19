@@ -92,19 +92,19 @@ export function CropModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-sm sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label="Crop image"
       data-testid="crop-modal"
     >
-      <div className="flex w-full flex-col gap-4 rounded-t-card border border-onyx-700 bg-onyx-950 p-4 sm:max-w-lg sm:rounded-card">
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full flex-col gap-4 overflow-y-auto rounded-card border border-onyx-700 bg-onyx-950 p-4 sm:max-w-lg sm:max-h-[calc(100dvh-3rem)]">
         <div>
           <h2 className="text-base font-medium text-ivory">Adjust image</h2>
           {filename ? <p className="mt-1 truncate text-xs text-ivory-mute">{filename}</p> : null}
         </div>
 
-        <div className="relative h-64 w-full overflow-hidden rounded-card bg-black sm:h-80">
+        <div className="relative h-[min(45dvh,20rem)] min-h-52 w-full overflow-hidden rounded-card bg-black sm:h-80">
           <Cropper
             image={src}
             crop={crop}

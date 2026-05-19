@@ -8,6 +8,10 @@ export type UploadedMediaAsset = {
   createdAt: string;
 };
 
+type UploadMediaAssetOptions = {
+  onProgress?: (progress: number) => void;
+};
+
 export function uploadErrorMessage(code: unknown) {
   switch (code) {
     case "mime_not_allowed":
@@ -21,7 +25,39 @@ export function uploadErrorMessage(code: unknown) {
   }
 }
 
-export async function uploadMediaAsset(file: File, kind: "image" | "video"): Promise<UploadedMediaAsset> {
+function uploadSignedFile(
+  signedUrl: string,
+  file: File,
+  contentType: string,
+  onProgress?: (progress: number) => void,
+) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", signedUrl);
+    xhr.setRequestHeader("content-type", contentType);
+    xhr.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable || event.total <= 0) return;
+      onProgress(Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100))));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve();
+        return;
+      }
+      reject(new Error("Upload failed. Try again."));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed. Try again."));
+    xhr.onabort = () => reject(new Error("Upload cancelled."));
+    xhr.send(file);
+  });
+}
+
+export async function uploadMediaAsset(
+  file: File,
+  kind: "image" | "video",
+  options: UploadMediaAssetOptions = {},
+): Promise<UploadedMediaAsset> {
   const signResponse = await fetch("/api/media/sign", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -38,14 +74,13 @@ export async function uploadMediaAsset(file: File, kind: "image" | "video"): Pro
     throw new Error(uploadErrorMessage(signBody.error));
   }
 
-  const uploadResponse = await fetch(signBody.signedUrl as string, {
-    method: "PUT",
-    headers: { "content-type": file.type || "application/octet-stream" },
-    body: file,
-  });
-  if (!uploadResponse.ok) {
-    throw new Error("Upload failed. Try again.");
-  }
+  options.onProgress?.(0);
+  await uploadSignedFile(
+    signBody.signedUrl as string,
+    file,
+    file.type || "application/octet-stream",
+    options.onProgress,
+  );
 
   const finalizeResponse = await fetch("/api/media/finalize", {
     method: "POST",

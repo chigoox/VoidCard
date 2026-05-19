@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { loadPrimaryProfile, usesSharedProfilesAsPrimary } from "@/lib/profiles";
+import { revalidatePublicProfile } from "@/lib/public-profile-cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const RoleSchema = z.object({
@@ -25,7 +26,7 @@ async function revalidateUserPaths(userId: string) {
   revalidatePath("/dashboard");
   revalidatePath("/account");
   revalidatePath("/account/verify");
-  if (profile?.username) revalidatePath(`/u/${profile.username}`);
+  revalidatePublicProfile(profile?.username);
   return profile;
 }
 

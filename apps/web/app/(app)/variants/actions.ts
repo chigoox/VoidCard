@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
 import { loadPrimaryProfile } from "@/lib/profiles";
+import { revalidatePublicProfile } from "@/lib/public-profile-cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -37,6 +38,7 @@ export async function createVariant(formData: FormData) {
   });
   if (error) throw new Error(error.message);
   revalidatePath("/variants");
+  revalidatePublicProfile(profile?.username);
 }
 
 const UpdateSchema = z.object({
@@ -63,6 +65,7 @@ export async function updateVariant(formData: FormData) {
     .eq("user_id", u.id);
   if (error) throw new Error(error.message);
   revalidatePath("/variants");
+  revalidatePublicProfile(u.username);
 }
 
 export async function deleteVariant(formData: FormData) {
@@ -74,4 +77,5 @@ export async function deleteVariant(formData: FormData) {
   const { error } = await admin.from("vcard_ab_variants").delete().eq("id", id).eq("user_id", u.id);
   if (error) throw new Error(error.message);
   revalidatePath("/variants");
+  revalidatePublicProfile(u.username);
 }

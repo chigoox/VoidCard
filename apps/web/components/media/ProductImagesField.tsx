@@ -52,6 +52,7 @@ export function ProductImagesField({
   const [modalOpen, setModalOpen] = useState(false);
   const [urlList, setUrlList] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploading, startUpload] = useTransition();
   const remaining = Math.max(0, maxImages - images.length);
 
@@ -81,17 +82,22 @@ export function ProductImagesField({
     const selected = files.slice(0, remaining);
     const clipped = files.length - selected.length;
     setMessage(null);
+    setUploadProgress(0);
     startUpload(async () => {
-      const uploaded = await Promise.all(
-        selected.map(async (file) => {
-          try {
-            const asset = await uploadMediaAsset(file, "image");
-            return { url: asset.url, error: null };
-          } catch (error) {
-            return { url: null, error: error instanceof Error ? error.message : "Upload failed. Try again." };
-          }
-        }),
-      );
+      const uploaded: Array<{ url: string | null; error: string | null }> = [];
+      for (const [index, file] of selected.entries()) {
+        try {
+          const asset = await uploadMediaAsset(file, "image", {
+            onProgress: (progress) => {
+              setUploadProgress(Math.max(0, Math.min(100, Math.round((((index + progress / 100) / selected.length) * 100)))));
+            },
+          });
+          uploaded.push({ url: asset.url, error: null });
+        } catch (error) {
+          uploaded.push({ url: null, error: error instanceof Error ? error.message : "Upload failed. Try again." });
+        }
+        setUploadProgress(Math.round((((index + 1) / selected.length) * 100)));
+      }
       const urls = uploaded
         .map((result) => result.url)
         .filter((url): url is string => typeof url === "string");
@@ -108,6 +114,7 @@ export function ProductImagesField({
             .join("; "),
         );
       }
+      setUploadProgress(null);
     });
   }
 
@@ -189,7 +196,7 @@ export function ProductImagesField({
       <div className="flex flex-wrap gap-2">
         <label className="btn-ghost inline-flex cursor-pointer items-center gap-1.5 p-2.5 text-xs sm:px-3 sm:py-2" aria-disabled={uploading || remaining <= 0} aria-label={uploading ? "Uploading product images" : "Upload product images"}>
           <Upload className="size-4" aria-hidden />
-          <span>{uploading ? "Uploading..." : "Upload images"}</span>
+          <span>{uploading ? `Uploading... ${uploadProgress ?? 0}%` : "Upload images"}</span>
           <input type="file" accept="image/*" multiple className="hidden" onChange={handleFilesChange} disabled={uploading || remaining <= 0} data-testid="product-upload-images" />
         </label>
         <button
@@ -219,6 +226,15 @@ export function ProductImagesField({
           Add URLs
         </button>
       </div>
+
+      {uploadProgress !== null ? (
+        <div className="space-y-1">
+          <div className="h-1.5 overflow-hidden rounded-full bg-onyx-900">
+            <div className="h-full bg-gold transition-[width]" style={{ width: `${uploadProgress}%` }} />
+          </div>
+          <p className="text-xs text-ivory-mute">Uploading… {uploadProgress}%</p>
+        </div>
+      ) : null}
 
       {message ? <p className="text-xs text-ivory-mute" data-testid="product-images-message">{message}</p> : null}
 

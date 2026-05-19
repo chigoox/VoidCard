@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { capture } from "@/lib/posthog-browser";
 import { ONBOARDING_TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { BLANK_VIBE_ID, VIBES } from "@/lib/onboarding-vibes";
+import { uploadMediaAsset } from "@/components/media/upload-media-asset";
 import {
   addInitialLinks,
   applyVibe,
@@ -54,6 +55,7 @@ export default function OnboardingClient({
   // Step 2
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarUploadProgress, setAvatarUploadProgress] = useState<number | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
   // Step 3
@@ -143,27 +145,18 @@ export default function OnboardingClient({
       return;
     }
     setAvatarUploading(true);
+    setAvatarUploadProgress(0);
     try {
-      const sign = await fetch("/api/media/sign", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ filename: file.name, mime: file.type, sizeBytes: file.size, kind: "image", visibility: "public" }),
-      }).then((r) => r.json());
-      if (!sign.ok) throw new Error(sign.error ?? "sign_failed");
-      const put = await fetch(sign.signedUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
-      if (!put.ok) throw new Error("upload_failed");
-      const finalize = await fetch("/api/media/finalize", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ bucket: sign.bucket, path: sign.path, kind: "image", mime: file.type, sizeBytes: file.size }),
-      }).then((r) => r.json());
-      if (!finalize.ok || typeof finalize.url !== "string") throw new Error(finalize.error ?? "finalize_failed");
-      setAvatarUrl(finalize.url as string);
+      const asset = await uploadMediaAsset(file, "image", {
+        onProgress: setAvatarUploadProgress,
+      });
+      setAvatarUrl(asset.url);
       void capture("onboarding_avatar_uploaded");
     } catch (err) {
       setAvatarError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setAvatarUploading(false);
+      setAvatarUploadProgress(null);
     }
   }
 
@@ -391,6 +384,14 @@ export default function OnboardingClient({
               </button>
             ) : null}
           </div>
+          {avatarUploadProgress !== null ? (
+            <div className="space-y-1">
+              <div className="h-1.5 overflow-hidden rounded-full bg-onyx-900">
+                <div className="h-full bg-gold transition-[width]" style={{ width: `${avatarUploadProgress}%` }} />
+              </div>
+              <p className="text-xs text-ivory-mute">Uploading… {avatarUploadProgress}%</p>
+            </div>
+          ) : null}
           {avatarError ? <p className="text-xs text-red-300">{avatarError}</p> : null}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
             <button type="button" className="btn-ghost" onClick={() => go(1)} disabled={pending}>Back</button>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRight, ShoppingBag } from "lucide-react";
+import { ProfileImage } from "@/components/profile/ProfileImage";
 
 type StoreLayout = "grid" | "list";
 type StoreShelf = "digital" | "physical";
@@ -416,12 +417,11 @@ function ProductCard({
           style={{ background: "color-mix(in srgb, var(--vc-accent, #d4af37) 12%, var(--vc-bg, #0a0a0a))" }}
         >
           {images[visibleImageIndex] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <ProfileImage
               src={images[visibleImageIndex]}
               alt={product.name}
-              loading="lazy"
-              decoding="async"
+              fill
+              sizes={layout === "list" ? "(max-width: 640px) 100vw, 360px" : "(max-width: 640px) 100vw, 280px"}
               className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
             />
           ) : (
@@ -478,8 +478,7 @@ function ProductCard({
                   }}
                   aria-label={`Show image ${index + 1}`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                  <ProfileImage src={image} alt="" width={64} height={64} sizes="64px" className="h-full w-full object-cover" />
                 </button>
               ))}
               {remainingImageCount > 0 ? (
@@ -661,8 +660,7 @@ function ProductDetailsModal({
               }}
             >
               {activeImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={activeImage} alt={product.name} className="h-full w-full object-cover" loading="eager" decoding="async" />
+                <ProfileImage src={activeImage} alt={product.name} fill sizes="(max-width: 640px) calc(100vw - 2rem), 360px" priority className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full items-center justify-center px-6 text-center text-sm" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>
                   No product image
@@ -695,8 +693,7 @@ function ProductDetailsModal({
                     }}
                     aria-label={`Show image ${index + 1}`}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                    <ProfileImage src={image} alt="" width={96} height={96} sizes="(max-width: 640px) 20vw, 72px" className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>

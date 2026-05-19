@@ -16,6 +16,7 @@ import {
   writeOnboardingCookie,
 } from "@/lib/onboarding";
 import { buildVibeSections, vibeThemeId } from "@/lib/onboarding-vibes";
+import { revalidatePublicProfile } from "@/lib/public-profile-cache";
 
 const Step = z.number().int().min(0).max(ONBOARDING_TOTAL_STEPS);
 
@@ -156,7 +157,7 @@ export async function finishOnboarding(input: z.infer<typeof FinishOnboarding>) 
         sections: draft,
         published: true,
       });
-      if (profile.publicPath) revalidatePath(profile.publicPath);
+      revalidatePublicProfile(profile.publicPath);
     }
   }
 

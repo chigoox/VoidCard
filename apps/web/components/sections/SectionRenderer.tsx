@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { Section } from "@/lib/sections/types";
 import { markdownToHtml, socialHref } from "@/lib/sections/rendering";
 import { BrandedQR } from "@/components/BrandedQR";
+import { ProfileImage } from "@/components/profile/ProfileImage";
 import { LeadFormSectionClient } from "./LeadFormSectionClient";
 import { SectionMotion } from "./SectionMotion";
 import { GallerySectionClient } from "./GallerySectionClient";
@@ -107,25 +108,38 @@ export function SectionRenderer({
   );
   if (wantsTopBleed) {
     const topBleedClassName = topBleedOffset === "none" ? "-mx-4 sm:-mx-6" : "-mx-4 -mt-8 sm:-mx-6 sm:-mt-10";
+    const sectionFrame = (
+      <div
+        data-vc-section
+        data-section-type={section.type}
+        data-vc-top-bleed="1"
+        className={topBleedClassName}
+        style={topBleedOffset === "none" ? undefined : { paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        {renderSectionInner(section, verified, username, true)}
+      </div>
+    );
+
+    if (animation === "none") return sectionFrame;
+
     return (
       <SectionMotion animation={animation} trigger={animationTrigger} delay={delay}>
-        <div
-          data-vc-section
-          data-section-type={section.type}
-          data-vc-top-bleed="1"
-          className={topBleedClassName}
-          style={topBleedOffset === "none" ? undefined : { paddingTop: "env(safe-area-inset-top, 0px)" }}
-        >
-          {renderSectionInner(section, verified, username, true)}
-        </div>
+        {sectionFrame}
       </SectionMotion>
     );
   }
+
+  const sectionFrame = (
+    <div data-vc-section data-section-type={section.type}>
+      {renderSectionInner(section, verified, username)}
+    </div>
+  );
+
+  if (animation === "none") return sectionFrame;
+
   return (
     <SectionMotion animation={animation} trigger={animationTrigger} delay={delay}>
-      <div data-vc-section data-section-type={section.type}>
-        {renderSectionInner(section, verified, username)}
-      </div>
+      {sectionFrame}
     </SectionMotion>
   );
 }
@@ -150,8 +164,8 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
       return (
         <header className={["relative flex flex-col items-center text-center", fullBleedTopHeader ? "" : "pt-6"].join(" ").trim()} style={{ color: "var(--vc-fg, #f7f3ea)" }}>
           {p.coverUrl ? (
-            <div className={["relative mb-0 w-full overflow-hidden", fullBleedTopHeader ? "sticky top-0 z-0" : ""].join(" ").trim()} style={coverStyle} data-vc-header-cover>
-              <img src={p.coverUrl} alt={`${p.name} cover`} loading="lazy" decoding="async" className={fullBleedTopHeader ? "h-48 w-full object-cover sm:h-64" : "h-36 w-full object-cover"} />
+            <div className={["relative mb-0 w-full overflow-hidden", fullBleedTopHeader ? "sticky top-0 z-0 h-48 sm:h-64" : "h-36"].join(" ").trim()} style={coverStyle} data-vc-header-cover>
+              <ProfileImage src={p.coverUrl} alt={`${p.name} cover`} fill sizes={fullBleedTopHeader ? "100vw" : "(max-width: 640px) 100vw, 480px"} priority={fullBleedTopHeader} className="object-cover" />
               <div
                 className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
                 style={{ background: "linear-gradient(to top, var(--vc-bg, #0a0a0a), color-mix(in srgb, var(--vc-bg, #0a0a0a) 52%, transparent), transparent)" }}
@@ -164,7 +178,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
               className={["relative z-10 overflow-hidden rounded-full border-[3px] p-0.5 shadow-[0_18px_42px_-22px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08)]", avatarOverlapClass].join(" ").trim()}
               style={{ backgroundColor: "var(--vc-bg, #0a0a0a)", borderColor: "color-mix(in srgb, var(--vc-accent, #d4af37) 68%, rgba(255,255,255,0.28))" }}
             >
-              <img src={p.avatarUrl} alt={p.name} loading="lazy" decoding="async" className="size-24 rounded-full object-cover" />
+              <ProfileImage src={p.avatarUrl} alt={p.name} width={96} height={96} sizes="96px" className="size-24 rounded-full object-cover" />
             </div>
           ) : null}
           <h1 className="relative z-10 mt-3 w-full break-words px-4 font-display text-2xl leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]" style={{ color: "var(--vc-fg, #f7f3ea)", maxWidth: "calc(100% - 2rem)", overflowWrap: "anywhere" }}>
@@ -206,7 +220,7 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
         >
           <span className="flex min-w-0 items-center gap-3">
             {p.iconImageUrl ? (
-              <img src={p.iconImageUrl} alt="" loading="lazy" decoding="async" className="size-9 shrink-0 rounded-full object-cover" />
+              <ProfileImage src={p.iconImageUrl} alt="" width={36} height={36} sizes="36px" className="size-9 shrink-0 rounded-full object-cover" />
             ) : p.iconName ? (
               <span
                 className="flex size-9 shrink-0 items-center justify-center rounded-full"
@@ -273,11 +287,13 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
       const p = section.props;
       const fullWidth = (p as { fullWidth?: boolean }).fullWidth === true;
       return (
-        <img
+        <ProfileImage
           src={p.src}
           alt={p.alt}
-          loading="lazy"
-          decoding="async"
+          width={1200}
+          height={800}
+          sizes={topBleed && fullWidth ? "100vw" : "(max-width: 640px) 100vw, 480px"}
+          priority={!!topBleed && fullWidth}
           className={topBleed && fullWidth ? "h-auto w-full object-cover" : "h-auto w-full object-cover"}
           style={{ borderRadius: (topBleed && fullWidth) ? 0 : (p.rounded ? "var(--vc-radius, 14px)" : undefined) }}
         />

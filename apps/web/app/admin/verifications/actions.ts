@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { loadPrimaryProfile, usesSharedProfilesAsPrimary } from "@/lib/profiles";
+import { revalidatePublicProfile } from "@/lib/public-profile-cache";
 import { sendVerificationLifecycleEmail } from "@/lib/verification-email";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -218,5 +219,5 @@ export async function reviewVerification(formData: FormData) {
   revalidatePath("/account");
   revalidatePath("/account/verify");
   revalidatePath("/dashboard");
-  if (profile?.username) revalidatePath(`/u/${profile.username}`);
+  revalidatePublicProfile(profile?.username);
 }

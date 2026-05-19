@@ -1,28 +1,27 @@
 import { Fragment, type CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
+import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PublicMarketingPixels } from "@/components/profile/PublicMarketingPixels";
 import { PublicProfileActions } from "@/components/profile/PublicProfileActions";
+import { PublicProfileTracker } from "@/components/profile/PublicProfileTracker";
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
 import { Sections } from "@/lib/sections/types";
 import { buildMetadata, SITE_URL } from "@/lib/seo";
 import { jsonLdScript, person } from "@/lib/jsonld";
 import { entitlementsFor } from "@/lib/entitlements";
-import { findPublicProfileByUsername } from "@/lib/profiles";
+import { findCachedPublicProfileByUsername, publicProfileCacheTag } from "@/lib/public-profile-cache";
 import {
   profileUnlockCookieName,
   verifyProfileUnlockCookieValue,
 } from "@/lib/profile-password";
-import { queueWebhookEvent } from "@/lib/webhook-queue";
 import { getThemePreset, themeToCss } from "@/lib/themes/presets";
 import { readProfileIntegrations } from "@/lib/profile-integrations";
-import { getUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 60;
 
 const profileShellStyle: CSSProperties = {
   background: "linear-gradient(180deg, var(--vc-bg, #0a0a0a) 0%, color-mix(in srgb, var(--vc-bg-2, #141414) 72%, var(--vc-bg, #0a0a0a)) 100%)",
@@ -41,7 +40,7 @@ const profileColumnStyle: CSSProperties = {
 };
 
 async function fetchPublicProfileMeta(username: string) {
-  return findPublicProfileByUsername(username);
+  return findCachedPublicProfileByUsername(username);
 }
 
 export async function generateMetadata({
@@ -81,7 +80,7 @@ export default async function PublicProfilePage({
 }) {
   const { username } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const profile = await findPublicProfileByUsername(username);
+  const profile = await findCachedPublicProfileByUsername(username);
 
   if (!profile) notFound();
 
@@ -91,14 +90,13 @@ export default async function PublicProfilePage({
   });
   const passwordHash = typeof profile.passwordHash === "string" ? profile.passwordHash : null;
   const isPasswordProtected = entitlements.passwordProtected && !!passwordHash;
-  const cookieStore = await cookies();
-  const isUnlocked =
-    !isPasswordProtected ||
-    (await verifyProfileUnlockCookieValue(
-      handle,
-      passwordHash as string,
-      cookieStore.get(profileUnlockCookieName(handle))?.value,
-    ));
+  const isUnlocked = isPasswordProtected
+    ? await verifyProfileUnlockCookieValue(
+        handle,
+        passwordHash as string,
+        (await cookies()).get(profileUnlockCookieName(handle))?.value,
+      )
+    : true;
 
   const displayName = profile.displayName?.trim() || `@${handle}`;
 
@@ -153,13 +151,8 @@ export default async function PublicProfilePage({
     );
   }
 
-  const h = await headers();
   const variant = profile.isPrimary
-    ? await pickVariant(
-        profile.ownerUserId,
-        h.get("x-forwarded-for") || "",
-        h.get("user-agent") || "",
-      )
+    ? await pickVariant(profile.ownerUserId, handle)
     : null;
 
   const sectionsRaw = variant?.sections ?? profile.sections;
@@ -177,15 +170,6 @@ export default async function PublicProfilePage({
       showSaveContact={showSaveContact}
     />
   );
-
-  const ua = h.get("user-agent") ?? "";
-  const ref = h.get("referer") ?? "";
-  const viewer = await getUser();
-  const isOwnerViewingOwnProfile = viewer?.id === profile.ownerUserId;
-  if (!isOwnerViewingOwnProfile) {
-    void recordTap(profile.ownerUserId, "link", ua, ref, h).catch(() => null);
-    if (variant) void incrementVariantViews(variant.id).catch(() => null);
-  }
 
   const linkUrls: string[] = Array.isArray(profile.links)
     ? (profile.links as Array<{ url?: string }>)
@@ -211,10 +195,10 @@ export default async function PublicProfilePage({
       )}
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={jsonLdScript(ld)}
       />
       <PublicMarketingPixels {...integrations} />
+      <PublicProfileTracker username={handle} variantId={variant?.id} />
       <link
         rel="alternate"
         type="application/json"
@@ -280,50 +264,6 @@ function googleFontFamilyFromUrl(url: string) {
   }
 }
 
-async function recordTap(userId: string, source: string, ua: string, ref: string, h: Headers) {
-  const admin = createAdminClient();
-  const ipHash = "edge";
-  const uaHash = await sha256(ua);
-  const geo = geoFromHeaders(h);
-  await admin.from("vcard_taps").insert({
-    user_id: userId,
-    source,
-    ua_hash: uaHash,
-    ip_hash: ipHash,
-    country: geo.country,
-    region: geo.region,
-    city: geo.city,
-    referrer: ref,
-  });
-  await queueWebhookEvent(userId, "tap.created", {
-    source,
-    referrer: ref,
-    created_at: new Date().toISOString(),
-  }).catch(() => null);
-}
-
-function geoFromHeaders(h: Headers) {
-  return {
-    country: cleanGeo(h.get("x-vercel-ip-country")) ?? cleanGeo(h.get("cf-ipcountry")),
-    region: cleanGeo(h.get("x-vercel-ip-country-region")),
-    city: cleanGeo(decodeGeo(h.get("x-vercel-ip-city"))),
-  };
-}
-
-function decodeGeo(value: string | null) {
-  if (!value) return null;
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
-function cleanGeo(value: string | null) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed.slice(0, 80) : null;
-}
-
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 32);
@@ -339,21 +279,34 @@ type VariantRow = {
   theme: unknown;
 };
 
-async function pickVariant(userId: string, ip: string, ua: string): Promise<VariantRow | null> {
-  const admin = createAdminClient();
-  const now = new Date().toISOString();
-  const { data } = await admin
-    .from("vcard_ab_variants")
-    .select("id, name, weight, starts_at, ends_at, sections, theme")
-    .eq("user_id", userId)
-    .eq("enabled", true);
-  const all = (data as VariantRow[] | null) ?? [];
-  const active = all.filter((variant) => {
-    if (variant.starts_at && variant.starts_at > now) return false;
-    if (variant.ends_at && variant.ends_at < now) return false;
-    return variant.weight > 0;
-  });
+async function loadActiveVariants(userId: string, username: string) {
+  return unstable_cache(
+    async () => {
+      const admin = createAdminClient();
+      const now = new Date().toISOString();
+      const { data } = await admin
+        .from("vcard_ab_variants")
+        .select("id, name, weight, starts_at, ends_at, sections, theme")
+        .eq("user_id", userId)
+        .eq("enabled", true);
+      const all = (data as VariantRow[] | null) ?? [];
+      return all.filter((variant) => {
+        if (variant.starts_at && variant.starts_at > now) return false;
+        if (variant.ends_at && variant.ends_at < now) return false;
+        return variant.weight > 0;
+      });
+    },
+    ["vcard-public-profile-variants", userId],
+    { revalidate: 60, tags: [publicProfileCacheTag(username)] },
+  )();
+}
+
+async function pickVariant(userId: string, username: string): Promise<VariantRow | null> {
+  const active = await loadActiveVariants(userId, username);
   if (active.length === 0) return null;
+  const h = await headers();
+  const ip = h.get("x-forwarded-for") || "";
+  const ua = h.get("user-agent") || "";
   const seed = await sha256(`${userId}|${ip}|${ua}`);
   const bucket = parseInt(seed.slice(0, 4), 16) % 100;
   let cumulative = 0;
@@ -364,14 +317,3 @@ async function pickVariant(userId: string, ip: string, ua: string): Promise<Vari
   return null;
 }
 
-async function incrementVariantViews(variantId: string) {
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("vcard_ab_variants")
-    .select("views")
-    .eq("id", variantId)
-    .maybeSingle();
-  if (data) {
-    await admin.from("vcard_ab_variants").update({ views: (data.views as number) + 1 }).eq("id", variantId);
-  }
-}

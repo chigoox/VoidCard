@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { entitlementsFor } from "@/lib/entitlements";
 import { listProducts } from "@/lib/cms";
 import { PRIMARY_PROFILE_ID, getManagedProfile, updateManagedProfile } from "@/lib/profiles";
+import { revalidatePublicProfile } from "@/lib/public-profile-cache";
 import { rateLimits } from "@/lib/rate-limit";
 
 function isMissingProfileVersionsTableError(error: { message?: string | null; code?: string | null } | null | undefined) {
@@ -78,7 +79,7 @@ export async function publishDraft(profileId?: string) {
   const syncResult = await syncLeadForms(u.id, profile.id, sections);
   if (!syncResult.ok) return syncResult;
 
-  if (profile.publicPath) revalidatePath(profile.publicPath);
+  revalidatePublicProfile(profile.publicPath);
   return { ok: true };
 }
 
@@ -89,7 +90,7 @@ export async function setTheme(theme: { id: string; tokens?: Record<string, stri
   const profile = await getManagedProfile(u.id, profileId ?? null);
   if (!profile) return { ok: false, error: "profile_not_found" };
   await updateManagedProfile(u.id, profile.id, { theme });
-  if (profile.publicPath) revalidatePath(profile.publicPath);
+  revalidatePublicProfile(profile.publicPath);
   return { ok: true };
 }
 
@@ -102,7 +103,7 @@ export async function setCustomCss(css: string, profileId?: string) {
   const profile = await getManagedProfile(u.id, profileId ?? null);
   if (!profile) return { ok: false, error: "profile_not_found" };
   await updateManagedProfile(u.id, profile.id, { custom_css: css });
-  if (profile.publicPath) revalidatePath(profile.publicPath);
+  revalidatePublicProfile(profile.publicPath);
   return { ok: true };
 }
 

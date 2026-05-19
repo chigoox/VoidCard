@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { ProfileImage } from "@/components/profile/ProfileImage";
 
 export type GalleryImage = { src: string; alt: string; category?: string };
 export type GalleryLayout = "grid" | "masonry" | "carousel";
@@ -97,10 +98,6 @@ export function GallerySectionClient({
     };
   }, [active, images, images.length, markImageReady]);
 
-  useEffect(() => {
-    if (active !== null && !images[active]) setActive(null);
-  }, [active, images]);
-
   function handleSwipeStart(event: ReactPointerEvent<HTMLDivElement>) {
     if (images.length < 2) return;
     swipeRef.current = {
@@ -154,7 +151,7 @@ export function GallerySectionClient({
         style={{ cursor: lightbox ? "zoom-in" : "default", padding: 0, border: 0, background: "transparent" }}
         aria-label={image.alt || `Image ${index + 1}`}
       >
-        <img src={image.src} alt={image.alt} loading={index < 4 ? "eager" : "lazy"} decoding="async" className="block h-full w-full object-cover" style={{ ...itemStyle, ...style }} onLoad={() => markImageReady(image.src)} />
+        <ProfileImage src={image.src} alt={image.alt} width={600} height={750} sizes="(max-width: 640px) 50vw, 180px" priority={index < 4} className="block h-full w-full object-cover" style={{ ...itemStyle, ...style }} onLoad={() => markImageReady(image.src)} />
       </button>
     );
   }
@@ -222,11 +219,13 @@ export function GallerySectionClient({
                 <ChevronLeft className="size-6" aria-hidden />
               </button>
             ) : null}
-            <img
+            <ProfileImage
               src={activeImage.src}
               alt={activeImage.alt}
-              loading="eager"
-              decoding="async"
+              width={1600}
+              height={1200}
+              sizes="calc(100vw - 2rem)"
+              priority
               draggable={false}
               onLoad={() => markImageReady(activeImage.src)}
               onDragStart={(event) => event.preventDefault()}
@@ -263,7 +262,7 @@ export function GallerySectionClient({
                     index === active ? "ring-[var(--vc-accent,#d4af37)]" : "ring-white/20",
                   ].join(" ")}
                 >
-                  <img src={image.src} alt="" loading={index < 4 ? "eager" : "lazy"} decoding="async" className="h-full w-full object-cover" onLoad={() => markImageReady(image.src)} />
+                  <ProfileImage src={image.src} alt="" width={56} height={56} sizes="56px" priority={index < 4} className="h-full w-full object-cover" onLoad={() => markImageReady(image.src)} />
                 </button>
               ))}
             </div>

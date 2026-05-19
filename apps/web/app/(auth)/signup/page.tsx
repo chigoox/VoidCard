@@ -89,7 +89,7 @@ function SignupPageContent() {
           if (data?.needsEmailConfirmation) {
             setMsg({ kind: "ok", text: "Check your inbox to confirm your account." });
           } else {
-            router.replace(buildCallbackPath(username.trim().toLowerCase(), nextPath));
+            window.location.assign(buildCallbackPath(username.trim().toLowerCase(), nextPath));
           }
         }
         else if (res.status === 429) setMsg({ kind: "err", text: "Too many requests. Slow down." });

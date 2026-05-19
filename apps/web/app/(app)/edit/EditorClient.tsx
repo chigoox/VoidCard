@@ -148,6 +148,7 @@ function MediaField({
   const [message, setMessage] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingCrop, setPendingCrop] = useState<PendingImageCrop | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploading, startUpload] = useTransition();
 
   const clearPendingCrop = useCallback(() => {
@@ -165,14 +166,17 @@ function MediaField({
 
   function uploadFile(file: File) {
     setMessage(null);
+    setUploadProgress(0);
     startUpload(async () => {
       try {
-        const asset = await uploadMediaAsset(file, kind);
+        const asset = await uploadMediaAsset(file, kind, { onProgress: setUploadProgress });
         onMediaAdded(asset);
         onChange(asset.url);
         setMessage("Uploaded and selected.");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Upload failed. Try again.");
+      } finally {
+        setUploadProgress(null);
       }
     });
   }
@@ -202,7 +206,7 @@ function MediaField({
       <div className="flex flex-wrap gap-2">
         <label className="btn-ghost inline-flex cursor-pointer items-center gap-1.5 p-2.5 text-xs sm:px-3 sm:py-2" aria-label={uploading ? "Uploading" : "Upload"}>
           <Upload className="size-4 sm:hidden" aria-hidden />
-          <span className="hidden sm:inline">{uploading ? "Uploading…" : "Upload"}</span>
+          <span className="hidden sm:inline">{uploading ? `Uploading… ${uploadProgress ?? 0}%` : "Upload"}</span>
           <input type="file" accept={accept} className="hidden" onChange={handleFileChange} />
         </label>
         <button
@@ -222,6 +226,14 @@ function MediaField({
           </button>
         ) : null}
       </div>
+      {uploadProgress !== null ? (
+        <div className="space-y-1">
+          <div className="h-1.5 overflow-hidden rounded-full bg-onyx-900">
+            <div className="h-full bg-gold transition-[width]" style={{ width: `${uploadProgress}%` }} />
+          </div>
+          <p className="text-xs text-ivory-mute">Uploading… {uploadProgress}%</p>
+        </div>
+      ) : null}
       {message ? <p className="text-xs text-ivory-mute">{message}</p> : null}
       <MediaManagerModal
         open={modalOpen}
@@ -284,6 +296,7 @@ function GalleryBulkImageControls({
   const [message, setMessage] = useState<string | null>(null);
   const [urlList, setUrlList] = useState("");
   const [pendingCrop, setPendingCrop] = useState<PendingImageCrop | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploading, startUpload] = useTransition();
   const remaining = Math.max(0, MAX_GALLERY_IMAGES - images.length);
   const recentImages = recentMedia.filter((item) => item.kind === "image").slice(0, 8);
@@ -315,17 +328,22 @@ function GalleryBulkImageControls({
 
   function uploadFiles(selected: File[], clipped = 0) {
     setMessage(null);
+    setUploadProgress(0);
     startUpload(async () => {
-      const uploaded = await Promise.all(
-        selected.map(async (file) => {
-          try {
-            const asset = await uploadMediaAsset(file, "image");
-            return { asset, name: file.name, error: null };
-          } catch (error) {
-            return { asset: null, name: file.name, error: error instanceof Error ? error.message : "Upload failed. Try again." };
-          }
-        }),
-      );
+      const uploaded: Array<{ asset: MediaLibraryItem | null; name: string; error: string | null }> = [];
+      for (const [index, file] of selected.entries()) {
+        try {
+          const asset = await uploadMediaAsset(file, "image", {
+            onProgress: (progress) => {
+              setUploadProgress(Math.max(0, Math.min(100, Math.round((((index + progress / 100) / selected.length) * 100)))));
+            },
+          });
+          uploaded.push({ asset, name: file.name, error: null });
+        } catch (error) {
+          uploaded.push({ asset: null, name: file.name, error: error instanceof Error ? error.message : "Upload failed. Try again." });
+        }
+        setUploadProgress(Math.round((((index + 1) / selected.length) * 100)));
+      }
       const assets = uploaded.filter((result): result is { asset: MediaLibraryItem; name: string; error: null } => result.asset !== null);
       const failures = uploaded.length - assets.length;
       assets.forEach(({ asset }) => onMediaAdded(asset));
@@ -347,6 +365,7 @@ function GalleryBulkImageControls({
           .filter(Boolean)
           .join("; ") || "No images were added.",
       );
+      setUploadProgress(null);
     });
   }
 
@@ -391,7 +410,7 @@ function GalleryBulkImageControls({
       <div className="flex flex-wrap gap-2">
         <label className="btn-ghost inline-flex cursor-pointer items-center gap-1.5 p-2.5 text-xs sm:px-3 sm:py-2" aria-disabled={uploading || remaining <= 0} aria-label={uploading ? "Uploading images" : "Upload images"}>
           <Upload className="size-4 sm:hidden" aria-hidden />
-          <span className="hidden sm:inline">{uploading ? "Uploading..." : "Upload images"}</span>
+          <span className="hidden sm:inline">{uploading ? `Uploading... ${uploadProgress ?? 0}%` : "Upload images"}</span>
           <input
             type="file"
             accept="image/*"
@@ -413,6 +432,14 @@ function GalleryBulkImageControls({
           <FolderOpen className="size-4 sm:hidden" aria-hidden />
           <span className="hidden sm:inline">Add recent images</span>
         </button>
+        {uploadProgress !== null ? (
+          <div className="space-y-1">
+            <div className="h-1.5 overflow-hidden rounded-full bg-onyx-900">
+              <div className="h-full bg-gold transition-[width]" style={{ width: `${uploadProgress}%` }} />
+            </div>
+            <p className="text-xs text-ivory-mute">Uploading... {uploadProgress}%</p>
+          </div>
+        ) : null}
       </div>
       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <Field label="Image URLs">
