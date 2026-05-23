@@ -85,7 +85,10 @@ export default function OnboardingClient({
   }
 
   function resolvePairHref() {
-    return nextHref.startsWith("/cards/pair") ? nextHref : "/cards/pair";
+    if (nextHref.startsWith("/cards/pair") || nextHref.startsWith("/c/")) {
+      return nextHref;
+    }
+    return "/cards/pair";
   }
 
   function go(next: number) {
