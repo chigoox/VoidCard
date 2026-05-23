@@ -4,7 +4,6 @@ import {
   CacheFirst,
   NetworkFirst,
   Serwist,
-  StaleWhileRevalidate,
 } from "serwist";
 
 declare global {
@@ -21,7 +20,10 @@ declare const self: WorkerGlobalScope & typeof globalThis & {
 const runtimeCaching: RuntimeCaching[] = [
   {
     matcher: ({ url }) => url.pathname.startsWith("/u/"),
-    handler: new StaleWhileRevalidate({ cacheName: "voidcard-profiles" }),
+    handler: new NetworkFirst({
+      cacheName: "voidcard-profiles",
+      networkTimeoutSeconds: 3,
+    }),
   },
   {
     matcher: ({ request }) =>
