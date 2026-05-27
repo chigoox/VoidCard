@@ -8,7 +8,7 @@ const workspaceRoot = path.join(process.cwd(), "..", "..");
 const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
-  cacheOnNavigation: true,
+  cacheOnNavigation: false,
   reloadOnOnline: true,
   disable: process.env.NODE_ENV !== "production",
 });
@@ -58,6 +58,14 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        source: "/u/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
+        ],
       },
       {
         source: "/embed.js",

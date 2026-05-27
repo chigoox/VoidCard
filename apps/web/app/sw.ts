@@ -3,6 +3,7 @@ import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from "serwist
 import {
   CacheFirst,
   NetworkFirst,
+  NetworkOnly,
   Serwist,
 } from "serwist";
 
@@ -20,10 +21,7 @@ declare const self: WorkerGlobalScope & typeof globalThis & {
 const runtimeCaching: RuntimeCaching[] = [
   {
     matcher: ({ url }) => url.pathname.startsWith("/u/"),
-    handler: new NetworkFirst({
-      cacheName: "voidcard-profiles",
-      networkTimeoutSeconds: 3,
-    }),
+    handler: new NetworkOnly(),
   },
   {
     matcher: ({ request }) =>
