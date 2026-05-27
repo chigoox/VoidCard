@@ -20,3 +20,4 @@ test("public profile is mobile-fast (no client-side blockers)", async ({ page })
   });
   if (navTiming != null) expect(navTiming).toBeLessThan(2500);
 });
+
