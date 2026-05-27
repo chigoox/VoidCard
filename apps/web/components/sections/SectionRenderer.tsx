@@ -86,12 +86,16 @@ export function SectionRenderer({
   section,
   verified,
   username,
+  canEdit,
+  editHref,
   isTop,
   topBleedOffset = "page",
 }: {
   section: Section;
   verified?: boolean;
   username?: string;
+  canEdit?: boolean;
+  editHref?: string;
   isTop?: boolean;
   topBleedOffset?: "page" | "none";
 }) {
@@ -116,7 +120,7 @@ export function SectionRenderer({
         className={topBleedClassName}
         style={topBleedOffset === "none" ? undefined : { paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
-        {renderSectionInner(section, verified, username, true)}
+        {renderSectionInner(section, verified, username, canEdit, editHref, true)}
       </div>
     );
 
@@ -131,7 +135,7 @@ export function SectionRenderer({
 
   const sectionFrame = (
     <div data-vc-section data-section-type={section.type}>
-      {renderSectionInner(section, verified, username)}
+      {renderSectionInner(section, verified, username, canEdit, editHref)}
     </div>
   );
 
@@ -144,7 +148,14 @@ export function SectionRenderer({
   );
 }
 
-function renderSectionInner(section: Section, verified?: boolean, username?: string, topBleed?: boolean) {
+function renderSectionInner(
+  section: Section,
+  verified?: boolean,
+  username?: string,
+  canEdit?: boolean,
+  editHref?: string,
+  topBleed?: boolean,
+) {
   switch (section.type) {
     case "header": {
       const p = section.props;
@@ -188,6 +199,21 @@ function renderSectionInner(section: Section, verified?: boolean, username?: str
                 <BadgeCheck className="size-5 drop-shadow-[0_0_10px_rgba(212,175,55,0.28)]" aria-hidden />
                 <span className="sr-only">Verified badge</span>
               </span>
+            ) : null}
+            {canEdit && editHref ? (
+              <a
+                href={editHref}
+                className="ml-2 inline-flex items-center rounded-pill border px-2 py-0.5 align-middle text-[10px] uppercase tracking-[0.18em]"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--vc-accent, #d4af37) 60%, transparent)",
+                  color: "var(--vc-accent, #d4af37)",
+                  background: "color-mix(in srgb, var(--vc-accent, #d4af37) 12%, transparent)",
+                }}
+                data-testid="profile-edit-link"
+                aria-label="Edit profile"
+              >
+                Edit
+              </a>
             ) : null}
           </h1>
           {descriptors.length > 0 ? (

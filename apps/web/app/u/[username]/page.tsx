@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
+import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PublicMarketingPixels } from "@/components/profile/PublicMarketingPixels";
 import { PublicProfileActions } from "@/components/profile/PublicProfileActions";
@@ -19,6 +20,7 @@ import {
 } from "@/lib/profile-password";
 import { getThemePreset, themeToCss } from "@/lib/themes/presets";
 import { readProfileIntegrations } from "@/lib/profile-integrations";
+import { profileAppPath } from "@/lib/profiles";
 
 export const runtime = "nodejs";
 export const revalidate = 60;
@@ -85,6 +87,9 @@ export default async function PublicProfilePage({
   if (!profile) notFound();
 
   const handle = profile.username ?? username.toLowerCase();
+  const viewer = await getUser();
+  const canEditProfile = viewer?.id === profile.ownerUserId;
+  const editHref = canEditProfile ? profileAppPath("/edit", profile.id) : undefined;
   const entitlements = entitlementsFor(profile.plan ?? "free", {
     extraStorageBytes: Number(profile.bonusStorageBytes ?? 0),
   });
@@ -218,7 +223,14 @@ export default async function PublicProfilePage({
           {actionAfterIndex === -1 ? profileActions : null}
           {sections.map((section, idx) => (
             <Fragment key={section.id}>
-              <SectionRenderer section={section} verified={profile.verified} username={handle} isTop={idx === 0} />
+              <SectionRenderer
+                section={section}
+                verified={profile.verified}
+                username={handle}
+                canEdit={canEditProfile}
+                editHref={editHref}
+                isTop={idx === 0}
+              />
               {idx === actionAfterIndex ? profileActions : null}
             </Fragment>
           ))}
