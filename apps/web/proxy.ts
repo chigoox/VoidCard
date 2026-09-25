@@ -261,7 +261,12 @@ export async function proxy(req: NextRequest) {
       // The cookie is only a hint and is missing on new browsers/devices, so
       // confirm against the database before sending the user to the wizard.
       const step = await lookupOnboardingStep(user.id);
-      if (step !== null && step >= ONBOARDING_TOTAL_STEPS) {
+      if (step === null) {
+        // Lookup unavailable: let the request through (matching the fail-open
+        // default in lib/onboarding) instead of bouncing to /onboarding, which
+        // would redirect straight back here and loop.
+        completed = true;
+      } else if (step >= ONBOARDING_TOTAL_STEPS) {
         completed = true;
         res.cookies.set(ONBOARDING_COOKIE, String(ONBOARDING_TOTAL_STEPS), {
           path: "/",
