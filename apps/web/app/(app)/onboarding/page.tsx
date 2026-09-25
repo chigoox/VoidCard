@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { loadPrimaryProfile } from "@/lib/profiles";
-import { ONBOARDING_TOTAL_STEPS, getOnboardingStep, writeOnboardingCookie } from "@/lib/onboarding";
+import { ONBOARDING_TOTAL_STEPS, getOnboardingStep } from "@/lib/onboarding";
 import OnboardingClient from "./OnboardingClient";
 
 function normalizeInternalPath(value: string | null | undefined) {
@@ -25,8 +25,9 @@ export default async function OnboardingPage({
     getOnboardingStep(user.id),
   ]);
 
+  // Cookies cannot be set from a Server Component; the proxy writes the
+  // onboarding cookie when it sees a completed user without one.
   if (step >= ONBOARDING_TOTAL_STEPS) {
-    await writeOnboardingCookie(ONBOARDING_TOTAL_STEPS);
     redirect(nextHref);
   }
 
