@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "./lib/supabase/admin";
 import { getCookieDomain } from "./lib/supabase/cookie-domain";
 import { buildCsp, cspHeaderName, generateNonce, REPORT_TO_HEADER } from "./lib/csp";
+import { ONBOARDING_COOKIE, ONBOARDING_TOTAL_STEPS } from "./lib/onboarding-constants";
 
 const PUBLIC_ROUTES = [
   /^\/$/,
@@ -167,6 +168,27 @@ async function lookupCustomDomainUsername(hostname: string) {
   }
 }
 
+// Mirrors getOnboardingStep() in lib/onboarding: a missing row or unreadable
+// column counts as complete so legacy/imported users are not forced through the wizard.
+async function lookupOnboardingStep(userId: string) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("vcard_profile_ext")
+      .select("onboarding_state")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !data) return ONBOARDING_TOTAL_STEPS;
+    const raw = (data.onboarding_state as { step?: number } | null)?.step;
+    if (typeof raw !== "number" || Number.isNaN(raw)) return 0;
+    return Math.max(0, Math.min(ONBOARDING_TOTAL_STEPS, Math.floor(raw)));
+  } catch {
+    return null;
+  }
+}
+
 export async function proxy(req: NextRequest) {
   // Per-request CSP nonce — exposed to RSC via x-nonce request header so
   // server components can read it from `headers()` and pass to <Script nonce>.
@@ -233,8 +255,28 @@ export async function proxy(req: NextRequest) {
   }
 
   if (user && isOnboardingGated(pathname)) {
-    const onbCookie = req.cookies.get("vcard_onb")?.value;
-    const completed = onbCookie ? Number.parseInt(onbCookie, 10) >= 5 : false;
+    const onbCookie = req.cookies.get(ONBOARDING_COOKIE)?.value;
+    let completed = onbCookie ? Number.parseInt(onbCookie, 10) >= ONBOARDING_TOTAL_STEPS : false;
+    if (!completed) {
+      // The cookie is only a hint and is missing on new browsers/devices, so
+      // confirm against the database before sending the user to the wizard.
+      const step = await lookupOnboardingStep(user.id);
+      if (step === null) {
+        // Lookup unavailable: let the request through (matching the fail-open
+        // default in lib/onboarding) instead of bouncing to /onboarding, which
+        // would redirect straight back here and loop.
+        completed = true;
+      } else if (step >= ONBOARDING_TOTAL_STEPS) {
+        completed = true;
+        res.cookies.set(ONBOARDING_COOKIE, String(ONBOARDING_TOTAL_STEPS), {
+          path: "/",
+          httpOnly: false,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          maxAge: 60 * 60 * 24 * 365,
+        });
+      }
+    }
     if (!completed) {
       const url = req.nextUrl.clone();
       url.pathname = "/onboarding";
