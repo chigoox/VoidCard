@@ -1,5 +1,8 @@
 import type { CSSProperties } from "react";
-import type { Section } from "@/lib/sections/types";
+import type { LinkStyle, Section } from "@/lib/sections/types";
+import { designAttributes, speedMultiplier } from "@/lib/sections/design";
+import { StatsCounter } from "./StatsCounter";
+import { AmbientVideo } from "./AmbientVideo";
 import { markdownToHtml, socialHref } from "@/lib/sections/rendering";
 import { BrandedQR } from "@/components/BrandedQR";
 import { ProfileImage } from "@/components/profile/ProfileImage";
@@ -71,14 +74,31 @@ function scheduleLabel(provider: "calcom" | "calendly" | "ed5") {
       return "Book with ED5";
   }
 }
-function renderLinkStyle(style: "pill" | "card" | "ghost") {
+/** Photo and/or looping video painted behind a section (design.media). */
+function DesignMedia({ section }: { section: Section }) {
+  const media = section.design?.media;
+  if (!media?.image && !media?.video) return null;
+  return (
+    <div className="vc-design-media" aria-hidden>
+      {media.image ? <ProfileImage src={media.image} alt="" fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" /> : null}
+      {media.video ? <AmbientVideo src={media.video} poster={media.image} /> : null}
+    </div>
+  );
+}
+
+// Premium styles are painted by `[data-vc-link-style]` rules in globals.css.
+const PREMIUM_LINK_STYLES = new Set<LinkStyle>(["gold", "glass", "outline", "underline", "neon"]);
+
+function renderLinkStyle(style: LinkStyle): CSSProperties | undefined {
   switch (style) {
     case "pill":
       return pillStyle;
     case "ghost":
       return ghostStyle;
-    default:
+    case "card":
       return cardStyle;
+    default:
+      return PREMIUM_LINK_STYLES.has(style) ? { borderRadius: "999px" } : cardStyle;
   }
 }
 
@@ -103,6 +123,11 @@ export function SectionRenderer({
   const animation = section.display?.animation ?? "none";
   const animationTrigger = section.display?.animationTrigger ?? "load";
   const delay = section.display?.animationDelay ?? 0;
+  const speed = speedMultiplier(section.design);
+  const design = designAttributes(section.design);
+  const designProps = design
+    ? { className: design.className, style: design.style as CSSProperties, ...design.data }
+    : {};
   // Top-of-page full-bleed: when this is the first section AND it opts in, escape page padding
   // (px-4/sm:px-6 + pt-8/sm:pt-10) and cover the top safe-area inset so cover/header images go
   // edge-to-edge and reach the very top of the viewport (under the notch on iOS).
@@ -117,9 +142,11 @@ export function SectionRenderer({
         data-vc-section
         data-section-type={section.type}
         data-vc-top-bleed="1"
-        className={topBleedClassName}
-        style={topBleedOffset === "none" ? undefined : { paddingTop: "env(safe-area-inset-top, 0px)" }}
+        {...designProps}
+        className={[topBleedClassName, design?.className].filter(Boolean).join(" ")}
+        style={{ ...(topBleedOffset === "none" ? {} : { paddingTop: "env(safe-area-inset-top, 0px)" }), ...(design?.style as CSSProperties | undefined) }}
       >
+        <DesignMedia section={section} />
         {renderSectionInner(section, verified, username, canEdit, editHref, true)}
       </div>
     );
@@ -127,14 +154,15 @@ export function SectionRenderer({
     if (animation === "none") return sectionFrame;
 
     return (
-      <SectionMotion animation={animation} trigger={animationTrigger} delay={delay}>
+      <SectionMotion animation={animation} trigger={animationTrigger} delay={delay} speed={speed}>
         {sectionFrame}
       </SectionMotion>
     );
   }
 
   const sectionFrame = (
-    <div data-vc-section data-section-type={section.type}>
+    <div data-vc-section data-section-type={section.type} {...designProps}>
+      <DesignMedia section={section} />
       {renderSectionInner(section, verified, username, canEdit, editHref)}
     </div>
   );
@@ -142,7 +170,7 @@ export function SectionRenderer({
   if (animation === "none") return sectionFrame;
 
   return (
-    <SectionMotion animation={animation} trigger={animationTrigger} delay={delay}>
+    <SectionMotion animation={animation} trigger={animationTrigger} delay={delay} speed={speed}>
       {sectionFrame}
     </SectionMotion>
   );
@@ -160,8 +188,44 @@ function renderSectionInner(
     case "header": {
       const p = section.props;
       const descriptors = p.descriptors?.filter(Boolean) ?? [];
+      if (p.layout === "hero") {
+        return (
+          <header className="vc-hero p-6 sm:p-8 md:p-10" data-vc-hero>
+            <div className="vc-hero-media" aria-hidden>
+              {p.coverUrl ? <ProfileImage src={p.coverUrl} alt="" fill priority sizes="100vw" className="object-cover" /> : <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--vc-accent, #d4af37) 45%, #000), #050505)" }} />}
+              {p.coverVideoUrl ? <AmbientVideo src={p.coverVideoUrl} poster={p.coverUrl} /> : null}
+            </div>
+            <div className="relative flex max-w-2xl flex-col gap-4">
+              {p.avatarUrl ? (
+                <div className={["size-16 overflow-hidden border-2 shadow-2xl sm:size-20", p.avatarShape === "square" ? "rounded-md" : p.avatarShape === "rounded" ? "rounded-[28%]" : "rounded-full"].join(" ")} style={{ borderColor: "color-mix(in srgb, var(--vc-accent, #d4af37) 75%, #fff)" }}>
+                  <ProfileImage src={p.avatarUrl} alt={p.name} width={80} height={80} sizes="80px" className="size-full object-cover" />
+                </div>
+              ) : null}
+              {descriptors.length > 0 ? (
+                <p className="text-[11px] font-medium uppercase tracking-[0.35em]" style={{ color: "color-mix(in srgb, var(--vc-accent, #d4af37) 40%, #fff)" }}>
+                  {descriptors.join("  ·  ")}
+                </p>
+              ) : null}
+              <h1 className="font-display text-4xl leading-[1.02] tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)] sm:text-5xl md:text-6xl" style={{ overflowWrap: "anywhere" }}>
+                {p.name}
+                {verified && p.showVerified ? (
+                  <span className="ml-2 inline-flex align-middle" style={{ color: "var(--vc-accent, #d4af37)" }} title="Verified badge">
+                    <BadgeCheck className="size-7" aria-hidden />
+                    <span className="sr-only">Verified badge</span>
+                  </span>
+                ) : null}
+              </h1>
+              {p.tagline ? <p className="max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">{p.tagline}</p> : null}
+              {canEdit && editHref ? (
+                <a href={editHref} className="w-fit rounded-pill border border-white/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/90" data-testid="profile-edit-link" aria-label="Edit profile">Edit</a>
+              ) : null}
+            </div>
+          </header>
+        );
+      }
       const fullBleedTopHeader = !!topBleed && !!p.coverUrl;
       const avatarOverlapClass = p.coverUrl ? "-mt-12" : "";
+      const avatarRadiusClass = p.avatarShape === "square" ? "rounded-md" : p.avatarShape === "rounded" ? "rounded-[28%]" : "rounded-full";
       const fullBleedStyle: CSSProperties | undefined = p.coverFullBleed || fullBleedTopHeader
         ? (topBleed
             ? { width: "100%", marginLeft: 0, marginRight: 0, borderRadius: 0, border: "none" }
@@ -173,7 +237,14 @@ function renderSectionInner(
         boxShadow: p.coverShadow ? cardStyle.boxShadow : "none",
       };
       return (
-        <header className={["relative flex flex-col items-center text-center", fullBleedTopHeader ? "" : "pt-6"].join(" ").trim()} style={{ color: "var(--vc-fg, #f7f3ea)" }}>
+        <header
+          className={[
+            "relative flex flex-col",
+            p.layout === "left" ? "items-start text-left [&>div]:justify-start [&>h1]:px-0 [&>p]:px-0 [&>div]:px-0" : "items-center text-center",
+            fullBleedTopHeader ? "" : "pt-6",
+          ].join(" ").trim()}
+          style={{ color: "var(--vc-fg, #f7f3ea)" }}
+        >
           {p.coverUrl ? (
             <div className={["relative mb-0 w-full overflow-hidden", fullBleedTopHeader ? "sticky top-0 z-0 h-48 sm:h-64" : "h-36"].join(" ").trim()} style={coverStyle} data-vc-header-cover>
               <ProfileImage src={p.coverUrl} alt={`${p.name} cover`} fill sizes={fullBleedTopHeader ? "100vw" : "(max-width: 640px) 100vw, 480px"} priority={fullBleedTopHeader} className="object-cover" />
@@ -186,10 +257,23 @@ function renderSectionInner(
           ) : null}
           {p.avatarUrl ? (
             <div
-              className={["relative z-10 overflow-hidden rounded-full border-[3px] p-0.5 shadow-[0_18px_42px_-22px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08)]", avatarOverlapClass].join(" ").trim()}
-              style={{ backgroundColor: "var(--vc-bg, #0a0a0a)", borderColor: "color-mix(in srgb, var(--vc-accent, #d4af37) 68%, rgba(255,255,255,0.28))" }}
+              className={[
+                "relative z-10 overflow-hidden p-0.5 shadow-[0_18px_42px_-22px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08)]",
+                avatarRadiusClass,
+                p.avatarRing === "none" ? "border-0" : "border-[3px]",
+                avatarOverlapClass,
+              ].join(" ").trim()}
+              style={{
+                backgroundColor: "var(--vc-bg, #0a0a0a)",
+                ...(p.avatarRing === "gradient"
+                  ? {
+                      borderColor: "transparent",
+                      background: "linear-gradient(var(--vc-bg, #0a0a0a), var(--vc-bg, #0a0a0a)) padding-box, conic-gradient(from 140deg, var(--vc-accent, #d4af37), var(--vc-accent-2, #f0d97e), #fff4d6, var(--vc-accent, #d4af37)) border-box",
+                    }
+                  : { borderColor: "color-mix(in srgb, var(--vc-accent, #d4af37) 68%, rgba(255,255,255,0.28))" }),
+              }}
             >
-              <ProfileImage src={p.avatarUrl} alt={p.name} width={96} height={96} sizes="96px" className="size-24 rounded-full object-cover" />
+              <ProfileImage src={p.avatarUrl} alt={p.name} width={96} height={96} sizes="96px" className={["size-24 object-cover", avatarRadiusClass].join(" ")} />
             </div>
           ) : null}
           <h1 className="relative z-10 mt-3 w-full break-words px-4 font-display text-2xl leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]" style={{ color: "var(--vc-fg, #f7f3ea)", maxWidth: "calc(100% - 2rem)", overflowWrap: "anywhere" }}>
@@ -240,9 +324,10 @@ function renderSectionInner(
           data-vc-link
           className={[
             "flex items-center justify-between gap-3 px-4 py-3.5 text-sm transition",
-            p.style === "pill" ? "rounded-pill" : "rounded-card",
+            p.style === "card" || p.style === "ghost" ? "rounded-card" : "rounded-pill",
           ].join(" ")}
           style={renderLinkStyle(p.style)}
+          data-vc-link-style={PREMIUM_LINK_STYLES.has(p.style) ? p.style : undefined}
         >
           <span className="flex min-w-0 items-center gap-3">
             {p.iconImageUrl ? (
@@ -347,15 +432,27 @@ function renderSectionInner(
     }
     case "video": {
       const p = section.props;
+      const aspect = p.aspect ? { aspectRatio: p.aspect.replace("/", " / ") } : undefined;
       return (
-        <video
-          className="h-auto w-full"
-          style={{ borderRadius: "var(--vc-radius, 14px)" }}
-          src={p.src}
-          poster={p.poster}
-          controls
-          preload="metadata"
-        />
+        <figure className="space-y-2">
+          {p.ambient ? (
+            <div className="relative w-full overflow-hidden" style={{ borderRadius: "var(--vc-radius, 14px)", aspectRatio: aspect?.aspectRatio ?? "16 / 9" }}>
+              {p.poster ? <ProfileImage src={p.poster} alt="" fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" /> : null}
+              <AmbientVideo src={p.src} poster={p.poster} className="absolute inset-0 size-full object-cover" />
+            </div>
+          ) : (
+            <video
+              className="h-auto w-full object-cover"
+              style={{ borderRadius: "var(--vc-radius, 14px)", ...aspect }}
+              src={p.src}
+              poster={p.poster}
+              controls
+              playsInline
+              preload="metadata"
+            />
+          )}
+          {p.caption ? <figcaption className="text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.caption}</figcaption> : null}
+        </figure>
       );
     }
     case "social": {
@@ -476,7 +573,9 @@ function renderSectionInner(
           <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${p.items.length > 3 ? 110 : 90}px, 1fr))` }}>
             {p.items.map((item, index) => (
               <div key={`${item.value}-${index}`} className="min-w-0">
-                <p className="truncate font-display text-3xl leading-none tracking-tight" style={{ color: "var(--vc-tile-accent, var(--vc-accent, #d4af37))" }}>{item.value}</p>
+                <p className="truncate font-display text-3xl leading-none tracking-tight" style={{ color: "var(--vc-tile-accent, var(--vc-accent, #d4af37))" }}>
+                  {p.countUp === false ? item.value : <StatsCounter value={item.value} />}
+                </p>
                 {item.label ? <p className="mt-1.5 text-xs leading-snug" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{item.label}</p> : null}
               </div>
             ))}

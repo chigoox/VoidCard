@@ -6,36 +6,11 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  MouseSensor,
-  PointerSensor,
-  TouchSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragOverEvent,
-  type DragStartEvent,
-  type DraggableAttributes,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { ArrowDown, ArrowUp, Braces, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FolderOpen, Globe, GripVertical, MoreHorizontal, Plus, Redo2, Save, Trash2, Undo2, Upload, X } from "lucide-react";
+import { arrayMove } from "@dnd-kit/sortable";
+import { Eye, FolderOpen, Globe, Plus, Redo2, Save, Trash2, Undo2, Upload, X } from "lucide-react";
 import { deleteVariantB, deleteVersion, getStorageUsage, getVariantB, listOwnedSellerProducts, listVersions, publishDraft, restoreVersion, saveDraft, saveVariantB, setCustomCss, setScheduledPublish, setTheme, snapshotVersion } from "./actions";
 import {
   Section as SectionSchema,
-  SECTION_ANIMATIONS,
-  SECTION_ANIMATION_TRIGGERS,
   SECTION_TYPES,
   GALLERY_LAYOUTS,
   SOCIAL_DISPLAY_MODES,
@@ -48,21 +23,20 @@ import { LINK_ICON_OPTIONS, LinkIconGlyph } from "@/components/sections/LinkIcon
 import { uploadMediaAsset } from "@/components/media/upload-media-asset";
 import { THEME_PRESETS, getThemePreset, themeToCss } from "@/lib/themes/presets";
 import { SECTION_TEMPLATES } from "@/lib/editor/templates";
+import { SHOWCASE_TEMPLATES } from "@/lib/editor/showcaseTemplates";
 import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/editor/styleStudio";
 import { readProfileIntegrations, writeProfileIntegrations, type ProfileIntegrations } from "@/lib/profile-integrations";
-import { desktopLayoutCss, readDesktopSettings, resolveDesktopLayout, writeDesktopSettings, type DesktopLayoutSettings } from "@/lib/sections/desktopLayout";
+import { applyDesktopPreset, desktopLayoutCss, normalizeDesktopSettings, readDesktopSettings, writeDesktopSettings, type DesktopLayoutSettings } from "@/lib/sections/desktopLayout";
 import { TileWrap } from "@/components/sections/ProfileStack";
-import { TileStyleFields } from "./TileStyleFields";
+import { DesignFx } from "@/components/sections/DesignFx";
 import { isLightTheme, readThemeSwitch, writeThemeSwitch, type ThemeSwitchSettings } from "@/lib/editor/themeSwitch";
-import type { DesktopStudioChange } from "./DesktopLayoutStudio";
-import { MobileCanvasEditor } from "./MobileCanvasEditor";
+import { EditorWorkspace } from "./workspace/EditorWorkspace";
+import type { WorkspaceChange } from "./workspace/grid";
 
 const StyleStudioPanel = dynamic(() => import("./StyleStudioPanel"), {
   ssr: false,
   loading: () => <section className="card space-y-3 p-4 text-xs text-ivory-dim" data-testid="style-studio-loading">Loading style studio…</section>,
 });
-
-const DesktopLayoutStudio = dynamic(() => import("./DesktopLayoutStudio"), { ssr: false });
 
 const MediaManagerModal = dynamic(() => import("./MediaManagerModal").then((m) => m.MediaManagerModal), {
   ssr: false,
@@ -485,15 +459,6 @@ function GalleryBulkImageControls({
   );
 }
 
-function sectionMatchesFilter(section: SectionRecord, filter: string): boolean {
-  const q = filter.trim().toLowerCase();
-  if (!q) return true;
-  if (section.type.toLowerCase().includes(q)) return true;
-  const summary = sectionSummary(section).toLowerCase();
-  if (summary.includes(q)) return true;
-  return false;
-}
-
 function AutosaveStatus({
   isOnline,
   pending,
@@ -536,420 +501,6 @@ function AutosaveStatus({
 // ./StyleStudioPanel.tsx.
 
 
-
-function SectionRowHeader({
-  section,
-  index,
-  collapsed,
-  summary,
-  validationMessage,
-  onToggleCollapsed,
-  onToggleVisible,
-  onDuplicate,
-  onCopyJson,
-  onMove,
-  onRemove,
-  dragAttributes,
-  dragListeners,
-}: {
-  section: SectionRecord;
-  index: number;
-  collapsed: boolean;
-  summary: string;
-  validationMessage: string | null;
-  onToggleCollapsed: () => void;
-  onToggleVisible: () => void;
-  onDuplicate: () => void;
-  onCopyJson: () => void;
-  onMove: (index: number, dir: -1 | 1) => void;
-  onRemove: (index: number) => void;
-  dragAttributes: DraggableAttributes;
-  dragListeners: SyntheticListenerMap | undefined;
-}) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuDir, setMenuDir] = useState<"down" | "up">("down");
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
-
-  function toggleMenu() {
-    setMenuOpen((wasOpen) => {
-      const next = !wasOpen;
-      if (next && menuBtnRef.current) {
-        const rect = menuBtnRef.current.getBoundingClientRect();
-        // Approx menu height (~5 items * 36 + paddings) ~= 220px. Reserve room for BottomNav (~80px on mobile).
-        const reserved = 240 + 80;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        setMenuDir(spaceBelow < reserved ? "up" : "down");
-      }
-      return next;
-    });
-  }
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onDoc(e: MouseEvent) {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
-
-  return (
-    <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-center gap-1.5">
-      <button
-        type="button"
-        aria-label={`Drag ${section.type} section`}
-        className="btn-ghost cursor-grab touch-none select-none px-2 py-1 text-xs active:cursor-grabbing"
-        style={{ touchAction: "none" }}
-        data-testid={`drag-handle-${section.id}`}
-        {...dragAttributes}
-        {...(dragListeners ?? {})}
-      >
-        <GripVertical className="size-4" aria-hidden />
-      </button>
-      <button
-        type="button"
-        onClick={onToggleCollapsed}
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? "Expand section" : "Collapse section"}
-        className="btn-ghost px-2 py-1 text-xs"
-        data-testid={`toggle-collapsed-${section.id}`}
-      >
-        {collapsed ? <ChevronRight className="size-3.5" aria-hidden /> : <ChevronDown className="size-3.5" aria-hidden />}
-      </button>
-      <button
-        type="button"
-        onClick={onToggleCollapsed}
-        className="flex min-w-0 flex-col items-start justify-center overflow-hidden rounded-card px-1 py-1 text-left hover:bg-onyx-900/35"
-        aria-label={collapsed ? "Expand section" : "Collapse section"}
-      >
-        <span className="max-w-full truncate text-[11px] uppercase tracking-[0.18em] text-ivory">{section.type}</span>
-        {summary ? (
-          <span className="max-w-full truncate text-[11px] text-ivory-mute" title={summary}>{summary}</span>
-        ) : null}
-        {validationMessage ? (
-          <span
-            className="ml-1 rounded-pill border border-red-400/40 bg-red-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-red-200"
-            title={validationMessage}
-            data-testid={`validation-badge-${section.id}`}
-          >
-            !
-          </span>
-        ) : null}
-      </button>
-      <button
-        type="button"
-        onClick={onToggleVisible}
-        className="btn-ghost shrink-0 px-2 py-1 text-xs"
-        aria-pressed={section.visible}
-        title={section.visible ? "Hide section" : "Show section"}
-        aria-label={section.visible ? "Hide section" : "Show section"}
-        data-testid={`toggle-visible-${section.id}`}
-      >
-        {section.visible ? <Eye className="size-4" aria-hidden /> : <EyeOff className="size-4" aria-hidden />}
-      </button>
-      <div className="relative shrink-0" ref={menuRef}>
-        <button
-          ref={menuBtnRef}
-          type="button"
-          onClick={toggleMenu}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          aria-label="More actions"
-          className="btn-ghost px-2 py-1 text-xs"
-          data-testid={`row-more-${section.id}`}
-        >
-          <MoreHorizontal className="size-4" aria-hidden />
-        </button>
-        {menuOpen ? (
-          <div
-            role="menu"
-            className={[
-              "absolute right-0 z-30 w-44 overflow-hidden rounded-card border border-onyx-700 bg-onyx-950 shadow-lg",
-              menuDir === "up" ? "bottom-full mb-1" : "top-full mt-1",
-            ].join(" ")}
-          >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setMenuOpen(false); onMove(index, -1); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
-            >
-              <ArrowUp className="size-3.5" aria-hidden /> Move up
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setMenuOpen(false); onMove(index, 1); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
-            >
-              <ArrowDown className="size-3.5" aria-hidden /> Move down
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setMenuOpen(false); onDuplicate(); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
-              data-testid={`duplicate-${section.id}`}
-            >
-              <Copy className="size-3.5" aria-hidden /> Duplicate
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setMenuOpen(false); onCopyJson(); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900"
-              data-testid={`copy-json-${section.id}`}
-            >
-              <Braces className="size-3.5" aria-hidden /> Copy JSON
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setMenuOpen(false); onRemove(index); }}
-              className="flex w-full items-center gap-2 border-t border-onyx-800 px-3 py-2 text-left text-xs text-red-300 hover:bg-onyx-900"
-            >
-              <Trash2 className="size-3.5" aria-hidden /> Remove
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function SortableSectionRow({
-  index,
-  section,
-  validationMessage,
-  recentMedia,
-  collapsed,
-  onToggleCollapsed,
-  onChange,
-  onMediaAdded,
-  onMove,
-  onRemove,
-  onDuplicate,
-  onCopyJson,
-  isDragOver,
-}: {
-  index: number;
-  section: SectionRecord;
-  validationMessage: string | null;
-  recentMedia: MediaLibraryItem[];
-  collapsed: boolean;
-  onToggleCollapsed: () => void;
-  onChange: (next: SectionRecord) => void;
-  onMediaAdded: (asset: MediaLibraryItem) => void;
-  onMove: (index: number, dir: -1 | 1) => void;
-  onRemove: (index: number) => void;
-  onDuplicate: () => void;
-  onCopyJson: () => void;
-  isDragOver: boolean;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-  const summary = sectionSummary(section);
-  const animation = section.display?.animation ?? "none";
-  const animationTrigger = section.display?.animationTrigger ?? "load";
-  const animationDelay = section.display?.animationDelay ?? 0;
-
-  return (
-    <motion.li
-      ref={setNodeRef}
-      style={style}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
-      className={[
-        "card relative z-0 min-w-0 overflow-visible text-sm focus-within:z-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
-        collapsed ? "p-2 sm:p-2.5" : "space-y-4 p-3 sm:p-4",
-        isDragging ? "border-gold/70 opacity-45 shadow-[0_12px_32px_-14px_rgba(212,168,83,0.55)]" : "",
-        isDragOver ? "ring-2 ring-gold/45" : "",
-      ].join(" ")}
-      data-testid={`section-row-${section.id}`}
-      data-section-row={section.id}
-      tabIndex={-1}
-    >
-      {isDragOver ? <span className="absolute -top-2 left-3 right-3 h-1 rounded-full bg-gold shadow-[0_0_18px_rgba(212,168,83,0.8)]" data-testid="drag-insert-line" /> : null}
-      <SectionRowHeader
-        section={section}
-        index={index}
-        collapsed={collapsed}
-        summary={summary}
-        validationMessage={validationMessage}
-        onToggleCollapsed={onToggleCollapsed}
-        onToggleVisible={() => onChange({ ...section, visible: !section.visible })}
-        onDuplicate={onDuplicate}
-        onCopyJson={onCopyJson}
-        onMove={onMove}
-        onRemove={onRemove}
-        dragAttributes={attributes}
-        dragListeners={listeners}
-      />
-
-      {validationMessage && !collapsed && (
-        <p className="rounded-card border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-          Fix this section before saving: {validationMessage}
-        </p>
-      )}
-
-      {!collapsed ? (
-        <>
-          <SectionEditorFields section={section} recentMedia={recentMedia} onChange={onChange} onMediaAdded={onMediaAdded} />
-          <details className="rounded-card border border-onyx-800 bg-onyx-950/40 px-3 py-2 text-xs">
-            <summary className="cursor-pointer select-none text-ivory-mute">Animation & motion</summary>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <Field label="Animation">
-                <select
-                  className={INPUT_CLASS_NAME}
-                  value={animation}
-                  onChange={(event) =>
-                    onChange({
-                      ...section,
-                      display: {
-                        ...(section.display ?? {}),
-                        animation: event.target.value as (typeof SECTION_ANIMATIONS)[number],
-                      },
-                    })
-                  }
-                  data-testid={`animation-${section.id}`}
-                >
-                  {SECTION_ANIMATIONS.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Delay (ms)">
-                <input
-                  className={INPUT_CLASS_NAME}
-                  type="number"
-                  min="0"
-                  max="2000"
-                  step="50"
-                  value={String(animationDelay)}
-                  onChange={(event) =>
-                    onChange({
-                      ...section,
-                      display: {
-                        ...(section.display ?? {}),
-                        animationDelay: Math.max(0, Math.min(2000, normalizeInteger(event.target.value, animationDelay))),
-                      },
-                    })
-                  }
-                />
-              </Field>
-              <Field label="Play when">
-                <select
-                  className={INPUT_CLASS_NAME}
-                  value={animationTrigger}
-                  onChange={(event) =>
-                    onChange({
-                      ...section,
-                      display: {
-                        ...(section.display ?? {}),
-                        animationTrigger: event.target.value as (typeof SECTION_ANIMATION_TRIGGERS)[number],
-                      },
-                    })
-                  }
-                  data-testid={`animation-trigger-${section.id}`}
-                >
-                  {SECTION_ANIMATION_TRIGGERS.map((value) => (
-                    <option key={value} value={value}>
-                      {value === "view" ? "when visible" : value}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          </details>
-        </>
-      ) : null}
-    </motion.li>
-  );
-}
-
-function SectionDragPreview({ section }: { section: SectionRecord }) {
-  const summary = sectionSummary(section);
-  return (
-    <div className="w-[min(21rem,82vw)] rounded-card border border-gold/60 bg-onyx-950/95 px-3 py-2 shadow-2xl backdrop-blur" data-testid="drag-preview">
-      <div className="flex items-center gap-2">
-        <GripVertical className="size-4 shrink-0 text-gold" aria-hidden />
-        <div className="min-w-0">
-          <p className="truncate text-xs uppercase tracking-[0.18em] text-ivory">{section.type}</p>
-          {summary ? <p className="truncate text-[11px] text-ivory-mute">{summary}</p> : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function sectionSummary(section: SectionRecord): string {
-  switch (section.type) {
-    case "header":
-      return section.props.name || "";
-    case "link":
-      return section.props.label || section.props.url;
-    case "phone":
-      return section.props.label || section.props.phone;
-    case "email":
-      return section.props.label || section.props.email;
-    case "image":
-      return section.props.alt || "image";
-    case "video":
-      return section.props.src;
-    case "spotify":
-      return section.props.uri;
-    case "youtube":
-      return section.props.id;
-    case "map":
-      return section.props.label || `${section.props.lat}, ${section.props.lng}`;
-    case "embed":
-      return `embed (${section.props.height}px)`;
-    case "form":
-      return section.props.title;
-    case "gallery":
-      return `${section.props.images.length} image${section.props.images.length === 1 ? "" : "s"}`;
-    case "markdown":
-      return section.props.md.slice(0, 60);
-    case "divider":
-      return "";
-    case "spacer":
-      return `${section.props.height}px`;
-    case "social":
-      return `${section.props.items.length} item${section.props.items.length === 1 ? "" : "s"}`;
-    case "qr":
-      return section.props.label || section.props.url;
-    case "tip":
-      return `${section.props.amounts.length} amount${section.props.amounts.length === 1 ? "" : "s"}`;
-    case "schedule":
-      return section.props.url;
-    case "store":
-      return `${section.props.productIds.length} product${section.props.productIds.length === 1 ? "" : "s"}`;
-    case "booking":
-      return section.props.ownerSlug ? `boox/${section.props.ownerSlug}` : "Boox booking";
-    case "stats":
-      return section.props.items.map((item) => item.value).join(" · ");
-    case "testimonial":
-      return section.props.author || section.props.quote.slice(0, 60);
-    case "feature":
-      return section.props.title;
-  }
-}
 
 function Field({
   label,
@@ -1083,6 +634,7 @@ function SectionEditorFields({
           </Field>
           <MediaField label="Avatar URL" value={p.avatarUrl ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, avatarUrl: value || undefined } })} />
           <MediaField label="Cover URL" value={p.coverUrl ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, coverUrl: value || undefined } })} />
+          <MediaField label="Cover video (loops muted — try the Hero banner layout in Design)" value={p.coverVideoUrl ?? ""} accept="video/mp4,video/webm" kind="video" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, coverVideoUrl: value || undefined } })} />
           <label className="flex items-center gap-2 text-sm text-ivory md:col-span-2">
             <input type="checkbox" checked={p.showSaveContact ?? true} onChange={(event) => onChange({ ...section, props: { ...p, showSaveContact: event.target.checked } })} className="size-4 rounded border-onyx-700 bg-onyx-950" />
             Show Save Contact button
@@ -1238,6 +790,26 @@ function SectionEditorFields({
         <div className="grid gap-3">
           <MediaField label="Video URL" value={p.src} accept="video/mp4,video/webm" kind="video" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, src: value } })} />
           <MediaField label="Poster URL" value={p.poster ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, poster: value || undefined } })} />
+          <label className="flex items-center justify-between gap-3 rounded-card border border-onyx-700 px-3 py-2.5 text-sm text-ivory">
+            <span>
+              Ambient loop
+              <span className="block text-[11px] text-ivory-mute">Plays muted on repeat with no controls — like a moving photo.</span>
+            </span>
+            <input type="checkbox" checked={!!p.ambient} onChange={(event) => onChange({ ...section, props: { ...p, ambient: event.target.checked || undefined } })} className="size-4" />
+          </label>
+          <Field label="Shape">
+            <select className={INPUT_CLASS_NAME} value={p.aspect ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, aspect: (event.target.value || undefined) as typeof p.aspect } })}>
+              <option value="">Original</option>
+              <option value="16/9">Widescreen 16:9</option>
+              <option value="21/9">Cinematic 21:9</option>
+              <option value="4/5">Portrait 4:5</option>
+              <option value="1/1">Square</option>
+              <option value="9/16">Vertical 9:16</option>
+            </select>
+          </Field>
+          <Field label="Caption (optional)">
+            <input className={INPUT_CLASS_NAME} value={p.caption ?? ""} maxLength={140} onChange={(event) => onChange({ ...section, props: { ...p, caption: event.target.value || undefined } })} />
+          </Field>
         </div>
       );
     }
@@ -2054,17 +1626,7 @@ export default function EditorClient({
   const [themeId, setThemeId] = useState(initialThemeId);
   const [customCss, setCustomCssState] = useState(initialCustomCss);
   const [mediaLibrary, setMediaLibrary] = useState<MediaLibraryItem[]>(recentMedia);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
-    // Collapse all but the first section by default for a calmer UX.
-    const map: Record<string, boolean> = {};
-    initial.forEach((section, index) => {
-      if (index > 0) map[section.id] = true;
-    });
-    return map;
-  });
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [filter, setFilter] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
@@ -2072,8 +1634,6 @@ export default function EditorClient({
   const [bulkLinksText, setBulkLinksText] = useState("");
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [overDragId, setOverDragId] = useState<string | null>(null);
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledPublishAt ?? null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -2101,27 +1661,12 @@ export default function EditorClient({
   const skipHistory = useRef(false);
 
   const saveSequence = useRef(0);
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: { distance: 4 },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 180, tolerance: 8 },
-    }),
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 4 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
 
   const validationById = new Map<string, string>();
   for (const section of sections) {
     const issue = getSectionValidationMessage(section);
     if (issue) validationById.set(section.id, issue);
   }
-  const activeDragSection = activeDragId ? sections.find((section) => section.id === activeDragId) ?? null : null;
 
   const currentSnapshot = JSON.stringify({ sections, themeId, customCss });
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => JSON.stringify({ sections: initial, themeId: initialThemeId, customCss: initialCustomCss }));
@@ -2144,11 +1689,8 @@ export default function EditorClient({
   }
 
   const { settings: desktopSettings } = readDesktopSettings(customCss);
-  const [desktopStudioOpen, setDesktopStudioOpen] = useState(false);
-  // Phones default to editing the page itself; the list stays one tap away.
-  const [mobileView, setMobileView] = useState<"visual" | "list">("visual");
   const [canvasInsertAt, setCanvasInsertAt] = useState<number | null>(null);
-  function applyDesktopStudioChange(change: DesktopStudioChange) {
+  function applyDesktopStudioChange(change: WorkspaceChange) {
     pushHistory();
     if (change.sections) setSections(change.sections);
     if (change.settings) {
@@ -2343,7 +1885,6 @@ export default function EditorClient({
       next.splice(Math.max(0, insertAt), 0, nextSection);
       return next as Sections;
     });
-    setCollapsed((prev) => ({ ...prev, [id]: false }));
     setAnnouncement(`Added ${type} section`);
     return id;
   }
@@ -2371,7 +1912,6 @@ export default function EditorClient({
     pushHistory();
     markDirty();
     setSections((prev) => [...prev, nextSection]);
-    setCollapsed((prev) => ({ ...prev, [sectionId]: false }));
     setProductPickerOpen(false);
     setAnnouncement(`Added store section for ${p.name}`);
   }
@@ -2383,10 +1923,28 @@ export default function EditorClient({
     markDirty();
     const built = tpl.build(username);
     setSections(built);
-    const firstId = built[0]?.id;
-    setCollapsed(() => Object.fromEntries(built.map((s, i) => [s.id, i > 0])));
-    if (firstId) setCollapsed((p) => ({ ...p, [firstId]: false }));
     setAnnouncement(`Loaded ${tpl.name} template`);
+  }
+
+  /** Designed templates replace sections, theme and desktop layout in one undoable step. */
+  function applyShowcase(templateId: string) {
+    const tpl = SHOWCASE_TEMPLATES.find((t) => t.id === templateId);
+    if (!tpl) return;
+    if (sections.length > 0 && !window.confirm(`Replace your page with the ${tpl.name} design? You can undo this.`)) return;
+    pushHistory();
+    markDirty();
+    const { preset, ...desktop } = tpl.desktop;
+    const settings = normalizeDesktopSettings({ ...desktopSettings, ...desktop, enabled: true });
+    setSections(applyDesktopPreset(tpl.build(username), preset, settings.rowHeight));
+    const nextTheme = getThemePreset(tpl.themeId);
+    setThemeId(nextTheme.id);
+    setCustomCssState((css) => {
+      const withDesktop = writeDesktopSettings(settings, readDesktopSettings(css).rest);
+      const { studio: currentStudio, rest } = readStyleStudio(withDesktop);
+      return writeStyleStudio({ ...currentStudio, customColors: false, accent: nextTheme.vars["--vc-accent"] ?? currentStudio.accent }, rest);
+    });
+    setTemplatesOpen(false);
+    setAnnouncement(`Loaded the ${tpl.name} design`);
   }
 
   function duplicateSection(index: number): string | undefined {
@@ -2400,13 +1958,28 @@ export default function EditorClient({
       next.splice(index + 1, 0, copy);
       return next as Sections;
     });
-    setCollapsed((p) => ({ ...p, [copy.id]: false }));
     setAnnouncement(`Duplicated ${original.type} section`);
     requestAnimationFrame(() => {
       const el = document.querySelector<HTMLElement>(`[data-section-row="${copy.id}"]`);
       el?.focus();
     });
     return copy.id;
+  }
+
+  function replaceSections(next: Sections) {
+    pushHistory();
+    markDirty();
+    setSections(next);
+  }
+
+  function reorderSections(activeId: string, overId: string) {
+    const from = sections.findIndex((section) => section.id === activeId);
+    const to = sections.findIndex((section) => section.id === overId);
+    if (from < 0 || to < 0 || from === to) return;
+    pushHistory();
+    markDirty();
+    setSections((prev) => arrayMove(prev, from, to) as Sections);
+    setAnnouncement(`Moved ${sections[from]?.type ?? "section"} to position ${to + 1}`);
   }
 
   function updateSection(index: number, nextSection: SectionRecord) {
@@ -2442,48 +2015,6 @@ export default function EditorClient({
     }
   }
 
-  function onDragStart(event: DragStartEvent) {
-    const id = String(event.active.id);
-    setActiveDragId(id);
-    setOverDragId(id);
-    setAnnouncement("Started reordering sections");
-  }
-
-  function onDragOver(event: DragOverEvent) {
-    setOverDragId(event.over ? String(event.over.id) : null);
-  }
-
-  function onDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    setActiveDragId(null);
-    setOverDragId(null);
-    if (!over || active.id === over.id) return;
-
-    pushHistory();
-    markDirty();
-    setSections((prev) => {
-      const oldIndex = prev.findIndex((section) => section.id === active.id);
-      const newIndex = prev.findIndex((section) => section.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return prev;
-      return arrayMove(prev, oldIndex, newIndex) as Sections;
-    });
-    setAnnouncement("Reordered sections");
-  }
-
-  function onDragCancel() {
-    setActiveDragId(null);
-    setOverDragId(null);
-    setAnnouncement("Reorder cancelled");
-  }
-
-  function expandAll() {
-    setCollapsed(() => Object.fromEntries(sections.map((s) => [s.id, false])));
-    setAnnouncement("Expanded all sections");
-  }
-  function collapseAll() {
-    setCollapsed(() => Object.fromEntries(sections.map((s) => [s.id, true])));
-    setAnnouncement("Collapsed all sections");
-  }
   function hideAll() {
     pushHistory();
     markDirty();
@@ -2495,14 +2026,6 @@ export default function EditorClient({
     setSections((prev) => prev.map((s) => ({ ...s, visible: true })) as Sections);
   }
 
-  async function copySectionJson(section: SectionRecord) {
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(section, null, 2));
-      setAnnouncement("Copied section JSON to clipboard");
-    } catch {
-      setAnnouncement("Could not copy to clipboard");
-    }
-  }
   async function pasteSectionJson() {
     try {
       const text = await navigator.clipboard.readText();
@@ -2515,7 +2038,6 @@ export default function EditorClient({
       pushHistory();
       markDirty();
       setSections((prev) => [...prev, parsed.data]);
-      setCollapsed((p) => ({ ...p, [parsed.data.id]: false }));
       setAnnouncement(`Pasted ${parsed.data.type} section`);
     } catch {
       setErrorMessage("Clipboard does not contain valid JSON.");
@@ -2559,11 +2081,6 @@ export default function EditorClient({
     pushHistory();
     markDirty();
     setSections((prev) => [...prev, ...newSections] as Sections);
-    setCollapsed((prev) => {
-      const next = { ...prev };
-      for (const s of newSections) next[s.id] = true;
-      return next;
-    });
     setBulkLinksOpen(false);
     setBulkLinksText("");
     setAnnouncement(`Added ${newSections.length} link sections`);
@@ -2745,14 +2262,21 @@ export default function EditorClient({
     });
   }
 
+  const workspaceMode = editorTab === "sections";
+
   return (
-    <div className="grid min-w-0 gap-4 md:grid-cols-2 md:gap-6">
+    <div
+      className={["grid min-w-0 gap-4 md:gap-6", workspaceMode ? "" : "md:grid-cols-2"].join(" ")}
+      // The canvas workspace breaks out of the app's narrow content column.
+      style={workspaceMode ? { width: "min(calc(100vw - 1.5rem), 1680px)", marginLeft: "calc(50% - min(calc(50vw - 0.75rem), 840px))" } : undefined}
+    >
+      <DesignFx />
       <div
         className={[
           "order-2 min-w-0 md:order-2 md:sticky md:top-24 md:self-start",
           mobilePreviewOpen
             ? "safe-modal-frame fixed inset-0 z-[80] flex flex-col overflow-y-auto bg-onyx-950/95 backdrop-blur-md md:static md:bg-transparent md:p-0"
-            : "hidden md:block",
+            : workspaceMode ? "hidden" : "hidden md:block",
         ].join(" ")}
         data-testid="preview-column"
       >
@@ -2773,11 +2297,6 @@ export default function EditorClient({
         {/* Base tile/visibility rules only — the phone preview never uses the grid. */}
         <style dangerouslySetInnerHTML={{ __html: desktopLayoutCss({ ...desktopSettings, enabled: false }) }} />
         {previewCustomCss ? <style dangerouslySetInnerHTML={{ __html: previewCustomCss }} /> : null}
-        <DesktopLayoutCard
-          sections={sections}
-          settings={desktopSettings}
-          onOpen={() => setDesktopStudioOpen(true)}
-        />
         <div className="phone-frame mx-auto">
           <div
             className={[
@@ -2825,26 +2344,29 @@ export default function EditorClient({
             ))}
           </div>
 
+          <div className="hidden md:flex md:flex-wrap md:items-center md:gap-2">
+          <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs" aria-label="Undo" title="Undo (Ctrl+Z)" data-testid="undo"><Undo2 className="size-3.5" aria-hidden /> Undo</button>
+          <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" data-testid="redo"><Redo2 className="size-3.5" aria-hidden /> Redo</button>
+          <button type="button" onClick={onSave} disabled={pending} className="btn-ghost inline-flex items-center gap-1.5" data-testid="save-draft">
+            <Save className="size-3.5" aria-hidden />
+            Save draft
+          </button>
+          <button type="button" onClick={onPublish} disabled={pending} className="btn-gold inline-flex items-center gap-1.5" data-testid="publish">
+            <Globe className="size-3.5" aria-hidden />
+            Publish
+          </button>
+          <AutosaveStatus
+            isOnline={isOnline}
+            pending={pending}
+            isDirty={isDirty}
+            savedAt={savedAt}
+            hasErrors={validationById.size > 0}
+          />
+        </div>
+
+
           {editorTab === "sections" ? (
             <div className="card relative space-y-3 border border-onyx-700 bg-onyx-950/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-onyx-950/85">
-              <div role="tablist" aria-label="Editing mode" className="grid grid-cols-2 gap-1 rounded-pill border border-onyx-700 p-1 md:hidden">
-                {([["visual", "Tap to edit"], ["list", "List & reorder"]] as const).map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="tab"
-                    aria-selected={mobileView === mode}
-                    onClick={() => setMobileView(mode)}
-                    className={[
-                      "rounded-pill px-3 py-2 text-xs font-medium transition",
-                      mobileView === mode ? "bg-gold text-onyx-950" : "text-ivory-mute",
-                    ].join(" ")}
-                    data-testid={`mobile-view-${mode}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs uppercase tracking-widest text-ivory-mute">
@@ -2866,30 +2388,13 @@ export default function EditorClient({
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (mobileView === "visual" && window.matchMedia("(max-width: 767px)").matches) {
-                        setCanvasInsertAt(sections.length);
-                        return;
-                      }
-                      setAddMenuOpen((open) => !open);
-                    }}
+                    onClick={() => setCanvasInsertAt(sections.length)}
                     className="btn-gold px-4 py-2 text-sm"
-                    aria-expanded={addMenuOpen}
-                    aria-haspopup="menu"
+                    aria-haspopup="dialog"
                     data-testid="add-section-trigger"
                   >
-                    {addMenuOpen ? "Close" : "+ Add section"}
+                    + Add section
                   </button>
-                </div>
-              </div>
-              <div className={["mt-3 flex-wrap items-center gap-2", mobileView === "visual" ? "hidden md:flex" : "flex"].join(" ")}>
-                <input
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder="Filter sections…"
-                  className={`${INPUT_CLASS_NAME} max-w-xs flex-1`}
-                  data-testid="section-filter"
-                />
                 <details className="relative" data-testid="sections-more-menu">
                   <summary
                     className="btn-ghost cursor-pointer list-none px-3 py-2 text-xs [&::-webkit-details-marker]:hidden"
@@ -2898,8 +2403,6 @@ export default function EditorClient({
                     More ⋯
                   </summary>
                   <div className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-card border border-onyx-700 bg-onyx-950 shadow-lg">
-                    <button type="button" onClick={expandAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Expand all</button>
-                    <button type="button" onClick={collapseAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Collapse all</button>
                     <button type="button" onClick={hideAll} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Hide all</button>
                     <button type="button" onClick={showAll} className="block w-full border-b border-onyx-800 px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900">Show all</button>
                     <button type="button" onClick={pasteSectionJson} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="paste-section">Paste section JSON</button>
@@ -2907,6 +2410,7 @@ export default function EditorClient({
                     <button type="button" onClick={openProductPicker} className="block w-full px-3 py-2 text-left text-xs text-ivory hover:bg-onyx-900" data-testid="product-picker-trigger">Add product link</button>
                   </div>
                 </details>
+                </div>
               </div>
               <AnimatePresence>
                 {templatesOpen ? (
@@ -2918,6 +2422,25 @@ export default function EditorClient({
                     className="mt-3 flex gap-2 overflow-x-auto overscroll-x-contain pb-1"
                     data-testid="templates-menu"
                   >
+                    {SHOWCASE_TEMPLATES.map((tpl) => {
+                      const theme = getThemePreset(tpl.themeId);
+                      return (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => applyShowcase(tpl.id)}
+                          className="min-w-[16rem] max-w-[18rem] shrink-0 overflow-hidden rounded-card border border-gold/40 text-left hover:border-gold"
+                          style={{ background: `linear-gradient(135deg, ${theme.preview.bg}, ${theme.preview.bg} 60%, ${theme.preview.accent})` }}
+                          data-testid={`template-${tpl.id}`}
+                        >
+                          <span className="block px-3 py-3" style={{ color: theme.preview.fg }}>
+                            <span className="mb-1 inline-block rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.2em]" style={{ background: theme.preview.accent, color: theme.preview.bg }}>Designed</span>
+                            <span className="block font-display text-base">{tpl.name}</span>
+                            <span className="mt-1 block text-xs opacity-75">{tpl.description}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
                     {SECTION_TEMPLATES.map((tpl) => (
                       <button
                         key={tpl.id}
@@ -2933,37 +2456,14 @@ export default function EditorClient({
                   </motion.div>
                 ) : null}
               </AnimatePresence>
-              <AnimatePresence>
-                {addMenuOpen ? (
-                  <motion.div
-                    role="menu"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="mt-3 grid auto-cols-max grid-flow-col grid-rows-2 gap-2 overflow-x-auto overscroll-x-contain pb-1"
-                    data-testid="add-section-menu"
-                  >
-                    {SECTION_TYPES.map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => addSection(type)}
-                        data-testid={`add-${type}`}
-                        className="flex shrink-0 items-center gap-2 rounded-card border border-onyx-700 bg-onyx-950/50 px-3 py-2 text-left text-xs uppercase tracking-widest text-ivory hover:border-gold/40 hover:text-gold"
-                      >
-                        <Plus className="size-3.5 text-gold" aria-hidden />
-                        {type}
-                      </button>
-                    ))}
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
             </div>
           ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1" data-testid="editor-scroll-panel">
+        <div
+          className={["min-h-0 flex-1", editorTab === "sections" ? "flex flex-col" : "space-y-4 overflow-y-auto overscroll-contain pr-1"].join(" ")}
+          data-testid="editor-scroll-panel"
+        >
 
         {/* ─── Settings tab ─── */}
         {editorTab === "settings" ? <div className="space-y-4">
@@ -3374,104 +2874,36 @@ export default function EditorClient({
 
         </div> : null}
 
-        {/* ─── Sections tab ─── */}
-        {editorTab === "sections" ? <div className="flex flex-col gap-4 pb-28 md:pb-0">
-
-        {mobileView === "visual" ? (
-          <div className="md:hidden">
-            <MobileCanvasEditor
-              sections={sections}
-              validationById={validationById}
-              renderPreview={(section) => (
-                <TileWrap section={section}>
-                  <PreviewSection section={section} isTop={section.id === firstVisibleSectionId} topBleedOffset="none" />
-                </TileWrap>
-              )}
-              renderFields={(section, onChange) => (
-                <>
-                  <SectionEditorFields section={section} recentMedia={mediaLibrary} onChange={onChange} onMediaAdded={addMediaToLibrary} />
-                  <details className="rounded-card border border-onyx-800 px-3 py-2">
-                    <summary className="cursor-pointer select-none py-1 text-sm text-ivory-dim">Tile background</summary>
-                    <div className="pt-3">
-                      <TileStyleFields
-                        section={section}
-                        onChange={onChange}
-                        mediaUrls={mediaLibrary.filter((item) => item.kind === "image").map((item) => item.url)}
-                      />
-                    </div>
-                  </details>
-                </>
-              )}
-              onChange={updateSection}
-              onMove={move}
-              onRemove={remove}
-              onDuplicate={duplicateSection}
-              onAdd={(type, insertAt) => addSection(type, insertAt)}
-              onOpenTemplates={() => setTemplatesOpen(true)}
-              insertAt={canvasInsertAt}
-              onInsertAtChange={setCanvasInsertAt}
-            />
-          </div>
-        ) : null}
-
-        <div className={mobileView === "visual" ? "hidden md:block" : undefined}>
-        <DndContext id="editor-sections" sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
-          <SortableContext items={sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
-            <ul className="space-y-3" data-testid="section-list">
-              <AnimatePresence initial={false}>
-                {sections.map((section, index) => {
-                  if (filter && !sectionMatchesFilter(section, filter)) return null;
-                  return (
-                  <SortableSectionRow
-                    key={section.id}
-                    section={section}
-                    index={index}
-                    validationMessage={validationById.get(section.id) ?? null}
-                    recentMedia={mediaLibrary}
-                    collapsed={collapsed[section.id] ?? false}
-                    onToggleCollapsed={() =>
-                      setCollapsed((prev) => ({ ...prev, [section.id]: !(prev[section.id] ?? false) }))
-                    }
-                    onChange={(nextSection) => updateSection(index, nextSection)}
-                    onMediaAdded={addMediaToLibrary}
-                    onMove={move}
-                    onRemove={() => setConfirmRemoveId(section.id)}
-                    onDuplicate={() => duplicateSection(index)}
-                    onCopyJson={() => copySectionJson(section)}
-                    isDragOver={activeDragId !== null && overDragId === section.id && activeDragId !== section.id}
-                  />
-                  );
-                })}
-              </AnimatePresence>
-            </ul>
-          </SortableContext>
-          <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
-            {activeDragSection ? <SectionDragPreview section={activeDragSection} /> : null}
-          </DragOverlay>
-        </DndContext>
-        </div>
-
-        <div className="hidden md:flex md:flex-wrap md:items-center md:gap-2">
-          <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs" aria-label="Undo" title="Undo (Ctrl+Z)" data-testid="undo"><Undo2 className="size-3.5" aria-hidden /> Undo</button>
-          <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" data-testid="redo"><Redo2 className="size-3.5" aria-hidden /> Redo</button>
-          <button type="button" onClick={onSave} disabled={pending} className="btn-ghost inline-flex items-center gap-1.5" data-testid="save-draft">
-            <Save className="size-3.5" aria-hidden />
-            Save draft
-          </button>
-          <button type="button" onClick={onPublish} disabled={pending} className="btn-gold inline-flex items-center gap-1.5" data-testid="publish">
-            <Globe className="size-3.5" aria-hidden />
-            Publish
-          </button>
-          <AutosaveStatus
-            isOnline={isOnline}
-            pending={pending}
-            isDirty={isDirty}
-            savedAt={savedAt}
-            hasErrors={validationById.size > 0}
+        {/* ─── Sections tab: one canvas for phone, tablet and desktop ─── */}
+        {editorTab === "sections" ? (
+          <EditorWorkspace
+            sections={sections}
+            desktopSettings={desktopSettings}
+            validationById={validationById}
+            themeCss={themeToCss(previewTheme, ".vc-profile-preview")}
+            customCss={previewCustomCss}
+            mediaUrls={mediaLibrary.filter((item) => item.kind === "image").map((item) => item.url)}
+            insertAt={canvasInsertAt}
+            onInsertAtChange={setCanvasInsertAt}
+            renderPreview={(section) => (
+              <TileWrap section={section}>
+                <PreviewSection section={section} isTop={section.id === firstVisibleSectionId} topBleedOffset="none" />
+              </TileWrap>
+            )}
+            renderContentFields={(section, onChange) => (
+              <SectionEditorFields section={section} recentMedia={mediaLibrary} onChange={onChange} onMediaAdded={addMediaToLibrary} />
+            )}
+            onUpdateSection={updateSection}
+            onReplaceSections={replaceSections}
+            onDesktopChange={applyDesktopStudioChange}
+            onReorder={reorderSections}
+            onMove={move}
+            onRemove={remove}
+            onDuplicate={duplicateSection}
+            onAdd={(type, at) => addSection(type, at)}
+            onOpenTemplates={() => setTemplatesOpen(true)}
           />
-        </div>
-
-        </div> : null}
+        ) : null}
 
         {errorMessage && (
           <p className="rounded-card border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
@@ -3654,22 +3086,6 @@ export default function EditorClient({
           </div>
         </div>
       </div>
-      {desktopStudioOpen ? (
-        <DesktopLayoutStudio
-          sections={sections}
-          settings={desktopSettings}
-          themeCss={themeToCss(previewTheme, ".vc-profile-preview")}
-          customCss={previewCustomCss}
-          onChange={applyDesktopStudioChange}
-          onClose={() => setDesktopStudioOpen(false)}
-          onUndo={undo}
-          onRedo={redo}
-          canUndo={past.length > 0}
-          canRedo={future.length > 0}
-          publicUrl={username ? `/u/${username}` : undefined}
-          mediaUrls={mediaLibrary.filter((item) => item.kind === "image").map((item) => item.url)}
-        />
-      ) : null}
     </div>
   );
 }
@@ -3697,53 +3113,6 @@ function ActionBarButton({
     >
       {icon}
       {label}
-    </button>
-  );
-}
-
-function DesktopLayoutCard({
-  sections,
-  settings,
-  onOpen,
-}: {
-  sections: Sections;
-  settings: DesktopLayoutSettings;
-  onOpen: () => void;
-}) {
-  const placements = resolveDesktopLayout(sections, settings.rowHeight);
-  const rows = Math.max(1, [...placements.values()].reduce((max, p) => Math.max(max, p.y + p.h), 0));
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group mx-auto mb-4 hidden w-full max-w-[380px] items-center gap-3 rounded-card border border-onyx-700 bg-onyx-950/80 p-3 text-left transition hover:border-gold/60 lg:flex"
-      data-testid="open-desktop-studio"
-    >
-      <div
-        className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md border border-onyx-700 bg-onyx-900"
-        aria-hidden
-      >
-        {settings.enabled
-          ? [...placements.entries()].map(([id, p]) => (
-              <span
-                key={id}
-                className="absolute rounded-[2px] bg-gold/40 group-hover:bg-gold/60"
-                style={{
-                  left: `${(p.x / 12) * 100 + 2}%`,
-                  width: `${(p.w / 12) * 100 - 4}%`,
-                  top: `${(p.y / rows) * 100 + 2}%`,
-                  height: `${(p.h / rows) * 100 - 4}%`,
-                }}
-              />
-            ))
-          : <span className="absolute inset-y-1 left-1/2 w-6 -translate-x-1/2 rounded-[2px] bg-ivory/25" />}
-      </div>
-      <span className="min-w-0">
-        <span className="block text-sm font-medium text-ivory group-hover:text-gold">Desktop layout</span>
-        <span className="block text-xs text-ivory-mute">
-          {settings.enabled ? "Custom grid is live · click to edit" : "Off — desktop shows the phone column. Design it →"}
-        </span>
-      </span>
     </button>
   );
 }
