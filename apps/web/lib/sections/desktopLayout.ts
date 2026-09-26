@@ -166,7 +166,7 @@ export function defaultTileSize(section: Section, rowHeight = DEFAULT_DESKTOP_SE
   const rows = (px: number) => Math.max(1, Math.ceil(px / Math.max(16, rowHeight)));
   switch (section.type) {
     // Rows grow to fit content on the live page, so these are minimums.
-    case "header": return { w: 12, h: rows(240) };
+    case "header": return { w: 12, h: rows(200) };
     case "link":
     case "phone":
     case "email":
@@ -396,6 +396,9 @@ function gridRules(cols: number, gc: string, gr: string, s: DesktopLayoutSetting
     `.vc-desktop-on .vc-cell{grid-column:var(${gc});grid-row:var(${gr});min-width:0;display:flex;flex-direction:column}`,
     `.vc-desktop-on .vc-cell-inner{flex:1 1 auto;display:flex;flex-direction:column;justify-content:var(--vc-cell-justify,flex-start);min-width:0}`,
     `.vc-desktop-on .vc-cell[data-sticky] .vc-cell-inner{position:sticky;top:24px;flex:0 0 auto}`,
+    // Designed surfaces fill their tile so neighbouring cards share a height.
+    `.vc-desktop-on .vc-cell-inner>:is(.vc-design:is([data-vc-surface],[data-vc-bg]),:has(>.vc-design:is([data-vc-surface],[data-vc-bg]))){flex:1 1 auto;display:flex;flex-direction:column}`,
+    `.vc-desktop-on .vc-cell-inner .vc-design:is([data-vc-surface],[data-vc-bg]){flex:1 1 auto;display:flex;flex-direction:column;justify-content:var(--vc-cell-justify,flex-start)}`,
     // Mobile edge-to-edge covers would spill into neighbouring tiles.
     `.vc-desktop-on .vc-cell [data-vc-top-bleed]{margin:0!important;padding-top:0!important}`,
     `.vc-desktop-on .vc-cell [data-vc-header-cover]{position:relative!important;width:100%!important;margin-left:0!important;margin-right:0!important;border-radius:var(--vc-radius,14px)!important}`,

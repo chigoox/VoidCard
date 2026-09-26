@@ -10,6 +10,11 @@ export const SECTION_TYPES = [
 ] as const;
 
 export const STORE_LAYOUTS = ["grid", "list"] as const;
+export const LINK_STYLES = ["pill", "card", "ghost", "gold", "glass", "outline", "underline", "neon"] as const;
+export type LinkStyle = (typeof LINK_STYLES)[number];
+export const AVATAR_SHAPES = ["circle", "rounded", "square"] as const;
+export const AVATAR_RINGS = ["accent", "gradient", "none"] as const;
+export const HEADER_LAYOUTS = ["center", "left"] as const;
 export const SOCIAL_DISPLAY_MODES = ["icon", "iconLabel", "label"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
@@ -23,6 +28,13 @@ export const SECTION_ANIMATIONS = [
   "zoom",
   "float",
   "shimmer",
+  // Premium entrances
+  "blur-in",
+  "rise",
+  "reveal",
+  "scale-in",
+  "flip-in",
+  "tilt-in",
 ] as const;
 export type SectionAnimation = (typeof SECTION_ANIMATIONS)[number];
 
@@ -84,12 +96,49 @@ const Layout = z
   .optional();
 export type SectionLayout = z.infer<typeof Layout>;
 
+// ─── Premium per-section design ───────────────────────────────────────────
+export const DESIGN_SURFACES = ["none", "card", "glass", "outline", "gradient", "foil", "spotlight"] as const;
+export const DESIGN_SHADOWS = ["none", "soft", "lift", "glow"] as const;
+export const DESIGN_HOVERS = ["none", "lift", "glow", "tilt", "shine", "press"] as const;
+export const DESIGN_AMBIENTS = ["none", "float", "breathe", "shimmer", "aurora", "border-flow"] as const;
+export const DESIGN_ALIGNS = ["start", "center", "end"] as const;
+export const DESIGN_SCALES = ["sm", "md", "lg", "xl"] as const;
+export const DESIGN_FONTS = ["inherit", "display", "sans", "mono"] as const;
+
+const HexColor = z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i);
+
+export const SectionDesign = z.object({
+  surface: z.enum(DESIGN_SURFACES).optional(),
+  shadow: z.enum(DESIGN_SHADOWS).optional(),
+  hover: z.enum(DESIGN_HOVERS).optional(),
+  ambient: z.enum(DESIGN_AMBIENTS).optional(),
+  align: z.enum(DESIGN_ALIGNS).optional(),
+  scale: z.enum(DESIGN_SCALES).optional(),
+  font: z.enum(DESIGN_FONTS).optional(),
+  // Colours are emitted into inline CSS custom properties, so strictly hex.
+  accent: HexColor.optional(),
+  text: HexColor.optional(),
+  bg: HexColor.optional(),
+  bg2: HexColor.optional(), // second stop: makes the background a gradient
+  gradientAngle: z.number().int().min(0).max(360).optional(),
+  border: HexColor.optional(),
+  borderWidth: z.number().int().min(0).max(8).optional(),
+  letterSpacing: z.number().int().min(-5).max(40).optional(), // hundredths of an em
+  uppercase: z.boolean().optional(),
+  speed: z.enum(["slow", "normal", "fast"]).optional(), // ambient + entrance tempo
+  radius: z.number().int().min(0).max(48).optional(),
+  padding: z.number().int().min(0).max(64).optional(),
+  preset: z.string().max(32).optional(),
+});
+export type SectionDesign = z.infer<typeof SectionDesign>;
+
 const Base = z.object({
   id: z.string().uuid(),
   type: z.enum(SECTION_TYPES),
   visible: z.boolean().default(true),
   display: Display,
   layout: Layout,
+  design: SectionDesign.optional(),
 });
 
 const Header = Base.extend({
@@ -106,6 +155,9 @@ const Header = Base.extend({
     showVerified: z.boolean().default(true),
     coverFullBleed: z.boolean().default(false),
     coverShadow: z.boolean().default(false),
+    avatarShape: z.enum(AVATAR_SHAPES).optional(),
+    avatarRing: z.enum(AVATAR_RINGS).optional(),
+    layout: z.enum(HEADER_LAYOUTS).optional(),
   }),
 });
 
@@ -117,7 +169,7 @@ const Link = Base.extend({
     icon: z.string().optional(),
     iconName: z.string().max(40).optional(),
     iconImageUrl: z.string().url().optional(),
-    style: z.enum(["pill", "card", "ghost"]).default("pill"),
+    style: z.enum(LINK_STYLES).default("pill"),
   }),
 });
 
@@ -224,6 +276,7 @@ const Stats = Base.extend({
   type: z.literal("stats"),
   props: z.object({
     title: z.string().max(80).optional(),
+    countUp: z.boolean().optional(),
     items: z.array(z.object({
       value: z.string().trim().min(1).max(24),
       label: z.string().max(60).default(""),

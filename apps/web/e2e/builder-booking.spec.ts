@@ -11,13 +11,13 @@ test.describe("builder — booking section", () => {
   test("can add a booking section, configure it, and save a draft", async ({ page }) => {
     await page.goto("/edit");
 
-    const rows = page.getByTestId("section-list").locator("> li");
+    const rows = page.locator('[data-testid^="canvas-section-"]');
     const before = await rows.count();
 
     await page.getByTestId("add-section-trigger").click();
     await page.getByTestId("add-booking").click();
 
-    const newRow = rows.nth(before);
+    const newRow = page.getByTestId("section-inspector");
     const slugInput = newRow.locator('[data-testid^="booking-slug-"]');
     await expect(slugInput).toBeVisible();
     await slugInput.fill("demo-handle");
@@ -26,7 +26,7 @@ test.describe("builder — booking section", () => {
     // Embed mode is default — height field should be present.
     await expect(newRow.locator('input[type="number"]').first()).toBeVisible();
 
-    await page.getByTestId("save-draft").click();
+    await page.locator('[data-testid="save-draft"]:visible').click();
     await expect(rows).toHaveCount(before + 1);
   });
 });

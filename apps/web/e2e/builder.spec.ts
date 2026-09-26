@@ -14,11 +14,11 @@ test.describe("builder", () => {
     await page.goto("/edit");
     await page.getByTestId("add-section-trigger").click();
     await page.getByTestId("add-link").click();
-    await expect(page.getByTestId("section-list").locator("> li")).toHaveCount(1);
+    await expect(page.locator('[data-testid^="canvas-section-"]')).toHaveCount(1);
 
-    await page.getByTestId("save-draft").click();
+    await page.locator('[data-testid="save-draft"]:visible').click();
 
-    await page.getByTestId("publish").click();
+    await page.locator('[data-testid="publish"]:visible').click();
     await page.getByTestId("publish-confirm-yes").click();
     await expect(page.getByText(/published/i)).toBeVisible({ timeout: 10_000 });
   });
@@ -38,23 +38,23 @@ test.describe("builder", () => {
     await page
       .getByTestId("bulk-links-textarea")
       .fill("My GitHub | https://github.com/example\nhttps://example.com");
-    const before = await page.getByTestId("section-list").locator("> li").count();
+    const before = await page.locator('[data-testid^="canvas-section-"]').count();
     await page.getByTestId("bulk-links-apply").click();
     await expect(page.getByTestId("bulk-links-modal")).toBeHidden();
     await expect
-      .poll(async () => page.getByTestId("section-list").locator("> li").count())
+      .poll(async () => page.locator('[data-testid^="canvas-section-"]').count())
       .toBe(before + 2);
   });
 
   test("gallery accepts multiple image URLs at once", async ({ page }) => {
     await page.goto("/edit");
-    const rows = page.getByTestId("section-list").locator("> li");
+    const rows = page.locator('[data-testid^="canvas-section-"]');
     const before = await rows.count();
 
     await page.getByTestId("add-section-trigger").click();
     await page.getByTestId("add-gallery").click();
 
-    const galleryRow = rows.nth(before);
+    const galleryRow = page.getByTestId("section-inspector");
     await expect(galleryRow.getByTestId("gallery-bulk-images")).toBeVisible();
     await galleryRow
       .getByTestId("gallery-image-url-list")
@@ -67,7 +67,7 @@ test.describe("builder", () => {
 
   test("publish requires confirmation", async ({ page }) => {
     await page.goto("/edit");
-    await page.getByTestId("publish").click();
+    await page.locator('[data-testid="publish"]:visible').click();
     await expect(page.getByTestId("publish-confirm")).toBeVisible();
     await page.getByRole("button", { name: /cancel/i }).first().click();
     await expect(page.getByTestId("publish-confirm")).toBeHidden();
