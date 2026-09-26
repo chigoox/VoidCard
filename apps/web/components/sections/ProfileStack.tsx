@@ -2,8 +2,12 @@ import type { CSSProperties, ReactNode } from "react";
 import type { Section } from "@/lib/sections/types";
 import {
   cellStyleVars,
+  hasTileStyle,
   layoutBottom,
   resolveDesktopLayout,
+  resolveTabletLayout,
+  tileStyleVars,
+  tileTextMode,
   visibilityClassName,
   type DesktopLayoutSettings,
 } from "@/lib/sections/desktopLayout";
@@ -27,6 +31,8 @@ export function ProfileStack({
 }) {
   const placements = settings.enabled ? resolveDesktopLayout(sections, settings.rowHeight) : null;
   const bottom = placements ? layoutBottom(placements.values()) : 0;
+  const tabletPlacements = settings.enabled ? resolveTabletLayout(sections, settings.rowHeight) : null;
+  const tabletBottom = tabletPlacements ? layoutBottom(tabletPlacements.values()) : 0;
 
   return (
     <div className={["vc-profile-stack", className].filter(Boolean).join(" ")}>
@@ -36,13 +42,25 @@ export function ProfileStack({
 
         const visibility = visibilityClassName(section);
         const placement = placements?.get(section.id);
-        if (!placement && !visibility) return <FragmentKey key={section.id}>{content}</FragmentKey>;
+        const tabletPlacement = tabletPlacements?.get(section.id);
+        const tile = section.layout?.tile;
+        const tiled = hasTileStyle(tile);
+        if (!placement && !visibility && !tiled) return <FragmentKey key={section.id}>{content}</FragmentKey>;
+
+        const style = {
+          ...(placement
+            ? cellStyleVars(placement, bottom, tabletPlacement ? { placement: tabletPlacement, bottom: tabletBottom } : undefined)
+            : {}),
+          ...tileStyleVars(tile),
+        } as CSSProperties;
 
         return (
           <div
             key={section.id}
             className={["vc-cell", visibility].filter(Boolean).join(" ")}
-            style={placement ? (cellStyleVars(placement, bottom) as CSSProperties) : undefined}
+            style={style}
+            data-tile={tiled ? "" : undefined}
+            data-tile-text={tileTextMode(tile)}
             data-sticky={placement?.sticky ? "" : undefined}
             data-section-id={section.id}
             data-section-type={section.type}
@@ -57,4 +75,15 @@ export function ProfileStack({
 
 function FragmentKey({ children }: { children: ReactNode }) {
   return <>{children}</>;
+}
+
+/** Applies a section's tile background outside the grid (editor previews). */
+export function TileWrap({ section, children }: { section: Section; children: ReactNode }) {
+  const tile = section.layout?.tile;
+  if (!hasTileStyle(tile)) return <>{children}</>;
+  return (
+    <div className="vc-cell" data-tile="" data-tile-text={tileTextMode(tile)} style={tileStyleVars(tile) as CSSProperties}>
+      <div className="vc-cell-inner">{children}</div>
+    </div>
+  );
 }

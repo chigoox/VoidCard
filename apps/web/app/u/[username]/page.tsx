@@ -11,6 +11,8 @@ import { PublicProfileTracker } from "@/components/profile/PublicProfileTracker"
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
 import { ProfileStack } from "@/components/sections/ProfileStack";
 import { desktopLayoutCss, readDesktopSettings } from "@/lib/sections/desktopLayout";
+import { ThemeSwitchButton } from "@/components/profile/ThemeSwitchButton";
+import { ALT_THEME_SELECTOR, isLightTheme, readThemeSwitch, themeSwitchBootScript } from "@/lib/editor/themeSwitch";
 import { Sections } from "@/lib/sections/types";
 import { buildMetadata, SITE_URL } from "@/lib/seo";
 import { jsonLdScript, person } from "@/lib/jsonld";
@@ -167,6 +169,10 @@ export default async function PublicProfilePage({
   const sections = parsed.success ? parsed.data : [];
   const { integrations } = readProfileIntegrations(profile.customCss ?? "");
   const { settings: desktopSettings } = readDesktopSettings(profile.customCss ?? "");
+  const primaryTheme = getThemePreset(themeId(variant?.theme ?? profile.theme));
+  const { settings: themeSwitch } = readThemeSwitch(profile.customCss ?? "", primaryTheme.id);
+  const altTheme = themeSwitch.enabled ? getThemePreset(themeSwitch.altThemeId) : null;
+  const nonce = altTheme ? (await headers()).get("x-nonce") ?? undefined : undefined;
   const actionAfterIndex = sections.findIndex((section) => section.visible !== false && section.type === "header");
   const headerSection = sections.find((section) => section.visible !== false && section.type === "header");
   const showSaveContact = headerSection?.type === "header" ? headerSection.props.showSaveContact ?? true : true;
@@ -198,8 +204,14 @@ export default async function PublicProfilePage({
     <main
       className={["vc-profile-shell home-theme min-h-screen", desktopSettings.enabled ? "vc-desktop-on" : ""].filter(Boolean).join(" ")}
       style={profileShellStyle}
+      // The theme-switch boot script may set data-vc-theme before hydration.
+      suppressHydrationWarning
     >
-      <style dangerouslySetInnerHTML={{ __html: themeToCss(getThemePreset(themeId(variant?.theme ?? profile.theme)), ".vc-profile-shell, .vc-profile") }} />
+      {altTheme ? (
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeSwitchBootScript(handle, themeSwitch, isLightTheme(altTheme)) }} />
+      ) : null}
+      <style dangerouslySetInnerHTML={{ __html: themeToCss(primaryTheme, ".vc-profile-shell, .vc-profile") }} />
+      {altTheme ? <style dangerouslySetInnerHTML={{ __html: themeToCss(altTheme, ALT_THEME_SELECTOR) }} /> : null}
       <style dangerouslySetInnerHTML={{ __html: desktopLayoutCss(desktopSettings) }} />
       <style dangerouslySetInnerHTML={{ __html: customFontCss(profile.customFontUrl) }} />
       {profile.customCss && (
@@ -210,6 +222,14 @@ export default async function PublicProfilePage({
         dangerouslySetInnerHTML={jsonLdScript(ld)}
       />
       <PublicMarketingPixels {...integrations} />
+      {altTheme ? (
+        <ThemeSwitchButton
+          handle={handle}
+          primaryIsLight={isLightTheme(primaryTheme)}
+          altIsLight={isLightTheme(altTheme)}
+          followSystem={themeSwitch.defaultMode === "system"}
+        />
+      ) : null}
       <PublicProfileTracker username={handle} variantId={variant?.id} />
       <link
         rel="alternate"

@@ -7,6 +7,8 @@ import {
   overlaps,
   readDesktopSettings,
   resolveDesktopLayout,
+  resolveTabletLayout,
+  tileStyleVars,
   writeDesktopSettings,
 } from "./desktopLayout";
 import { Sections, type Section } from "./types";
@@ -95,5 +97,42 @@ describe("layout engine", () => {
   it("clears placements", () => {
     const cleared = clearDesktopPlacements(applyDesktopPreset(sample(), "bento"));
     expect(cleared.every((s) => !s.layout?.desktop)).toBe(true);
+  });
+});
+
+describe("tablet layout", () => {
+  it("derives a 6-column layout from desktop without overlaps", () => {
+    const sections = applyDesktopPreset(sample(), "bento");
+    const tablet = resolveTabletLayout(sections);
+    expect(tablet.size).toBe(5);
+    for (const p of tablet.values()) expect(p.x + p.w).toBeLessThanOrEqual(6);
+    assertNoOverlaps(tablet);
+  });
+
+  it("uses stored tablet placements when present", () => {
+    const sections = sample().map((s) => (s.id === id(2) ? { ...s, layout: { tablet: { x: 0, y: 0, w: 6, h: 3 } } } : s)) as Section[];
+    expect(resolveTabletLayout(sections).get(id(2))).toMatchObject({ x: 0, y: 0, w: 6, h: 3 });
+  });
+
+  it("presets reset tablet overrides", () => {
+    const sections = sample().map((s) => ({ ...s, layout: { tablet: { x: 0, y: 0, w: 6, h: 3 } } })) as Section[];
+    expect(applyDesktopPreset(sections, "wide").every((s) => !s.layout?.tablet)).toBe(true);
+  });
+});
+
+describe("tile styles", () => {
+  it("emits CSS variables for valid styles", () => {
+    expect(tileStyleVars({ color: "#112233", image: "https://cdn.example.com/a.jpg", overlay: 40, padding: 12 })).toEqual({
+      "--vc-tile-bg": "#112233",
+      "--vc-tile-img": 'url("https://cdn.example.com/a.jpg")',
+      "--vc-tile-ov": "0.4",
+      "--vc-tile-pad": "12px",
+    });
+  });
+
+  it("rejects values that could break out of CSS", () => {
+    expect(tileStyleVars({ image: 'https://x.com/a.png") ; background:red' })).toEqual({});
+    expect(tileStyleVars({ color: "red;}" })).toEqual({});
+    expect(Sections.safeParse([{ id: id(1), type: "divider", props: {}, layout: { tile: { image: "javascript:alert(1)" } } }]).success).toBe(false);
   });
 });

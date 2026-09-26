@@ -20,6 +20,9 @@ export const SECTION_META: Record<SectionType, SectionMeta> = {
   youtube: { label: "YouTube", hint: "Embed a YouTube video", group: "Media" },
   spotify: { label: "Spotify", hint: "A track, album or playlist", group: "Media" },
   markdown: { label: "Text", hint: "Headings, paragraphs, lists", group: "Text & layout" },
+  feature: { label: "Feature card", hint: "Icon, title, description and a link", group: "Text & layout" },
+  stats: { label: "Stats", hint: "Big numbers that build trust", group: "Grow" },
+  testimonial: { label: "Testimonial", hint: "A quote from a happy client", group: "Grow" },
   divider: { label: "Divider", hint: "A thin line between sections", group: "Text & layout" },
   spacer: { label: "Spacer", hint: "Empty breathing room", group: "Text & layout" },
   form: { label: "Contact form", hint: "Collect leads and messages", group: "Grow" },
@@ -216,7 +219,7 @@ export function MobileCanvasEditor({
                   onClick={() => onChange(editingIndex, withLayout(editing, { hideOnMobile: !editing.layout?.hideOnMobile }))}
                 />
                 <DeviceToggle
-                  label="Desktop"
+                  label="Tablet & desktop"
                   icon={<Monitor className="size-4" />}
                   active={!editing.layout?.hideOnDesktop}
                   onClick={() => onChange(editingIndex, withLayout(editing, { hideOnDesktop: !editing.layout?.hideOnDesktop }))}

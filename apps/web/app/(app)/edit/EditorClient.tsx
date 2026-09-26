@@ -50,7 +50,10 @@ import { THEME_PRESETS, getThemePreset, themeToCss } from "@/lib/themes/presets"
 import { SECTION_TEMPLATES } from "@/lib/editor/templates";
 import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/editor/styleStudio";
 import { readProfileIntegrations, writeProfileIntegrations, type ProfileIntegrations } from "@/lib/profile-integrations";
-import { readDesktopSettings, resolveDesktopLayout, writeDesktopSettings, type DesktopLayoutSettings } from "@/lib/sections/desktopLayout";
+import { desktopLayoutCss, readDesktopSettings, resolveDesktopLayout, writeDesktopSettings, type DesktopLayoutSettings } from "@/lib/sections/desktopLayout";
+import { TileWrap } from "@/components/sections/ProfileStack";
+import { TileStyleFields } from "./TileStyleFields";
+import { isLightTheme, readThemeSwitch, writeThemeSwitch, type ThemeSwitchSettings } from "@/lib/editor/themeSwitch";
 import type { DesktopStudioChange } from "./DesktopLayoutStudio";
 import { MobileCanvasEditor } from "./MobileCanvasEditor";
 
@@ -939,6 +942,12 @@ function sectionSummary(section: SectionRecord): string {
       return `${section.props.productIds.length} product${section.props.productIds.length === 1 ? "" : "s"}`;
     case "booking":
       return section.props.ownerSlug ? `boox/${section.props.ownerSlug}` : "Boox booking";
+    case "stats":
+      return section.props.items.map((item) => item.value).join(" · ");
+    case "testimonial":
+      return section.props.author || section.props.quote.slice(0, 60);
+    case "feature":
+      return section.props.title;
   }
 }
 
@@ -1469,6 +1478,89 @@ function SectionEditorFields({
     }
     case "divider": {
       return <p className="text-sm text-ivory-mute">Divider sections have no editable fields.</p>;
+    }
+    case "stats": {
+      const p = section.props;
+      const setItems = (items: typeof p.items) => onChange({ ...section, props: { ...p, items } });
+      return (
+        <div className="space-y-3">
+          <Field label="Title (optional)">
+            <input className={INPUT_CLASS_NAME} value={p.title ?? ""} placeholder="By the numbers" onChange={(event) => onChange({ ...section, props: { ...p, title: event.target.value || undefined } })} />
+          </Field>
+          {p.items.map((item, index) => (
+            <div key={index} className="grid grid-cols-[6rem_1fr_auto] items-end gap-2">
+              <Field label="Number">
+                <input className={INPUT_CLASS_NAME} value={item.value} maxLength={24} onChange={(event) => setItems(p.items.map((it, i) => (i === index ? { ...it, value: event.target.value } : it)))} />
+              </Field>
+              <Field label="Label">
+                <input className={INPUT_CLASS_NAME} value={item.label} maxLength={60} onChange={(event) => setItems(p.items.map((it, i) => (i === index ? { ...it, label: event.target.value } : it)))} />
+              </Field>
+              <button type="button" className="btn-ghost mb-0.5 px-3 py-2 text-xs" disabled={p.items.length <= 1} onClick={() => setItems(p.items.filter((_, i) => i !== index))} aria-label="Remove stat">
+                <Trash2 className="size-3.5" aria-hidden />
+              </button>
+            </div>
+          ))}
+          <button type="button" className="btn-ghost px-3 py-2 text-xs" disabled={p.items.length >= 6} onClick={() => setItems([...p.items, { value: "0", label: "New stat" }])}>
+            <Plus className="mr-1 inline size-3.5" aria-hidden /> Add stat
+          </button>
+        </div>
+      );
+    }
+    case "testimonial": {
+      const p = section.props;
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Quote" className="md:col-span-2">
+            <textarea className={TEXTAREA_CLASS_NAME} value={p.quote} maxLength={600} onChange={(event) => onChange({ ...section, props: { ...p, quote: event.target.value } })} />
+          </Field>
+          <Field label="Name">
+            <input className={INPUT_CLASS_NAME} value={p.author} maxLength={80} onChange={(event) => onChange({ ...section, props: { ...p, author: event.target.value } })} />
+          </Field>
+          <Field label="Role or company">
+            <input className={INPUT_CLASS_NAME} value={p.role ?? ""} maxLength={80} onChange={(event) => onChange({ ...section, props: { ...p, role: event.target.value || undefined } })} />
+          </Field>
+          <Field label="Rating">
+            <select className={INPUT_CLASS_NAME} value={String(p.rating ?? 0)} onChange={(event) => onChange({ ...section, props: { ...p, rating: Number(event.target.value) || undefined } })}>
+              <option value="0">No stars</option>
+              {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{"★".repeat(n)}</option>)}
+            </select>
+          </Field>
+          <MediaField
+            label="Photo (optional)"
+            value={p.avatarUrl ?? ""}
+            accept="image/*"
+            kind="image"
+            recentMedia={recentMedia}
+            onChange={(value) => onChange({ ...section, props: { ...p, avatarUrl: value || undefined } })}
+            onMediaAdded={onMediaAdded}
+          />
+        </div>
+      );
+    }
+    case "feature": {
+      const p = section.props;
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Icon">
+            <select className={INPUT_CLASS_NAME} value={p.icon ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, icon: event.target.value || undefined } })}>
+              <option value="">No icon</option>
+              {LINK_ICON_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Title">
+            <input className={INPUT_CLASS_NAME} value={p.title} maxLength={80} onChange={(event) => onChange({ ...section, props: { ...p, title: event.target.value } })} />
+          </Field>
+          <Field label="Description" className="md:col-span-2">
+            <textarea className={TEXTAREA_CLASS_NAME} value={p.body} maxLength={400} onChange={(event) => onChange({ ...section, props: { ...p, body: event.target.value } })} />
+          </Field>
+          <Field label="Button text (optional)">
+            <input className={INPUT_CLASS_NAME} value={p.ctaLabel ?? ""} maxLength={40} placeholder="Learn more" onChange={(event) => onChange({ ...section, props: { ...p, ctaLabel: event.target.value || undefined } })} />
+          </Field>
+          <Field label="Button link (optional)">
+            <input className={INPUT_CLASS_NAME} type="url" value={p.ctaUrl ?? ""} placeholder="https://" onChange={(event) => onChange({ ...section, props: { ...p, ctaUrl: event.target.value || undefined } })} />
+          </Field>
+        </div>
+      );
     }
     case "spacer": {
       const p = section.props;
@@ -2034,7 +2126,9 @@ export default function EditorClient({
   const currentSnapshot = JSON.stringify({ sections, themeId, customCss });
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => JSON.stringify({ sections: initial, themeId: initialThemeId, customCss: initialCustomCss }));
   const isDirty = currentSnapshot !== lastSavedSnapshot;
-  const previewTheme = getThemePreset(themeId);
+  const { settings: themeSwitch } = readThemeSwitch(customCss, themeId);
+  const [previewAltTheme, setPreviewAltTheme] = useState(false);
+  const previewTheme = getThemePreset(previewAltTheme && themeSwitch.enabled ? themeSwitch.altThemeId : themeId);
   const previewCustomCss = sanitizeCss(customCss);
   const firstVisibleSection = sections.find(sectionIsVisible);
   const firstVisibleSectionId = firstVisibleSection?.id;
@@ -2060,6 +2154,13 @@ export default function EditorClient({
     if (change.settings) {
       setCustomCssState((css) => writeDesktopSettings(change.settings as DesktopLayoutSettings, readDesktopSettings(css).rest));
     }
+    markDirty();
+  }
+
+  function setThemeSwitch(next: ThemeSwitchSettings) {
+    pushHistory();
+    setCustomCssState((css) => writeThemeSwitch(next, readThemeSwitch(css, themeId).rest, themeId));
+    if (!next.enabled) setPreviewAltTheme(false);
     markDirty();
   }
 
@@ -2222,6 +2323,9 @@ export default function EditorClient({
       case "divider": nextSection = { ...base, type, props: {} }; break;
       case "spacer": nextSection = { ...base, type, props: { height: 24 } }; break;
       case "markdown": nextSection = { ...base, type, props: { md: "Hello, world." } }; break;
+      case "stats": nextSection = { ...base, type, props: { items: [{ value: "10+", label: "Years experience" }, { value: "250", label: "Happy clients" }, { value: "4.9★", label: "Average rating" }] } }; break;
+      case "testimonial": nextSection = { ...base, type, props: { quote: "Working together was effortless — the results spoke for themselves.", author: "Happy client", role: "Founder", rating: 5 } }; break;
+      case "feature": nextSection = { ...base, type, props: { icon: "globe", title: "What I do", body: "Describe a service, product or strength in a sentence or two." } }; break;
       case "form": nextSection = { ...base, type, props: { title: "Get in touch", fields: [{ name: "email", label: "Email", type: "email", required: true }], successMessage: "Thanks!", proLeadMode: false, requireConsent: false, requireCaptcha: false } }; break;
       case "video": nextSection = { ...base, type, props: { src: "https://example.com/video.mp4" } }; break;
       case "map": nextSection = { ...base, type, props: { lat: 40.7128, lng: -74.006, label: "NYC" } }; break;
@@ -2666,6 +2770,8 @@ export default function EditorClient({
           </div>
         ) : null}
         <style dangerouslySetInnerHTML={{ __html: themeToCss(previewTheme, ".vc-profile-preview") }} />
+        {/* Base tile/visibility rules only — the phone preview never uses the grid. */}
+        <style dangerouslySetInnerHTML={{ __html: desktopLayoutCss({ ...desktopSettings, enabled: false }) }} />
         {previewCustomCss ? <style dangerouslySetInnerHTML={{ __html: previewCustomCss }} /> : null}
         <DesktopLayoutCard
           sections={sections}
@@ -2683,12 +2789,13 @@ export default function EditorClient({
           >
             <div className="vc-profile-stack">
               {sections.filter((section) => !section.layout?.hideOnMobile).map((section) => (
-                <PreviewSection
-                  key={section.id}
-                  section={section}
-                  isTop={section.id === firstVisibleSectionId}
-                  topBleedOffset={previewStartsWithTopBleed ? "none" : "page"}
-                />
+                <TileWrap key={section.id} section={section}>
+                  <PreviewSection
+                    section={section}
+                    isTop={section.id === firstVisibleSectionId}
+                    topBleedOffset={previewStartsWithTopBleed ? "none" : "page"}
+                  />
+                </TileWrap>
               ))}
             </div>
           </div>
@@ -3149,6 +3256,68 @@ export default function EditorClient({
 
         </section>
 
+        <section className="card space-y-3 p-4" data-testid="theme-switch-panel">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-ivory-mute">Visitor theme switch</p>
+              <p className="mt-1 text-sm text-ivory-dim">Add a light/dark button to your page so visitors can pick the look they prefer.</p>
+            </div>
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={themeSwitch.enabled}
+                onChange={(event) => setThemeSwitch({ ...themeSwitch, enabled: event.target.checked })}
+                className="size-4 accent-[var(--vc-accent,#d4a853)]"
+                data-testid="theme-switch-enabled"
+              />
+              {themeSwitch.enabled ? "On" : "Off"}
+            </label>
+          </div>
+          {themeSwitch.enabled ? (
+            <div className="space-y-3">
+              <Field label={`Second theme (${isLightTheme(getThemePreset(themeId)) ? "dark" : "light"} suggested)`}>
+                <select
+                  className={INPUT_CLASS_NAME}
+                  value={themeSwitch.altThemeId}
+                  onChange={(event) => setThemeSwitch({ ...themeSwitch, altThemeId: event.target.value })}
+                >
+                  {THEME_PRESETS.filter((theme) => theme.id !== themeId).map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name} · {isLightTheme(theme) ? "light" : "dark"}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="First-time visitors see">
+                <select
+                  className={INPUT_CLASS_NAME}
+                  value={themeSwitch.defaultMode}
+                  onChange={(event) => setThemeSwitch({ ...themeSwitch, defaultMode: event.target.value === "system" ? "system" : "owner" })}
+                >
+                  <option value="owner">My main theme</option>
+                  <option value="system">Whatever their device prefers (light or dark)</option>
+                </select>
+              </Field>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-ivory-mute">Preview:</span>
+                {([false, true] as const).map((alt) => (
+                  <button
+                    key={String(alt)}
+                    type="button"
+                    onClick={() => setPreviewAltTheme(alt)}
+                    className={[
+                      "rounded-pill border px-3 py-1.5 transition",
+                      previewAltTheme === alt ? "border-gold/70 bg-gold/15 text-gold" : "border-onyx-700 text-ivory-dim",
+                    ].join(" ")}
+                  >
+                    {alt ? "Second theme" : "Main theme"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+
         <StyleStudioPanel studio={studio} onChange={setStudio} themeId={themeId} />
 
         </div> : null}
@@ -3214,10 +3383,24 @@ export default function EditorClient({
               sections={sections}
               validationById={validationById}
               renderPreview={(section) => (
-                <PreviewSection section={section} isTop={section.id === firstVisibleSectionId} topBleedOffset="none" />
+                <TileWrap section={section}>
+                  <PreviewSection section={section} isTop={section.id === firstVisibleSectionId} topBleedOffset="none" />
+                </TileWrap>
               )}
               renderFields={(section, onChange) => (
-                <SectionEditorFields section={section} recentMedia={mediaLibrary} onChange={onChange} onMediaAdded={addMediaToLibrary} />
+                <>
+                  <SectionEditorFields section={section} recentMedia={mediaLibrary} onChange={onChange} onMediaAdded={addMediaToLibrary} />
+                  <details className="rounded-card border border-onyx-800 px-3 py-2">
+                    <summary className="cursor-pointer select-none py-1 text-sm text-ivory-dim">Tile background</summary>
+                    <div className="pt-3">
+                      <TileStyleFields
+                        section={section}
+                        onChange={onChange}
+                        mediaUrls={mediaLibrary.filter((item) => item.kind === "image").map((item) => item.url)}
+                      />
+                    </div>
+                  </details>
+                </>
               )}
               onChange={updateSection}
               onMove={move}
@@ -3484,6 +3667,7 @@ export default function EditorClient({
           canUndo={past.length > 0}
           canRedo={future.length > 0}
           publicUrl={username ? `/u/${username}` : undefined}
+          mediaUrls={mediaLibrary.filter((item) => item.kind === "image").map((item) => item.url)}
         />
       ) : null}
     </div>

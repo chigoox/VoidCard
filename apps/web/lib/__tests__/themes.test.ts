@@ -3,8 +3,8 @@ import { THEME_PRESETS, getThemePreset, themeToCss } from "../themes/presets";
 import { publicAssetUrl } from "../cdn";
 
 describe("theme presets", () => {
-  it("ships exactly 12 presets", () => {
-    expect(THEME_PRESETS).toHaveLength(12);
+  it("ships exactly 23 presets", () => {
+    expect(THEME_PRESETS).toHaveLength(23);
   });
 
   it("each preset declares the required CSS variables", () => {

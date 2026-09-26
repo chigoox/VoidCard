@@ -1,10 +1,12 @@
 import { z } from "zod";
 
-// 21 section types: 17 per BUILD_PLAN.md §11 + direct contact sections + 'store' (Stripe Connect storefront) + 'booking' (Boox).
+// 24 section types: 17 per BUILD_PLAN.md §11 + direct contact sections + 'store' (Stripe Connect storefront) + 'booking' (Boox)
+// + landing-page blocks: 'stats', 'testimonial', 'feature'.
 export const SECTION_TYPES = [
   "header", "link", "phone", "email", "image", "video", "spotify", "youtube",
   "map", "embed", "form", "gallery", "markdown", "divider",
   "spacer", "social", "qr", "tip", "schedule", "store", "booking",
+  "stats", "testimonial", "feature",
 ] as const;
 
 export const STORE_LAYOUTS = ["grid", "list"] as const;
@@ -54,9 +56,28 @@ export const DesktopPlacement = z.object({
 });
 export type DesktopPlacement = z.infer<typeof DesktopPlacement>;
 
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+// Tile images are interpolated into an inline CSS url(), so only plain https
+// URLs without quotes, parens, backslashes or whitespace are accepted.
+const SAFE_CSS_URL = /^https:\/\/[^\s"'()\\<>]+$/;
+
+export const TILE_TEXT_MODES = ["auto", "light", "dark"] as const;
+export const TileStyle = z.object({
+  color: z.string().regex(HEX_COLOR).optional(),
+  image: z.string().max(2048).regex(SAFE_CSS_URL).optional(),
+  overlay: z.number().int().min(0).max(90).optional(), // % black over the image
+  padding: z.number().int().min(0).max(64).optional(),
+  radius: z.number().int().min(0).max(48).optional(),
+  text: z.enum(TILE_TEXT_MODES).optional(),
+});
+export type TileStyle = z.infer<typeof TileStyle>;
+
 const Layout = z
   .object({
     desktop: DesktopPlacement.optional(),
+    tablet: DesktopPlacement.optional(),
+    tile: TileStyle.optional(),
+    // hideOnDesktop applies to tablets and desktops (>=768px); hideOnMobile to phones.
     hideOnDesktop: z.boolean().optional(),
     hideOnMobile: z.boolean().optional(),
   })
@@ -199,8 +220,42 @@ const Booking = Base.extend({
   }),
 });
 
+const Stats = Base.extend({
+  type: z.literal("stats"),
+  props: z.object({
+    title: z.string().max(80).optional(),
+    items: z.array(z.object({
+      value: z.string().trim().min(1).max(24),
+      label: z.string().max(60).default(""),
+    })).min(1).max(6),
+  }),
+});
+
+const Testimonial = Base.extend({
+  type: z.literal("testimonial"),
+  props: z.object({
+    quote: z.string().trim().min(1).max(600),
+    author: z.string().max(80).default(""),
+    role: z.string().max(80).optional(),
+    avatarUrl: z.string().url().optional(),
+    rating: z.number().int().min(0).max(5).optional(),
+  }),
+});
+
+const Feature = Base.extend({
+  type: z.literal("feature"),
+  props: z.object({
+    icon: z.string().max(40).optional(), // LinkIcon glyph name or a short emoji
+    title: z.string().trim().min(1).max(80),
+    body: z.string().max(400).default(""),
+    ctaLabel: z.string().max(40).optional(),
+    ctaUrl: z.string().url().optional(),
+  }),
+});
+
 export const Section = z.discriminatedUnion("type", [
   Header, Link, Phone, Email, Image, Video, Spotify, YouTube, MapS, Embed, Form, Gallery, Markdown, Divider, Spacer, Social, QR, Tip, Schedule, Store, Booking,
+  Stats, Testimonial, Feature,
 ]);
 export type Section = z.infer<typeof Section>;
 export const Sections = z.array(Section);

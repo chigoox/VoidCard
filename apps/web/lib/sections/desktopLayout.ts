@@ -8,12 +8,18 @@
 import {
   DESKTOP_GRID_COLUMNS,
   DESKTOP_MAX_ROWS,
+  TileStyle as TileStyleSchema,
   type DesktopCellAlign,
   type DesktopPlacement,
   type Section,
+  type TileStyle,
 } from "./types";
 
 export const COLS = DESKTOP_GRID_COLUMNS;
+export const TABLET_COLS = 6;
+export const TABLET_BREAKPOINT_PX = 768;
+export type LayoutDevice = "desktop" | "tablet";
+export const DEVICE_COLS: Record<LayoutDevice, number> = { desktop: COLS, tablet: TABLET_COLS };
 
 export const DESKTOP_TILE_STYLES = ["none", "card", "glass"] as const;
 export type DesktopTileStyle = (typeof DESKTOP_TILE_STYLES)[number];
@@ -91,9 +97,9 @@ export function writeDesktopSettings(settings: DesktopLayoutSettings, rest: stri
 export type Rect = { x: number; y: number; w: number; h: number };
 export type LayoutItem = Rect & { id: string };
 
-export function clampRect(rect: Rect): Rect {
-  const w = Math.min(COLS, Math.max(1, Math.round(rect.w)));
-  const x = Math.min(COLS - w, Math.max(0, Math.round(rect.x)));
+export function clampRect(rect: Rect, cols: number = COLS): Rect {
+  const w = Math.min(cols, Math.max(1, Math.round(rect.w)));
+  const x = Math.min(cols - w, Math.max(0, Math.round(rect.x)));
   const h = Math.min(60, Math.max(1, Math.round(rect.h)));
   const y = Math.min(DESKTOP_MAX_ROWS, Math.max(0, Math.round(rect.y)));
   return { x, y, w, h };
@@ -107,12 +113,18 @@ export function overlaps(a: Rect, b: Rect) {
  * Resolve collisions and float items upward (vertical compaction), keeping the
  * optionally pinned item exactly where the user dropped it.
  */
-export function compactLayout(items: LayoutItem[], pinnedId?: string | null): LayoutItem[] {
-  const pinned = pinnedId ? items.find((item) => item.id === pinnedId) : undefined;
-  const placed: LayoutItem[] = pinned ? [{ ...pinned, ...clampRect(pinned) }] : [];
+export function compactLayout(items: LayoutItem[], pinned?: string | string[] | null, cols: number = COLS): LayoutItem[] {
+  const pinnedIds = new Set(pinned == null ? [] : Array.isArray(pinned) ? pinned : [pinned]);
+  const placed: LayoutItem[] = [];
+  // Pinned items keep their spot; later pinned items only move if two pins collide.
+  for (const item of items.filter((candidate) => pinnedIds.has(candidate.id))) {
+    const next = { ...item, ...clampRect(item, cols) };
+    while (placed.some((other) => overlaps(next, other))) next.y += 1;
+    placed.push(next);
+  }
   const rest = items
-    .filter((item) => item.id !== pinned?.id)
-    .map((item) => ({ ...item, ...clampRect(item) }))
+    .filter((item) => !pinnedIds.has(item.id))
+    .map((item) => ({ ...item, ...clampRect(item, cols) }))
     .sort((a, b) => a.y - b.y || a.x - b.x);
 
   for (const item of rest) {
@@ -153,7 +165,8 @@ export function findFreeSpot(items: Rect[], w: number, h: number, region: { x: n
 export function defaultTileSize(section: Section, rowHeight = DEFAULT_DESKTOP_SETTINGS.rowHeight): { w: number; h: number } {
   const rows = (px: number) => Math.max(1, Math.ceil(px / Math.max(16, rowHeight)));
   switch (section.type) {
-    case "header": return { w: 12, h: rows(360) };
+    // Rows grow to fit content on the live page, so these are minimums.
+    case "header": return { w: 12, h: rows(240) };
     case "link":
     case "phone":
     case "email":
@@ -167,13 +180,16 @@ export function defaultTileSize(section: Section, rowHeight = DEFAULT_DESKTOP_SE
     case "embed": return { w: 6, h: rows(Math.min(section.props.height ?? 320, 900)) };
     case "form": return { w: 6, h: rows(420) };
     case "gallery": return { w: 12, h: rows(360) };
-    case "markdown": return { w: 6, h: rows(200) };
+    case "markdown": return { w: 6, h: rows(120) };
     case "divider": return { w: 12, h: 1 };
     case "spacer": return { w: 12, h: rows(section.props.height ?? 24) };
     case "qr": return { w: 3, h: rows(260) };
     case "tip": return { w: 6, h: rows(200) };
     case "store": return { w: 12, h: rows(420) };
     case "booking": return { w: 12, h: rows(Math.min(section.props.height ?? 820, 1200)) };
+    case "stats": return { w: 6, h: rows(110) };
+    case "testimonial": return { w: 4, h: rows(180) };
+    case "feature": return { w: 4, h: rows(160) };
     default: return { w: 6, h: rows(120) };
   }
 }
@@ -221,6 +237,49 @@ export function resolveDesktopLayout(sections: Section[], rowHeight = DEFAULT_DE
   return out;
 }
 
+/**
+ * Tablet placements (6 columns). Stored `layout.tablet` wins; otherwise the
+ * desktop placement is scaled down, so tablets get a sensible layout for free.
+ */
+export function resolveTabletLayout(sections: Section[], rowHeight = DEFAULT_DESKTOP_SETTINGS.rowHeight): Map<string, DesktopPlacement> {
+  const desktop = resolveDesktopLayout(sections, rowHeight);
+  const ratio = TABLET_COLS / COLS;
+  const items: LayoutItem[] = [];
+  const meta = new Map<string, Pick<DesktopPlacement, "align" | "sticky">>();
+  for (const section of sections) {
+    const base = desktop.get(section.id);
+    if (!base) continue;
+    const stored = section.layout?.tablet;
+    if (stored) {
+      items.push({ id: section.id, ...clampRect(stored, TABLET_COLS) });
+      meta.set(section.id, { align: stored.align, sticky: stored.sticky });
+      continue;
+    }
+    // Scale columns; tiles narrower than half the tablet go full width so
+    // three-up desktop rows don't become cramped slivers.
+    let w = Math.max(1, Math.round(base.w * ratio));
+    let x = Math.round(base.x * ratio);
+    if (w < TABLET_COLS / 2) { w = TABLET_COLS / 2; x = x >= TABLET_COLS / 2 ? TABLET_COLS / 2 : 0; }
+    items.push({ id: section.id, ...clampRect({ x, y: base.y, w, h: base.h }, TABLET_COLS) });
+    meta.set(section.id, { align: base.align, sticky: base.sticky });
+  }
+  const stored = sections.filter((section) => section.layout?.tablet && desktop.has(section.id)).map((section) => section.id);
+  const out = new Map<string, DesktopPlacement>();
+  for (const item of compactLayout(items, stored, TABLET_COLS)) {
+    const m = meta.get(item.id);
+    out.set(item.id, {
+      x: item.x, y: item.y, w: item.w, h: item.h,
+      ...(m?.align ? { align: m.align } : {}),
+      ...(m?.sticky ? { sticky: true } : {}),
+    });
+  }
+  return out;
+}
+
+export function resolveLayout(sections: Section[], device: LayoutDevice, rowHeight = DEFAULT_DESKTOP_SETTINGS.rowHeight) {
+  return device === "tablet" ? resolveTabletLayout(sections, rowHeight) : resolveDesktopLayout(sections, rowHeight);
+}
+
 export function layoutBottom(placements: Iterable<DesktopPlacement>) {
   let bottom = 0;
   for (const p of placements) bottom = Math.max(bottom, p.y + p.h);
@@ -228,11 +287,11 @@ export function layoutBottom(placements: Iterable<DesktopPlacement>) {
 }
 
 /** Write resolved placements back onto sections. */
-export function applyPlacements(sections: Section[], placements: Map<string, DesktopPlacement>): Section[] {
+export function applyPlacements(sections: Section[], placements: Map<string, DesktopPlacement>, device: LayoutDevice = "desktop"): Section[] {
   return sections.map((section) => {
     const placement = placements.get(section.id);
     if (!placement) return section;
-    return { ...section, layout: { ...section.layout, desktop: placement } } as Section;
+    return { ...section, layout: { ...section.layout, [device]: placement } } as Section;
   });
 }
 
@@ -307,14 +366,16 @@ export function applyDesktopPreset(sections: Section[], preset: DesktopPresetId,
   for (const item of compacted) {
     placements.set(item.id, { x: item.x, y: item.y, w: item.w, h: item.h, ...(extra.get(item.id) ?? {}) });
   }
-  return applyPlacements(sections, placements);
+  // Tablet re-derives from the new desktop arrangement.
+  return clearDesktopPlacements(applyPlacements(sections, placements), "tablet");
 }
 
-export function clearDesktopPlacements(sections: Section[]): Section[] {
+export function clearDesktopPlacements(sections: Section[], device: LayoutDevice | "all" = "all"): Section[] {
   return sections.map((section) => {
-    if (!section.layout?.desktop) return section;
-    const { desktop: _removed, ...layout } = section.layout;
-    void _removed;
+    if (!section.layout) return section;
+    const layout = { ...section.layout };
+    if (device === "all" || device === "desktop") delete layout.desktop;
+    if (device === "all" || device === "tablet") delete layout.tablet;
     return { ...section, layout } as Section;
   });
 }
@@ -323,7 +384,27 @@ export function clearDesktopPlacements(sections: Section[]): Section[] {
 
 export const DESKTOP_BREAKPOINT_PX = 1024;
 
-/** CSS for the public page / editor preview. Scoped to `.vc-desktop-on`. */
+function gridRules(cols: number, gc: string, gr: string, s: DesktopLayoutSettings, tile: string, maxWidth: string) {
+  // `.vc-desktop-on .vc-profile .vc-profile-stack` outranks Style Studio's
+  // `.vc-profile .vc-profile-stack > * + *` margin rule, which is emitted later.
+  const stack = ".vc-desktop-on .vc-profile-stack,.vc-desktop-on .vc-profile .vc-profile-stack";
+  return [
+    `.vc-desktop-on .vc-profile,.vc-desktop-on.vc-profile{max-width:${maxWidth}!important}`,
+    `${stack}{display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:minmax(${s.rowHeight}px,auto);gap:${s.gap}px;align-items:stretch}`,
+    `.vc-desktop-on .vc-profile-stack>*+*,.vc-desktop-on .vc-profile .vc-profile-stack>*+*{margin-top:0!important}`,
+    `.vc-desktop-on .vc-profile-stack>:not(.vc-cell){grid-column:1/-1}`,
+    `.vc-desktop-on .vc-cell{grid-column:var(${gc});grid-row:var(${gr});min-width:0;display:flex;flex-direction:column}`,
+    `.vc-desktop-on .vc-cell-inner{flex:1 1 auto;display:flex;flex-direction:column;justify-content:var(--vc-cell-justify,flex-start);min-width:0}`,
+    `.vc-desktop-on .vc-cell[data-sticky] .vc-cell-inner{position:sticky;top:24px;flex:0 0 auto}`,
+    // Mobile edge-to-edge covers would spill into neighbouring tiles.
+    `.vc-desktop-on .vc-cell [data-vc-top-bleed]{margin:0!important;padding-top:0!important}`,
+    `.vc-desktop-on .vc-cell [data-vc-header-cover]{position:relative!important;width:100%!important;margin-left:0!important;margin-right:0!important;border-radius:var(--vc-radius,14px)!important}`,
+    tile,
+    tile ? `.vc-desktop-on .vc-cell:is([data-section-type=divider],[data-section-type=spacer]):not([data-tile]) .vc-cell-inner{background:none;border:0;box-shadow:none;padding:0;backdrop-filter:none}` : "",
+  ].join("");
+}
+
+/** CSS for the public page / editor preview. Grid rules are scoped to `.vc-desktop-on`. */
 export function desktopLayoutCss(settings: DesktopLayoutSettings): string {
   const s = normalizeDesktopSettings(settings);
   const tile =
@@ -334,26 +415,23 @@ export function desktopLayoutCss(settings: DesktopLayoutSettings): string {
         : "";
   return [
     `.vc-cell-inner>*+*{margin-top:var(--vc-gap,.75rem)}`,
-    `@media (max-width:${DESKTOP_BREAKPOINT_PX - 1}px){.vc-hide-mobile{display:none!important}}`,
-    `@media (min-width:${DESKTOP_BREAKPOINT_PX}px){`,
-    `.vc-hide-desktop{display:none!important}`,
+    // Per-tile backgrounds apply at every size (phones included).
+    `.vc-cell[data-tile]>.vc-cell-inner{background:linear-gradient(rgba(0,0,0,var(--vc-tile-ov,0)),rgba(0,0,0,var(--vc-tile-ov,0))),var(--vc-tile-img,none) center/cover no-repeat,var(--vc-tile-bg,transparent)!important;border-radius:var(--vc-tile-radius,calc(var(--vc-radius,14px) + 6px))!important;padding:var(--vc-tile-pad,20px)!important;overflow:hidden}`,
+    // --vc-tile-accent keeps accent-coloured details (stats, stars, icons) readable on custom backgrounds.
+    `.vc-cell[data-tile-text=light]>.vc-cell-inner{--vc-fg:#ffffff;--vc-fg-mute:rgba(255,255,255,.78);--vc-tile-accent:#ffffff;color:#fff}`,
+    `.vc-cell[data-tile-text=dark]>.vc-cell-inner{--vc-fg:#0a0a0a;--vc-fg-mute:rgba(10,10,10,.68);--vc-tile-accent:#0a0a0a;color:#0a0a0a}`,
+    `@media (max-width:${TABLET_BREAKPOINT_PX - 1}px){.vc-hide-mobile{display:none!important}}`,
+    `@media (min-width:${TABLET_BREAKPOINT_PX}px){.vc-hide-desktop{display:none!important}}`,
     s.enabled
       ? [
-          `.vc-desktop-on .vc-profile,.vc-desktop-on.vc-profile{max-width:min(100%,${s.maxWidth}px)!important}`,
-          `.vc-desktop-on .vc-profile-stack{display:grid;grid-template-columns:repeat(${COLS},minmax(0,1fr));grid-auto-rows:minmax(${s.rowHeight}px,auto);gap:${s.gap}px;align-items:stretch}`,
-          `.vc-desktop-on .vc-profile-stack>*+*{margin-top:0}`,
-          `.vc-desktop-on .vc-profile-stack>:not(.vc-cell){grid-column:1/-1}`,
-          `.vc-desktop-on .vc-cell{grid-column:var(--vc-gc);grid-row:var(--vc-gr);min-width:0;display:flex;flex-direction:column}`,
-          `.vc-desktop-on .vc-cell-inner{flex:1 1 auto;display:flex;flex-direction:column;justify-content:var(--vc-cell-justify,flex-start);min-width:0}`,
-          `.vc-desktop-on .vc-cell[data-sticky] .vc-cell-inner{position:sticky;top:24px;flex:0 0 auto}`,
-          // Mobile edge-to-edge covers would spill into neighbouring tiles.
-          `.vc-desktop-on .vc-cell [data-vc-top-bleed]{margin:0!important;padding-top:0!important}`,
-          `.vc-desktop-on .vc-cell [data-vc-header-cover]{position:relative!important;width:100%!important;margin-left:0!important;margin-right:0!important;border-radius:var(--vc-radius,14px)!important}`,
-          tile,
-          tile ? `.vc-desktop-on .vc-cell:is([data-section-type=divider],[data-section-type=spacer]) .vc-cell-inner{background:none;border:0;box-shadow:none;padding:0;backdrop-filter:none}` : "",
+          `@media (min-width:${TABLET_BREAKPOINT_PX}px) and (max-width:${DESKTOP_BREAKPOINT_PX - 1}px){`,
+          gridRules(TABLET_COLS, "--vc-gc-t", "--vc-gr-t", s, tile, "100%"),
+          `}`,
+          `@media (min-width:${DESKTOP_BREAKPOINT_PX}px){`,
+          gridRules(COLS, "--vc-gc", "--vc-gr", s, tile, `min(100%,${s.maxWidth}px)`),
+          `}`,
         ].join("")
       : "",
-    `}`,
   ].join("");
 }
 
@@ -364,13 +442,57 @@ const JUSTIFY: Record<DesktopCellAlign, string> = {
   stretch: "stretch",
 };
 
-export function cellStyleVars(placement: DesktopPlacement, bottom: number): Record<string, string> {
+export function justifyFor(align: DesktopCellAlign | undefined) {
+  return JUSTIFY[align ?? "start"];
+}
+
+function gridVars(placement: DesktopPlacement, bottom: number) {
   const rowEnd = placement.sticky ? Math.max(bottom, placement.y + placement.h) + 1 : placement.y + placement.h + 1;
-  return {
-    "--vc-gc": `${placement.x + 1} / span ${placement.w}`,
-    "--vc-gr": `${placement.y + 1} / ${rowEnd}`,
-    "--vc-cell-justify": JUSTIFY[placement.align ?? "start"],
+  return { gc: `${placement.x + 1} / span ${placement.w}`, gr: `${placement.y + 1} / ${rowEnd}` };
+}
+
+export function cellStyleVars(
+  placement: DesktopPlacement,
+  bottom: number,
+  tablet?: { placement: DesktopPlacement; bottom: number },
+): Record<string, string> {
+  const d = gridVars(placement, bottom);
+  const vars: Record<string, string> = {
+    "--vc-gc": d.gc,
+    "--vc-gr": d.gr,
+    "--vc-cell-justify": justifyFor(placement.align),
   };
+  if (tablet) {
+    const t = gridVars(tablet.placement, tablet.bottom);
+    vars["--vc-gc-t"] = t.gc;
+    vars["--vc-gr-t"] = t.gr;
+  }
+  return vars;
+}
+
+export function hasTileStyle(tile: TileStyle | undefined): tile is TileStyle {
+  return !!tile && (!!tile.color || !!tile.image || tile.padding !== undefined || tile.radius !== undefined || (!!tile.text && tile.text !== "auto"));
+}
+
+/** CSS variables for a per-tile background. Values are schema-validated. */
+export function tileStyleVars(tile: TileStyle | undefined): Record<string, string> {
+  if (!hasTileStyle(tile)) return {};
+  const parsed = TileStyleSchema.safeParse(tile);
+  if (!parsed.success) return {};
+  const t = parsed.data;
+  const vars: Record<string, string> = {};
+  if (t.color) vars["--vc-tile-bg"] = t.color;
+  if (t.image) vars["--vc-tile-img"] = `url("${t.image}")`;
+  if (t.image || t.overlay) vars["--vc-tile-ov"] = String((t.overlay ?? (t.image ? 35 : 0)) / 100);
+  if (t.padding !== undefined) vars["--vc-tile-pad"] = `${t.padding}px`;
+  if (t.radius !== undefined) vars["--vc-tile-radius"] = `${t.radius}px`;
+  return vars;
+}
+
+export function tileTextMode(tile: TileStyle | undefined): "light" | "dark" | undefined {
+  if (!tile) return undefined;
+  if (tile.text === "light" || tile.text === "dark") return tile.text;
+  return tile.image ? "light" : undefined;
 }
 
 export function visibilityClassName(section: Section) {

@@ -12,9 +12,10 @@ import {
   type DesktopPlacement,
   type Section,
 } from "@/lib/sections/types";
+import { TileStyleFields } from "./TileStyleFields";
 import {
-  COLS,
   DESKTOP_PRESETS,
+  DEVICE_COLS,
   DESKTOP_SETTING_LIMITS,
   DESKTOP_TILE_STYLES,
   applyDesktopPreset,
@@ -24,8 +25,12 @@ import {
   compactLayout,
   desktopLayoutCss,
   layoutBottom,
-  resolveDesktopLayout,
+  resolveLayout,
+  hasTileStyle,
+  tileStyleVars,
+  tileTextMode,
   type DesktopLayoutSettings,
+  type LayoutDevice,
   type DesktopPresetId,
   type LayoutItem,
   type Rect,
@@ -75,6 +80,7 @@ export default function DesktopLayoutStudio({
   canUndo,
   canRedo,
   publicUrl,
+  mediaUrls = [],
 }: {
   sections: Section[];
   settings: DesktopLayoutSettings;
@@ -87,7 +93,10 @@ export default function DesktopLayoutStudio({
   canUndo: boolean;
   canRedo: boolean;
   publicUrl?: string;
+  mediaUrls?: string[];
 }) {
+  const [device, setDevice] = useState<LayoutDevice>("desktop");
+  const COLS = DEVICE_COLS[device];
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [interaction, setInteraction] = useState<Interaction | null>(null);
   const [draft, setDraft] = useState<Map<string, Rect> | null>(null);
@@ -114,14 +123,15 @@ export default function DesktopLayoutStudio({
     return () => observer.disconnect();
   }, []);
 
-  const resolved = useMemo(() => resolveDesktopLayout(sections, settings.rowHeight), [sections, settings.rowHeight]);
+  const resolved = useMemo(() => resolveLayout(sections, device, settings.rowHeight), [sections, device, settings.rowHeight]);
   const desktopSections = useMemo(() => sections.filter((section) => resolved.has(section.id)), [sections, resolved]);
   const hiddenOnDesktop = useMemo(
     () => sections.filter((section) => section.visible !== false && section.layout?.hideOnDesktop),
     [sections],
   );
 
-  const canvasWidth = settings.maxWidth;
+  // Tablet canvas approximates an iPad-width page with side padding.
+  const canvasWidth = device === "tablet" ? 820 : settings.maxWidth;
   const scale = Math.min(1, Math.max(0.3, (available - 48) / canvasWidth));
   const gap = settings.gap;
   const rowH = settings.rowHeight;
@@ -156,22 +166,22 @@ export default function DesktopLayoutStudio({
       if (!rect) continue;
       const previous = resolved.get(section.id);
       placements.set(section.id, {
-        ...clampRect(rect),
+        ...clampRect(rect, COLS),
         ...(previous?.align ? { align: previous.align } : {}),
         ...(previous?.sticky ? { sticky: true } : {}),
         ...(patch && patch.id === section.id ? stripId(patch) : {}),
       });
     }
-    onChange({ sections: applyPlacements(sections, placements) });
-  }, [desktopSections, onChange, resolved, sections]);
+    onChange({ sections: applyPlacements(sections, placements, device) });
+  }, [COLS, desktopSections, device, onChange, resolved, sections]);
 
   function currentItems(): LayoutItem[] {
     return desktopSections.map((section) => ({ id: section.id, ...(resolved.get(section.id) as Rect) }));
   }
 
   function relayout(id: string, candidate: Rect) {
-    const items = currentItems().map((item) => (item.id === id ? { id, ...clampRect(candidate) } : item));
-    return new Map(compactLayout(items, id).map((item) => [item.id, { x: item.x, y: item.y, w: item.w, h: item.h }]));
+    const items = currentItems().map((item) => (item.id === id ? { id, ...clampRect(candidate, COLS) } : item));
+    return new Map(compactLayout(items, id, COLS).map((item) => [item.id, { x: item.x, y: item.y, w: item.w, h: item.h }]));
   }
 
   function canvasPoint(event: { clientX: number; clientY: number }) {
@@ -353,10 +363,25 @@ export default function DesktopLayoutStudio({
       {/* ─── Top bar ─── */}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-onyx-700 px-4 py-3">
         <div className="mr-auto min-w-0">
-          <p className="font-display text-lg text-gold-grad">Desktop layout</p>
+          <p className="font-display text-lg text-gold-grad">Layout studio</p>
           <p className="text-xs text-ivory-mute">
             Drag tiles to move · drag edges to resize · arrow keys nudge · Shift+arrows resize
           </p>
+        </div>
+        <div role="tablist" aria-label="Screen size" className="flex rounded-pill border border-onyx-700 p-1">
+          {(["desktop", "tablet"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={device === value}
+              onClick={() => { setDevice(value); setSelectedId(null); }}
+              className={["rounded-pill px-3 py-1.5 text-xs capitalize transition", device === value ? "bg-gold text-onyx-950" : "text-ivory-mute hover:text-ivory"].join(" ")}
+              data-testid={`studio-device-${value}`}
+            >
+              {value}
+            </button>
+          ))}
         </div>
         <label className="flex cursor-pointer items-center gap-2 rounded-pill border border-onyx-700 px-3 py-2 text-xs uppercase tracking-widest">
           <input
@@ -366,7 +391,7 @@ export default function DesktopLayoutStudio({
             onChange={(event) => updateSettings({ enabled: event.target.checked })}
             data-testid="desktop-enabled-toggle"
           />
-          {settings.enabled ? "Live on desktop" : "Off — mobile layout on desktop"}
+          {settings.enabled ? "Live on desktop & tablet" : "Off — larger screens show the phone layout"}
         </label>
         <div className="flex items-center gap-1">
           <button type="button" className="btn-ghost px-3 py-2 text-xs" onClick={onUndo} disabled={!canUndo} aria-label="Undo">Undo</button>
@@ -452,6 +477,7 @@ export default function DesktopLayoutStudio({
                     <Tile
                       key={section.id}
                       section={section}
+                      tileVars={tileStyleVars(section.layout?.tile)}
                       style={style}
                       align={placement?.align ?? "start"}
                       sticky={!!placement?.sticky}
@@ -497,14 +523,14 @@ export default function DesktopLayoutStudio({
                   <NumberField label="Row" value={selectedRect.y + 1} min={1} max={400} onChange={(y) => setRect(selected.id, { y: y - 1 })} />
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {[3, 4, 6, 8, 12].map((w) => (
+                  {(device === "tablet" ? [[2, "⅓"], [3, "½"], [4, "⅔"], [6, "Full"]] : [[3, "¼"], [4, "⅓"], [6, "½"], [8, "⅔"], [12, "Full"]]).map(([w, label]) => (
                     <button
                       key={w}
                       type="button"
-                      onClick={() => setRect(selected.id, { w, x: Math.min(selectedRect.x, COLS - w) })}
+                      onClick={() => setRect(selected.id, { w: Number(w), x: Math.min(selectedRect.x, COLS - Number(w)) })}
                       className={chipClass(selectedRect.w === w)}
                     >
-                      {w === 12 ? "Full" : w === 6 ? "½" : w === 4 ? "⅓" : w === 3 ? "¼" : "⅔"}
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -546,14 +572,37 @@ export default function DesktopLayoutStudio({
                   onChange={(show) => setVisibility(selected.id, "hideOnMobile", !show)}
                 />
                 <Toggle
-                  label="Show on desktop"
+                  label="Show on desktop & tablet"
                   checked={!selected.layout?.hideOnDesktop}
                   onChange={(show) => setVisibility(selected.id, "hideOnDesktop", !show)}
+                />
+              </InspectorGroup>
+
+              <InspectorGroup title="Tile background">
+                <TileStyleFields
+                  section={selected}
+                  mediaUrls={mediaUrls}
+                  onChange={(next) => onChange({ sections: sections.map((section) => (section.id === next.id ? next : section)) })}
                 />
               </InspectorGroup>
             </>
           ) : (
             <>
+              {device === "tablet" ? (
+                <InspectorGroup title="Tablet layout">
+                  <p className="text-[11px] leading-relaxed text-ivory-mute">
+                    Tablets (768–1023px wide) use a 6-column grid. Until you move something here, it follows your desktop layout automatically.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-ghost w-full px-3 py-2 text-xs"
+                    onClick={() => onChange({ sections: clearDesktopPlacements(sections, "tablet") })}
+                  >
+                    Reset tablet to match desktop
+                  </button>
+                </InspectorGroup>
+              ) : null}
+              {device === "desktop" ? (
               <InspectorGroup title="Start from a preset">
                 <div className="grid grid-cols-2 gap-2">
                   {DESKTOP_PRESETS.map((preset) => (
@@ -572,6 +621,7 @@ export default function DesktopLayoutStudio({
                 </div>
                 <p className="text-[11px] text-ivory-mute">Presets rearrange every tile. Undo if you change your mind.</p>
               </InspectorGroup>
+              ) : null}
 
               <InspectorGroup title="Page">
                 <RangeField label="Page width" suffix="px" value={settings.maxWidth} {...DESKTOP_SETTING_LIMITS.maxWidth} onChange={(maxWidth) => updateSettings({ maxWidth })} />
@@ -606,9 +656,9 @@ export default function DesktopLayoutStudio({
                 <button
                   type="button"
                   className="btn-ghost w-full px-3 py-2 text-xs"
-                  onClick={() => onChange({ sections: clearDesktopPlacements(sections) })}
+                  onClick={() => onChange({ sections: clearDesktopPlacements(sections, device) })}
                 >
-                  Clear layout (auto-arrange)
+                  {device === "tablet" ? "Clear tablet layout" : "Clear layout (auto-arrange)"}
                 </button>
               </InspectorGroup>
 
@@ -627,6 +677,7 @@ export default function DesktopLayoutStudio({
 
 function Tile({
   section,
+  tileVars,
   style,
   align,
   sticky,
@@ -640,6 +691,7 @@ function Tile({
   onFit,
 }: {
   section: Section;
+  tileVars: Record<string, string>;
   style: CSSProperties;
   align: DesktopCellAlign;
   sticky: boolean;
@@ -679,8 +731,10 @@ function Tile({
         animate ? "transition-[left,top,width,height] duration-150 ease-out" : "",
         lifted ? "cursor-grabbing" : "cursor-grab",
       ].join(" ")}
-      style={style}
+      style={{ ...tileVars, ...style } as CSSProperties}
       onPointerDown={onPointerDown}
+      data-tile={hasTileStyle(section.layout?.tile) ? "" : undefined}
+      data-tile-text={tileTextMode(section.layout?.tile)}
       data-testid="desktop-tile"
       data-section-id={section.id}
       data-section-type={section.type}
