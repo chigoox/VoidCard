@@ -50,11 +50,19 @@ import { THEME_PRESETS, getThemePreset, themeToCss } from "@/lib/themes/presets"
 import { SECTION_TEMPLATES } from "@/lib/editor/templates";
 import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/editor/styleStudio";
 import { readProfileIntegrations, writeProfileIntegrations, type ProfileIntegrations } from "@/lib/profile-integrations";
+import { desktopLayoutCss, readDesktopSettings, resolveDesktopLayout, writeDesktopSettings, type DesktopLayoutSettings } from "@/lib/sections/desktopLayout";
+import { TileWrap } from "@/components/sections/ProfileStack";
+import { TileStyleFields } from "./TileStyleFields";
+import { isLightTheme, readThemeSwitch, writeThemeSwitch, type ThemeSwitchSettings } from "@/lib/editor/themeSwitch";
+import type { DesktopStudioChange } from "./DesktopLayoutStudio";
+import { MobileCanvasEditor } from "./MobileCanvasEditor";
 
 const StyleStudioPanel = dynamic(() => import("./StyleStudioPanel"), {
   ssr: false,
   loading: () => <section className="card space-y-3 p-4 text-xs text-ivory-dim" data-testid="style-studio-loading">Loading style studio…</section>,
 });
+
+const DesktopLayoutStudio = dynamic(() => import("./DesktopLayoutStudio"), { ssr: false });
 
 const MediaManagerModal = dynamic(() => import("./MediaManagerModal").then((m) => m.MediaManagerModal), {
   ssr: false,
@@ -88,7 +96,6 @@ const INPUT_CLASS_NAME =
   "w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2.5 text-sm text-ivory outline-none transition focus:border-gold/60";
 const TEXTAREA_CLASS_NAME = `${INPUT_CLASS_NAME} min-h-[112px] resize-y`;
 const MAX_GALLERY_IMAGES = 20;
-const EYE_COACH_STORAGE_KEY = "vc.editor.eyeCoach.v1";
 
 type MediaLibraryItem = {
   id: string;
@@ -935,6 +942,12 @@ function sectionSummary(section: SectionRecord): string {
       return `${section.props.productIds.length} product${section.props.productIds.length === 1 ? "" : "s"}`;
     case "booking":
       return section.props.ownerSlug ? `boox/${section.props.ownerSlug}` : "Boox booking";
+    case "stats":
+      return section.props.items.map((item) => item.value).join(" · ");
+    case "testimonial":
+      return section.props.author || section.props.quote.slice(0, 60);
+    case "feature":
+      return section.props.title;
   }
 }
 
@@ -1466,6 +1479,89 @@ function SectionEditorFields({
     case "divider": {
       return <p className="text-sm text-ivory-mute">Divider sections have no editable fields.</p>;
     }
+    case "stats": {
+      const p = section.props;
+      const setItems = (items: typeof p.items) => onChange({ ...section, props: { ...p, items } });
+      return (
+        <div className="space-y-3">
+          <Field label="Title (optional)">
+            <input className={INPUT_CLASS_NAME} value={p.title ?? ""} placeholder="By the numbers" onChange={(event) => onChange({ ...section, props: { ...p, title: event.target.value || undefined } })} />
+          </Field>
+          {p.items.map((item, index) => (
+            <div key={index} className="grid grid-cols-[6rem_1fr_auto] items-end gap-2">
+              <Field label="Number">
+                <input className={INPUT_CLASS_NAME} value={item.value} maxLength={24} onChange={(event) => setItems(p.items.map((it, i) => (i === index ? { ...it, value: event.target.value } : it)))} />
+              </Field>
+              <Field label="Label">
+                <input className={INPUT_CLASS_NAME} value={item.label} maxLength={60} onChange={(event) => setItems(p.items.map((it, i) => (i === index ? { ...it, label: event.target.value } : it)))} />
+              </Field>
+              <button type="button" className="btn-ghost mb-0.5 px-3 py-2 text-xs" disabled={p.items.length <= 1} onClick={() => setItems(p.items.filter((_, i) => i !== index))} aria-label="Remove stat">
+                <Trash2 className="size-3.5" aria-hidden />
+              </button>
+            </div>
+          ))}
+          <button type="button" className="btn-ghost px-3 py-2 text-xs" disabled={p.items.length >= 6} onClick={() => setItems([...p.items, { value: "0", label: "New stat" }])}>
+            <Plus className="mr-1 inline size-3.5" aria-hidden /> Add stat
+          </button>
+        </div>
+      );
+    }
+    case "testimonial": {
+      const p = section.props;
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Quote" className="md:col-span-2">
+            <textarea className={TEXTAREA_CLASS_NAME} value={p.quote} maxLength={600} onChange={(event) => onChange({ ...section, props: { ...p, quote: event.target.value } })} />
+          </Field>
+          <Field label="Name">
+            <input className={INPUT_CLASS_NAME} value={p.author} maxLength={80} onChange={(event) => onChange({ ...section, props: { ...p, author: event.target.value } })} />
+          </Field>
+          <Field label="Role or company">
+            <input className={INPUT_CLASS_NAME} value={p.role ?? ""} maxLength={80} onChange={(event) => onChange({ ...section, props: { ...p, role: event.target.value || undefined } })} />
+          </Field>
+          <Field label="Rating">
+            <select className={INPUT_CLASS_NAME} value={String(p.rating ?? 0)} onChange={(event) => onChange({ ...section, props: { ...p, rating: Number(event.target.value) || undefined } })}>
+              <option value="0">No stars</option>
+              {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{"★".repeat(n)}</option>)}
+            </select>
+          </Field>
+          <MediaField
+            label="Photo (optional)"
+            value={p.avatarUrl ?? ""}
+            accept="image/*"
+            kind="image"
+            recentMedia={recentMedia}
+            onChange={(value) => onChange({ ...section, props: { ...p, avatarUrl: value || undefined } })}
+            onMediaAdded={onMediaAdded}
+          />
+        </div>
+      );
+    }
+    case "feature": {
+      const p = section.props;
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Icon">
+            <select className={INPUT_CLASS_NAME} value={p.icon ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, icon: event.target.value || undefined } })}>
+              <option value="">No icon</option>
+              {LINK_ICON_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Title">
+            <input className={INPUT_CLASS_NAME} value={p.title} maxLength={80} onChange={(event) => onChange({ ...section, props: { ...p, title: event.target.value } })} />
+          </Field>
+          <Field label="Description" className="md:col-span-2">
+            <textarea className={TEXTAREA_CLASS_NAME} value={p.body} maxLength={400} onChange={(event) => onChange({ ...section, props: { ...p, body: event.target.value } })} />
+          </Field>
+          <Field label="Button text (optional)">
+            <input className={INPUT_CLASS_NAME} value={p.ctaLabel ?? ""} maxLength={40} placeholder="Learn more" onChange={(event) => onChange({ ...section, props: { ...p, ctaLabel: event.target.value || undefined } })} />
+          </Field>
+          <Field label="Button link (optional)">
+            <input className={INPUT_CLASS_NAME} type="url" value={p.ctaUrl ?? ""} placeholder="https://" onChange={(event) => onChange({ ...section, props: { ...p, ctaUrl: event.target.value || undefined } })} />
+          </Field>
+        </div>
+      );
+    }
     case "spacer": {
       const p = section.props;
       return (
@@ -1976,50 +2072,8 @@ export default function EditorClient({
   const [bulkLinksText, setBulkLinksText] = useState("");
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
-  const [toolbarExpanded, setToolbarExpanded] = useState(false);
-  const [eyeCoachVisible, setEyeCoachVisible] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [overDragId, setOverDragId] = useState<string | null>(null);
-  // Long-press / rubber-band state for the floating eye control
-  const [eyePressing, setEyePressing] = useState(false);
-  const eyePressTimer = useRef<number | null>(null);
-  const eyeLongPressFired = useRef(false);
-  const dismissEyeCoach = useCallback(() => {
-    setEyeCoachVisible(false);
-    try { window.localStorage.setItem(EYE_COACH_STORAGE_KEY, "1"); } catch {}
-  }, []);
-  const startEyePress = useCallback((onLong: () => void) => {
-    dismissEyeCoach();
-    eyeLongPressFired.current = false;
-    setEyePressing(true);
-    if (eyePressTimer.current) window.clearTimeout(eyePressTimer.current);
-    eyePressTimer.current = window.setTimeout(() => {
-      eyeLongPressFired.current = true;
-      try { (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }).vibrate?.(18); } catch {}
-      onLong();
-      setEyePressing(false);
-    }, 420);
-  }, [dismissEyeCoach]);
-  const endEyePress = useCallback((onShort: () => void) => {
-    if (eyePressTimer.current) { window.clearTimeout(eyePressTimer.current); eyePressTimer.current = null; }
-    setEyePressing(false);
-    if (!eyeLongPressFired.current) onShort();
-  }, []);
-  const cancelEyePress = useCallback(() => {
-    if (eyePressTimer.current) { window.clearTimeout(eyePressTimer.current); eyePressTimer.current = null; }
-    setEyePressing(false);
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (window.localStorage.getItem(EYE_COACH_STORAGE_KEY) === "1") return;
-      if (!window.matchMedia("(max-width: 767px)").matches) return;
-      const timer = window.setTimeout(() => setEyeCoachVisible(true), 700);
-      return () => window.clearTimeout(timer);
-    } catch {
-      return undefined;
-    }
-  }, []);
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledPublishAt ?? null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -2072,7 +2126,9 @@ export default function EditorClient({
   const currentSnapshot = JSON.stringify({ sections, themeId, customCss });
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => JSON.stringify({ sections: initial, themeId: initialThemeId, customCss: initialCustomCss }));
   const isDirty = currentSnapshot !== lastSavedSnapshot;
-  const previewTheme = getThemePreset(themeId);
+  const { settings: themeSwitch } = readThemeSwitch(customCss, themeId);
+  const [previewAltTheme, setPreviewAltTheme] = useState(false);
+  const previewTheme = getThemePreset(previewAltTheme && themeSwitch.enabled ? themeSwitch.altThemeId : themeId);
   const previewCustomCss = sanitizeCss(customCss);
   const firstVisibleSection = sections.find(sectionIsVisible);
   const firstVisibleSectionId = firstVisibleSection?.id;
@@ -2084,6 +2140,27 @@ export default function EditorClient({
   function setStudio(next: StyleStudio) {
     pushHistory();
     setCustomCssState(writeStyleStudio(next, customCssRest));
+    markDirty();
+  }
+
+  const { settings: desktopSettings } = readDesktopSettings(customCss);
+  const [desktopStudioOpen, setDesktopStudioOpen] = useState(false);
+  // Phones default to editing the page itself; the list stays one tap away.
+  const [mobileView, setMobileView] = useState<"visual" | "list">("visual");
+  const [canvasInsertAt, setCanvasInsertAt] = useState<number | null>(null);
+  function applyDesktopStudioChange(change: DesktopStudioChange) {
+    pushHistory();
+    if (change.sections) setSections(change.sections);
+    if (change.settings) {
+      setCustomCssState((css) => writeDesktopSettings(change.settings as DesktopLayoutSettings, readDesktopSettings(css).rest));
+    }
+    markDirty();
+  }
+
+  function setThemeSwitch(next: ThemeSwitchSettings) {
+    pushHistory();
+    setCustomCssState((css) => writeThemeSwitch(next, readThemeSwitch(css, themeId).rest, themeId));
+    if (!next.enabled) setPreviewAltTheme(false);
     markDirty();
   }
 
@@ -2227,7 +2304,7 @@ export default function EditorClient({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
-  function addSection(type: typeof SECTION_TYPES[number]) {
+  function addSection(type: typeof SECTION_TYPES[number], insertAt?: number): string {
     const id = crypto.randomUUID();
     const base = { id, type, visible: true } as const;
     let nextSection: SectionRecord;
@@ -2246,6 +2323,9 @@ export default function EditorClient({
       case "divider": nextSection = { ...base, type, props: {} }; break;
       case "spacer": nextSection = { ...base, type, props: { height: 24 } }; break;
       case "markdown": nextSection = { ...base, type, props: { md: "Hello, world." } }; break;
+      case "stats": nextSection = { ...base, type, props: { items: [{ value: "10+", label: "Years experience" }, { value: "250", label: "Happy clients" }, { value: "4.9★", label: "Average rating" }] } }; break;
+      case "testimonial": nextSection = { ...base, type, props: { quote: "Working together was effortless — the results spoke for themselves.", author: "Happy client", role: "Founder", rating: 5 } }; break;
+      case "feature": nextSection = { ...base, type, props: { icon: "globe", title: "What I do", body: "Describe a service, product or strength in a sentence or two." } }; break;
       case "form": nextSection = { ...base, type, props: { title: "Get in touch", fields: [{ name: "email", label: "Email", type: "email", required: true }], successMessage: "Thanks!", proLeadMode: false, requireConsent: false, requireCaptcha: false } }; break;
       case "video": nextSection = { ...base, type, props: { src: "https://example.com/video.mp4" } }; break;
       case "map": nextSection = { ...base, type, props: { lat: 40.7128, lng: -74.006, label: "NYC" } }; break;
@@ -2257,9 +2337,15 @@ export default function EditorClient({
 
     pushHistory();
     markDirty();
-    setSections((prev) => [...prev, nextSection]);
+    setSections((prev) => {
+      if (insertAt === undefined || insertAt >= prev.length) return [...prev, nextSection];
+      const next = [...prev];
+      next.splice(Math.max(0, insertAt), 0, nextSection);
+      return next as Sections;
+    });
     setCollapsed((prev) => ({ ...prev, [id]: false }));
     setAnnouncement(`Added ${type} section`);
+    return id;
   }
 
   async function openProductPicker() {
@@ -2303,9 +2389,9 @@ export default function EditorClient({
     setAnnouncement(`Loaded ${tpl.name} template`);
   }
 
-  function duplicateSection(index: number) {
+  function duplicateSection(index: number): string | undefined {
     const original = sections[index];
-    if (!original) return;
+    if (!original) return undefined;
     pushHistory();
     markDirty();
     const copy = { ...original, id: crypto.randomUUID() } as SectionRecord;
@@ -2320,6 +2406,7 @@ export default function EditorClient({
       const el = document.querySelector<HTMLElement>(`[data-section-row="${copy.id}"]`);
       el?.focus();
     });
+    return copy.id;
   }
 
   function updateSection(index: number, nextSection: SectionRecord) {
@@ -2683,7 +2770,14 @@ export default function EditorClient({
           </div>
         ) : null}
         <style dangerouslySetInnerHTML={{ __html: themeToCss(previewTheme, ".vc-profile-preview") }} />
+        {/* Base tile/visibility rules only — the phone preview never uses the grid. */}
+        <style dangerouslySetInnerHTML={{ __html: desktopLayoutCss({ ...desktopSettings, enabled: false }) }} />
         {previewCustomCss ? <style dangerouslySetInnerHTML={{ __html: previewCustomCss }} /> : null}
+        <DesktopLayoutCard
+          sections={sections}
+          settings={desktopSettings}
+          onOpen={() => setDesktopStudioOpen(true)}
+        />
         <div className="phone-frame mx-auto">
           <div
             className={[
@@ -2694,13 +2788,14 @@ export default function EditorClient({
             data-testid="preview-scroll"
           >
             <div className="vc-profile-stack">
-              {sections.map((section) => (
-                <PreviewSection
-                  key={section.id}
-                  section={section}
-                  isTop={section.id === firstVisibleSectionId}
-                  topBleedOffset={previewStartsWithTopBleed ? "none" : "page"}
-                />
+              {sections.filter((section) => !section.layout?.hideOnMobile).map((section) => (
+                <TileWrap key={section.id} section={section}>
+                  <PreviewSection
+                    section={section}
+                    isTop={section.id === firstVisibleSectionId}
+                    topBleedOffset={previewStartsWithTopBleed ? "none" : "page"}
+                  />
+                </TileWrap>
               ))}
             </div>
           </div>
@@ -2732,6 +2827,24 @@ export default function EditorClient({
 
           {editorTab === "sections" ? (
             <div className="card relative space-y-3 border border-onyx-700 bg-onyx-950/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-onyx-950/85">
+              <div role="tablist" aria-label="Editing mode" className="grid grid-cols-2 gap-1 rounded-pill border border-onyx-700 p-1 md:hidden">
+                {([["visual", "Tap to edit"], ["list", "List & reorder"]] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="tab"
+                    aria-selected={mobileView === mode}
+                    onClick={() => setMobileView(mode)}
+                    className={[
+                      "rounded-pill px-3 py-2 text-xs font-medium transition",
+                      mobileView === mode ? "bg-gold text-onyx-950" : "text-ivory-mute",
+                    ].join(" ")}
+                    data-testid={`mobile-view-${mode}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs uppercase tracking-widest text-ivory-mute">
@@ -2753,7 +2866,13 @@ export default function EditorClient({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAddMenuOpen((open) => !open)}
+                    onClick={() => {
+                      if (mobileView === "visual" && window.matchMedia("(max-width: 767px)").matches) {
+                        setCanvasInsertAt(sections.length);
+                        return;
+                      }
+                      setAddMenuOpen((open) => !open);
+                    }}
                     className="btn-gold px-4 py-2 text-sm"
                     aria-expanded={addMenuOpen}
                     aria-haspopup="menu"
@@ -2763,7 +2882,7 @@ export default function EditorClient({
                   </button>
                 </div>
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className={["mt-3 flex-wrap items-center gap-2", mobileView === "visual" ? "hidden md:flex" : "flex"].join(" ")}>
                 <input
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
@@ -3137,6 +3256,68 @@ export default function EditorClient({
 
         </section>
 
+        <section className="card space-y-3 p-4" data-testid="theme-switch-panel">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-ivory-mute">Visitor theme switch</p>
+              <p className="mt-1 text-sm text-ivory-dim">Add a light/dark button to your page so visitors can pick the look they prefer.</p>
+            </div>
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={themeSwitch.enabled}
+                onChange={(event) => setThemeSwitch({ ...themeSwitch, enabled: event.target.checked })}
+                className="size-4 accent-[var(--vc-accent,#d4a853)]"
+                data-testid="theme-switch-enabled"
+              />
+              {themeSwitch.enabled ? "On" : "Off"}
+            </label>
+          </div>
+          {themeSwitch.enabled ? (
+            <div className="space-y-3">
+              <Field label={`Second theme (${isLightTheme(getThemePreset(themeId)) ? "dark" : "light"} suggested)`}>
+                <select
+                  className={INPUT_CLASS_NAME}
+                  value={themeSwitch.altThemeId}
+                  onChange={(event) => setThemeSwitch({ ...themeSwitch, altThemeId: event.target.value })}
+                >
+                  {THEME_PRESETS.filter((theme) => theme.id !== themeId).map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name} · {isLightTheme(theme) ? "light" : "dark"}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="First-time visitors see">
+                <select
+                  className={INPUT_CLASS_NAME}
+                  value={themeSwitch.defaultMode}
+                  onChange={(event) => setThemeSwitch({ ...themeSwitch, defaultMode: event.target.value === "system" ? "system" : "owner" })}
+                >
+                  <option value="owner">My main theme</option>
+                  <option value="system">Whatever their device prefers (light or dark)</option>
+                </select>
+              </Field>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-ivory-mute">Preview:</span>
+                {([false, true] as const).map((alt) => (
+                  <button
+                    key={String(alt)}
+                    type="button"
+                    onClick={() => setPreviewAltTheme(alt)}
+                    className={[
+                      "rounded-pill border px-3 py-1.5 transition",
+                      previewAltTheme === alt ? "border-gold/70 bg-gold/15 text-gold" : "border-onyx-700 text-ivory-dim",
+                    ].join(" ")}
+                  >
+                    {alt ? "Second theme" : "Main theme"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+
         <StyleStudioPanel studio={studio} onChange={setStudio} themeId={themeId} />
 
         </div> : null}
@@ -3196,7 +3377,45 @@ export default function EditorClient({
         {/* ─── Sections tab ─── */}
         {editorTab === "sections" ? <div className="flex flex-col gap-4 pb-28 md:pb-0">
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
+        {mobileView === "visual" ? (
+          <div className="md:hidden">
+            <MobileCanvasEditor
+              sections={sections}
+              validationById={validationById}
+              renderPreview={(section) => (
+                <TileWrap section={section}>
+                  <PreviewSection section={section} isTop={section.id === firstVisibleSectionId} topBleedOffset="none" />
+                </TileWrap>
+              )}
+              renderFields={(section, onChange) => (
+                <>
+                  <SectionEditorFields section={section} recentMedia={mediaLibrary} onChange={onChange} onMediaAdded={addMediaToLibrary} />
+                  <details className="rounded-card border border-onyx-800 px-3 py-2">
+                    <summary className="cursor-pointer select-none py-1 text-sm text-ivory-dim">Tile background</summary>
+                    <div className="pt-3">
+                      <TileStyleFields
+                        section={section}
+                        onChange={onChange}
+                        mediaUrls={mediaLibrary.filter((item) => item.kind === "image").map((item) => item.url)}
+                      />
+                    </div>
+                  </details>
+                </>
+              )}
+              onChange={updateSection}
+              onMove={move}
+              onRemove={remove}
+              onDuplicate={duplicateSection}
+              onAdd={(type, insertAt) => addSection(type, insertAt)}
+              onOpenTemplates={() => setTemplatesOpen(true)}
+              insertAt={canvasInsertAt}
+              onInsertAtChange={setCanvasInsertAt}
+            />
+          </div>
+        ) : null}
+
+        <div className={mobileView === "visual" ? "hidden md:block" : undefined}>
+        <DndContext id="editor-sections" sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
           <SortableContext items={sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
             <ul className="space-y-3" data-testid="section-list">
               <AnimatePresence initial={false}>
@@ -3230,6 +3449,7 @@ export default function EditorClient({
             {activeDragSection ? <SectionDragPreview section={activeDragSection} /> : null}
           </DragOverlay>
         </DndContext>
+        </div>
 
         <div className="hidden md:flex md:flex-wrap md:items-center md:gap-2">
           <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs" aria-label="Undo" title="Undo (Ctrl+Z)" data-testid="undo"><Undo2 className="size-3.5" aria-hidden /> Undo</button>
@@ -3393,106 +3613,138 @@ export default function EditorClient({
         ) : null}
       </AnimatePresence>
 
-      {/* ── Floating action pill (mobile only) ── */}
+      {/* ── Mobile action bar: every tool is labeled and always visible ── */}
       <div
-        className="pointer-events-none fixed inset-x-0 z-50 flex justify-center md:hidden"
+        className="pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 md:hidden"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 4.75rem)" }}
         data-testid="mobile-action-bar"
       >
-        <AnimatePresence>
-          {eyeCoachVisible && !toolbarExpanded ? (
-            <motion.div
-              key="eye-coach"
-              initial={{ opacity: 0, y: 8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 6, scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 420, damping: 26, mass: 0.7 }}
-              className="pointer-events-auto absolute bottom-[calc(100%+0.75rem)] w-[min(18rem,calc(100vw-2rem))] rounded-card border border-gold/30 bg-onyx-950/95 p-3 text-center text-xs text-ivory shadow-2xl backdrop-blur"
-              role="status"
-              aria-live="polite"
-              data-testid="eye-coach-tip"
-            >
-              <p className="font-medium">Hold the eye to expand editor tools.</p>
-              <p className="mt-1 text-[11px] text-ivory-mute">Tap still opens the live preview.</p>
-              <button type="button" className="mt-2 rounded-full px-3 py-1 text-[11px] font-medium text-gold hover:bg-gold/10" onClick={dismissEyeCoach}>
-                Got it
-              </button>
-              <span className="absolute left-1/2 top-full size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-gold/30 bg-onyx-950/95" aria-hidden />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-        <AnimatePresence mode="wait" initial={false}>
-          {toolbarExpanded ? (
-            <motion.div
-              key="expanded"
-              initial={{ opacity: 0, scaleX: 0.4, scaleY: 0.7 }}
-              animate={{
-                opacity: 1,
-                scaleX: eyePressing ? 1.08 : 1,
-                scaleY: eyePressing ? 0.94 : 1,
-              }}
-              exit={{ opacity: 0, scaleX: 0.4, scaleY: 0.7 }}
-              transition={{ type: "spring", stiffness: 360, damping: 14, mass: 0.7 }}
-              style={{ originY: 1 }}
-              className="pointer-events-auto flex items-center gap-1 rounded-full border border-onyx-700 bg-onyx-950/95 px-2 py-1.5 shadow-2xl backdrop-blur"
-            >
-              <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Undo" data-testid="undo">
-                <Undo2 className="size-4" aria-hidden />
-              </button>
-              <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Redo" data-testid="redo">
-                <Redo2 className="size-4" aria-hidden />
-              </button>
-              <div className="mx-1 h-5 w-px bg-onyx-700" />
-              {/* Centered eye — tap = preview, long-press = collapse toolbar */}
-              <motion.button
-                type="button"
-                onPointerDown={(e) => { e.preventDefault(); startEyePress(() => setToolbarExpanded(false)); }}
-                onPointerUp={() => endEyePress(() => setMobilePreviewOpen((open) => !open))}
-                onPointerLeave={cancelEyePress}
-                onPointerCancel={cancelEyePress}
-                onContextMenu={(e) => e.preventDefault()}
-                animate={{ scale: eyePressing ? 1.32 : 1 }}
-                transition={{ type: "spring", stiffness: 520, damping: 9, mass: 0.55 }}
-                className="rounded-full bg-gold/15 p-2.5 text-gold ring-1 ring-gold/40 hover:bg-gold/25 select-none touch-none"
-                style={{ WebkitTapHighlightColor: "transparent" }}
-                aria-label={mobilePreviewOpen ? "Close preview · hold to collapse" : "Tap to preview · hold to collapse"}
-                data-testid="mobile-preview-open"
-              >
-                <Eye className="size-5" aria-hidden />
-              </motion.button>
-              <div className="mx-1 h-5 w-px bg-onyx-700" />
-              <button type="button" onClick={onSave} disabled={pending} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Save draft" data-testid="save-draft">
-                <Save className="size-4" aria-hidden />
-              </button>
-              <button type="button" onClick={onPublish} disabled={pending} className="rounded-full bg-gold/10 p-2.5 text-gold hover:bg-gold/20 disabled:opacity-40" aria-label="Publish" data-testid="publish">
-                <Globe className="size-4" aria-hidden />
-              </button>
-            </motion.div>
-          ) : (
-            <motion.button
-              key="collapsed"
+        <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-onyx-700 bg-onyx-950/95 p-1.5 shadow-2xl backdrop-blur">
+          <p className="px-2 pb-1 pt-0.5 text-center text-[10px] uppercase tracking-widest text-ivory-mute" aria-live="polite" data-testid="mobile-save-status">
+            {!isOnline
+              ? "Offline — changes will save when you reconnect"
+              : validationById.size > 0
+                ? "Fix the highlighted section to save"
+                : pending
+                  ? "Saving…"
+                  : isDirty
+                    ? "Unsaved changes"
+                    : savedAt === "Published" ? "Published" : "All changes saved"}
+          </p>
+          <div className="flex items-stretch gap-1">
+            <ActionBarButton label="Undo" onClick={undo} disabled={past.length === 0} icon={<Undo2 className="size-4" aria-hidden />} testId="undo" />
+            <ActionBarButton label="Redo" onClick={redo} disabled={future.length === 0} icon={<Redo2 className="size-4" aria-hidden />} testId="redo" />
+            <ActionBarButton
+              label={mobilePreviewOpen ? "Close" : "Preview"}
+              onClick={() => setMobilePreviewOpen((open) => !open)}
+              icon={mobilePreviewOpen ? <X className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+              testId="mobile-preview-open"
+            />
+            <ActionBarButton label="Save" onClick={onSave} disabled={pending} icon={<Save className="size-4" aria-hidden />} testId="save-draft" />
+            <button
               type="button"
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{ opacity: 1, scale: eyePressing ? 1.28 : 1 }}
-              exit={{ opacity: 0, scale: 0.6 }}
-              transition={{ type: "spring", stiffness: 520, damping: 9, mass: 0.55 }}
-              onPointerDown={(e) => { e.preventDefault(); startEyePress(() => setToolbarExpanded(true)); }}
-              onPointerUp={() => endEyePress(() => setMobilePreviewOpen((open) => !open))}
-              onPointerLeave={cancelEyePress}
-              onPointerCancel={cancelEyePress}
-              onContextMenu={(e) => e.preventDefault()}
-              className="pointer-events-auto rounded-full border border-onyx-700 bg-onyx-950/95 p-3.5 shadow-2xl backdrop-blur select-none touch-none"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-              aria-label={mobilePreviewOpen ? "Close preview · hold for editor tools" : "Tap to preview · hold for editor tools"}
-              aria-expanded={false}
-              data-testid="floating-toolbar-toggle"
+              onClick={onPublish}
+              disabled={pending}
+              className="btn-gold flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl px-3 text-sm disabled:opacity-50"
+              data-testid="publish"
             >
-              <Eye className="size-5 text-ivory" aria-hidden />
-            </motion.button>
-          )}
-        </AnimatePresence>
+              <Globe className="size-4" aria-hidden />
+              Publish
+            </button>
+          </div>
+        </div>
       </div>
+      {desktopStudioOpen ? (
+        <DesktopLayoutStudio
+          sections={sections}
+          settings={desktopSettings}
+          themeCss={themeToCss(previewTheme, ".vc-profile-preview")}
+          customCss={previewCustomCss}
+          onChange={applyDesktopStudioChange}
+          onClose={() => setDesktopStudioOpen(false)}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
+          publicUrl={username ? `/u/${username}` : undefined}
+          mediaUrls={mediaLibrary.filter((item) => item.kind === "image").map((item) => item.url)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function ActionBarButton({
+  label,
+  icon,
+  onClick,
+  disabled,
+  testId,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[10px] text-ivory-dim transition hover:bg-onyx-900 hover:text-ivory disabled:opacity-35"
+      data-testid={testId}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function DesktopLayoutCard({
+  sections,
+  settings,
+  onOpen,
+}: {
+  sections: Sections;
+  settings: DesktopLayoutSettings;
+  onOpen: () => void;
+}) {
+  const placements = resolveDesktopLayout(sections, settings.rowHeight);
+  const rows = Math.max(1, [...placements.values()].reduce((max, p) => Math.max(max, p.y + p.h), 0));
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group mx-auto mb-4 hidden w-full max-w-[380px] items-center gap-3 rounded-card border border-onyx-700 bg-onyx-950/80 p-3 text-left transition hover:border-gold/60 lg:flex"
+      data-testid="open-desktop-studio"
+    >
+      <div
+        className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md border border-onyx-700 bg-onyx-900"
+        aria-hidden
+      >
+        {settings.enabled
+          ? [...placements.entries()].map(([id, p]) => (
+              <span
+                key={id}
+                className="absolute rounded-[2px] bg-gold/40 group-hover:bg-gold/60"
+                style={{
+                  left: `${(p.x / 12) * 100 + 2}%`,
+                  width: `${(p.w / 12) * 100 - 4}%`,
+                  top: `${(p.y / rows) * 100 + 2}%`,
+                  height: `${(p.h / rows) * 100 - 4}%`,
+                }}
+              />
+            ))
+          : <span className="absolute inset-y-1 left-1/2 w-6 -translate-x-1/2 rounded-[2px] bg-ivory/25" />}
+      </div>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-ivory group-hover:text-gold">Desktop layout</span>
+        <span className="block text-xs text-ivory-mute">
+          {settings.enabled ? "Custom grid is live · click to edit" : "Off — desktop shows the phone column. Design it →"}
+        </span>
+      </span>
+    </button>
   );
 }
 

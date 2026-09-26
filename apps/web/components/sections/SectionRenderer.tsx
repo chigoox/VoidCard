@@ -468,6 +468,69 @@ function renderSectionInner(
           style={cardStyle}
         />
       );
+    case "stats": {
+      const p = section.props;
+      return (
+        <div className="space-y-3" data-vc-stats>
+          {p.title ? <p className="text-xs uppercase tracking-[0.25em]" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.title}</p> : null}
+          <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${p.items.length > 3 ? 110 : 90}px, 1fr))` }}>
+            {p.items.map((item, index) => (
+              <div key={`${item.value}-${index}`} className="min-w-0">
+                <p className="truncate font-display text-3xl leading-none tracking-tight" style={{ color: "var(--vc-tile-accent, var(--vc-accent, #d4af37))" }}>{item.value}</p>
+                {item.label ? <p className="mt-1.5 text-xs leading-snug" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{item.label}</p> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case "testimonial": {
+      const p = section.props;
+      const rating = Math.max(0, Math.min(5, p.rating ?? 0));
+      return (
+        <figure className="space-y-4" data-vc-testimonial>
+          {rating > 0 ? (
+            <p aria-label={`${rating} out of 5 stars`} className="text-sm tracking-[0.2em]" style={{ color: "var(--vc-tile-accent, var(--vc-accent, #d4af37))" }}>
+              {"★".repeat(rating)}<span style={{ opacity: 0.25 }}>{"★".repeat(5 - rating)}</span>
+            </p>
+          ) : null}
+          <blockquote className="font-display text-lg leading-snug" style={{ color: "var(--vc-fg, #f7f3ea)" }}>
+            “{p.quote}”
+          </blockquote>
+          {p.author || p.role ? (
+            <figcaption className="flex items-center gap-3">
+              {p.avatarUrl ? (
+                <ProfileImage src={p.avatarUrl} alt={p.author} width={40} height={40} className="size-10 shrink-0 rounded-full object-cover" />
+              ) : null}
+              <span className="min-w-0">
+                {p.author ? <span className="block truncate text-sm font-medium">{p.author}</span> : null}
+                {p.role ? <span className="block truncate text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.role}</span> : null}
+              </span>
+            </figcaption>
+          ) : null}
+        </figure>
+      );
+    }
+    case "feature": {
+      const p = section.props;
+      const isGlyph = !!p.icon && /^[a-z-]+$/.test(p.icon);
+      return (
+        <div className="space-y-3" data-vc-feature>
+          {p.icon ? (
+            <span className="inline-flex size-11 items-center justify-center rounded-2xl text-xl" style={{ background: "color-mix(in srgb, var(--vc-tile-accent, var(--vc-accent, #d4af37)) 14%, transparent)", color: "var(--vc-tile-accent, var(--vc-accent, #d4af37))" }} aria-hidden>
+              {isGlyph ? <LinkIconGlyph name={p.icon} className="size-5" /> : p.icon}
+            </span>
+          ) : null}
+          <h3 className="font-display text-xl leading-tight" style={{ color: "var(--vc-fg, #f7f3ea)" }}>{p.title}</h3>
+          {p.body ? <p className="text-sm leading-relaxed" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.body}</p> : null}
+          {p.ctaUrl ? (
+            <a href={p.ctaUrl} data-vc-link className="inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--vc-tile-accent, var(--vc-accent, #d4af37))" }} target="_blank" rel="noopener noreferrer">
+              {p.ctaLabel || "Learn more"} <span aria-hidden>→</span>
+            </a>
+          ) : null}
+        </div>
+      );
+    }
     case "map":
       return (
         <div style={cardStyle}>
