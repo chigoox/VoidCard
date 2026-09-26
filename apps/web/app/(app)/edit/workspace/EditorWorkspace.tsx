@@ -368,7 +368,7 @@ function Inspector({
       {validation ? <p className="rounded-card border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">{validation}</p> : null}
 
       {tab === "content" ? renderContentFields(section, onChange) : null}
-      {tab === "design" ? <DesignFields section={section} onChange={onChange} onApplyToAll={onApplyDesignToAll} /> : null}
+      {tab === "design" ? <DesignFields section={section} onChange={onChange} onApplyToAll={onApplyDesignToAll} mediaUrls={mediaUrls} /> : null}
       {tab === "layout" ? (
         <div className="space-y-6">
           {layoutPanel ?? (

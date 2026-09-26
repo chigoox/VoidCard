@@ -48,8 +48,9 @@ const VARIANTS: Record<Exclude<SectionAnimation, "none">, Variants> = {
   // Never fully clipped: a zero-area start state can keep the in-view
   // observer from ever firing.
   reveal: {
-    hidden: { opacity: 0, clipPath: "inset(0% 0% 55% 0%)", y: 28 },
-    visible: { opacity: 1, clipPath: "inset(0% 0% 0% 0%)", y: 0 },
+    // Negative side/bottom insets keep edge-to-edge bleeds, glows and shadows unclipped.
+    hidden: { opacity: 0, clipPath: "inset(-20% -20% 55% -20%)", y: 28 },
+    visible: { opacity: 1, clipPath: "inset(-20% -20% -20% -20%)", y: 0 },
   },
   "scale-in": {
     hidden: { opacity: 0, scale: 0.82 },

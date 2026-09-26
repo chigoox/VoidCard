@@ -51,6 +51,16 @@ export function designAttributes(input: SectionDesignValue | undefined): DesignA
   if (d.scale) style["--vc-design-scale"] = SCALE[d.scale];
   if (d.letterSpacing !== undefined) style["--vc-design-tracking"] = `${d.letterSpacing / 100}em`;
   if (d.speed) style["--vc-design-speed"] = SPEED[d.speed];
+  if (d.media?.image || d.media?.video) {
+    data["data-vc-media"] = "";
+    style["--vc-media-scrim"] = String((d.media.overlay ?? 40) / 100);
+    if (d.media.minHeight) style["--vc-media-min-h"] = `${d.media.minHeight}px`;
+    // Media is usually dark behind text; default to light text unless set.
+    if (!d.text) {
+      style["--vc-fg"] = "#ffffff";
+      style["--vc-fg-mute"] = "rgba(255,255,255,0.82)";
+    }
+  }
 
   return { className: "vc-design", style, data };
 }

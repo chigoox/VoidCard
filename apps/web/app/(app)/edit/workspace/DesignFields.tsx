@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   AVATAR_RINGS,
   AVATAR_SHAPES,
@@ -13,6 +13,7 @@ import {
   DESIGN_SURFACES,
   HEADER_LAYOUTS,
   LINK_STYLES,
+  MediaUrl,
   SECTION_ANIMATIONS,
   SECTION_ANIMATION_TRIGGERS,
   SectionDesign,
@@ -30,7 +31,7 @@ const LABELS: Record<string, string> = {
   sm: "S", md: "M", lg: "L", xl: "XL",
   inherit: "Theme", display: "Serif", sans: "Sans", mono: "Mono",
   pill: "Pill", ghost: "Ghost", gold: "Gold", underline: "Underline", neon: "Neon",
-  circle: "Circle", rounded: "Squircle", square: "Square", accent: "Accent", left: "Left",
+  circle: "Circle", rounded: "Squircle", square: "Square", accent: "Accent", left: "Left", hero: "Hero banner",
   slow: "Slow", normal: "Normal", fast: "Fast",
   fade: "Fade", "slide-up": "Slide up", "slide-down": "Slide down", "slide-left": "Slide left", "slide-right": "Slide right", zoom: "Zoom",
   "blur-in": "Blur in", rise: "Rise", reveal: "Reveal", "scale-in": "Scale in", "flip-in": "Flip in", "tilt-in": "Tilt in",
@@ -43,10 +44,12 @@ export function DesignFields({
   section,
   onChange,
   onApplyToAll,
+  mediaUrls = [],
 }: {
   section: Section;
   onChange: (next: Section) => void;
   onApplyToAll?: (design: SectionDesignValue) => void;
+  mediaUrls?: string[];
 }) {
   const design = section.design ?? {};
 
@@ -97,6 +100,28 @@ export function DesignFields({
 
       <Group title="Surface">
         <Chips values={DESIGN_SURFACES} value={design.surface ?? "none"} onPick={(surface) => setDesign({ surface })} cols={4} />
+      </Group>
+
+      <Group title="Background photo / video">
+        <MediaInput label="Photo" value={design.media?.image} placeholder="https://… or pick below" onChange={(image) => setDesign({ media: { ...design.media, image } })} />
+        {mediaUrls.length > 0 ? (
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {mediaUrls.slice(0, 12).map((url) => (
+              <button key={url} type="button" onClick={() => setDesign({ media: { ...design.media, image: url } })} className={["size-12 shrink-0 overflow-hidden rounded-md border", design.media?.image === url ? "border-gold" : "border-onyx-700"].join(" ")} aria-label="Use this photo">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="size-full object-cover" />
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <MediaInput label="Looping video (MP4)" value={design.media?.video} placeholder="https://….mp4" onChange={(video) => setDesign({ media: { ...design.media, video } })} />
+        {design.media?.image || design.media?.video ? (
+          <>
+            <Range label="Darken for legibility" suffix="%" min={0} max={90} step={5} value={design.media?.overlay ?? 40} onChange={(overlay) => setDesign({ media: { ...design.media, overlay } })} />
+            <Range label="Minimum height" suffix="px" min={0} max={900} step={20} value={design.media?.minHeight ?? 0} onChange={(minHeight) => setDesign({ media: { ...design.media, minHeight: minHeight || undefined } })} />
+            <button type="button" className="text-xs text-ivory-mute hover:text-ivory" onClick={() => setDesign({ media: undefined })}>Remove background media</button>
+          </>
+        ) : null}
       </Group>
 
       <Group title="Colour">
@@ -283,6 +308,28 @@ function Chips<T extends string>({ values, value, onPick, cols }: { values: read
         </button>
       ))}
     </div>
+  );
+}
+
+function MediaInput({ label: text, value, placeholder, onChange }: { label: string; value?: string; placeholder: string; onChange: (value: string | undefined) => void }) {
+  const [invalid, setInvalid] = useState(false);
+  return (
+    <label className="block">
+      <span className="text-[11px] uppercase tracking-widest text-ivory-mute">{text}</span>
+      <input
+        key={value ?? "none"}
+        defaultValue={value ?? ""}
+        placeholder={placeholder}
+        onBlur={(event) => {
+          const next = event.target.value.trim();
+          const ok = !next || MediaUrl.safeParse(next).success;
+          setInvalid(!ok);
+          if (ok) onChange(next || undefined);
+        }}
+        className="mt-1 w-full rounded-card border border-onyx-700 bg-onyx-900 px-3 py-2 text-sm outline-none focus:border-gold/60"
+      />
+      {invalid ? <span className="mt-1 block text-[11px] text-red-300">Use an https:// link or a file you uploaded.</span> : null}
+    </label>
   );
 }
 

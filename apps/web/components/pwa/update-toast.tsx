@@ -12,8 +12,17 @@ export function UpdateToast() {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
 
+    // A first install claiming the page also fires controllerchange; only an
+    // update (a worker already in control) should reload, and only once.
+    let hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
     const onControllerChange = () => {
-      // Active worker changed — reload once to pick up new assets.
+      if (!hadController) {
+        hadController = true;
+        return;
+      }
+      if (reloaded) return;
+      reloaded = true;
       window.location.reload();
     };
 

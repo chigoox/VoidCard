@@ -9,12 +9,20 @@ export const SECTION_TYPES = [
   "stats", "testimonial", "feature",
 ] as const;
 
+// Media can be an absolute URL (uploads, CDN) or a site-relative path for
+// first-party assets such as the designed templates' banners.
+export const MediaUrl = z.union([
+  z.string().url().refine((v) => /^https?:\/\//i.test(v), "Use an http(s) link"),
+  z.string().max(512).regex(/^\/(?!\/)[A-Za-z0-9._~\-/]+$/),
+]);
+
 export const STORE_LAYOUTS = ["grid", "list"] as const;
 export const LINK_STYLES = ["pill", "card", "ghost", "gold", "glass", "outline", "underline", "neon"] as const;
 export type LinkStyle = (typeof LINK_STYLES)[number];
 export const AVATAR_SHAPES = ["circle", "rounded", "square"] as const;
 export const AVATAR_RINGS = ["accent", "gradient", "none"] as const;
-export const HEADER_LAYOUTS = ["center", "left"] as const;
+export const HEADER_LAYOUTS = ["center", "left", "hero"] as const;
+export const VIDEO_ASPECTS = ["16/9", "21/9", "4/5", "1/1", "9/16"] as const;
 export const SOCIAL_DISPLAY_MODES = ["icon", "iconLabel", "label"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
@@ -128,6 +136,13 @@ export const SectionDesign = z.object({
   speed: z.enum(["slow", "normal", "fast"]).optional(), // ambient + entrance tempo
   radius: z.number().int().min(0).max(48).optional(),
   padding: z.number().int().min(0).max(64).optional(),
+  // Photo or looping video painted behind the section's content.
+  media: z.object({
+    image: MediaUrl.optional(),
+    video: MediaUrl.optional(),
+    overlay: z.number().int().min(0).max(90).optional(),
+    minHeight: z.number().int().min(0).max(900).optional(),
+  }).optional(),
   preset: z.string().max(32).optional(),
 });
 export type SectionDesign = z.infer<typeof SectionDesign>;
@@ -145,7 +160,9 @@ const Header = Base.extend({
   type: z.literal("header"),
   props: z.object({
     avatarUrl: z.string().url().optional(),
-    coverUrl: z.string().url().optional(),
+    coverUrl: MediaUrl.optional(),
+    // Looping, muted banner video; coverUrl doubles as its poster.
+    coverVideoUrl: MediaUrl.optional(),
     name: z.string(),
     handle: z.string().optional(),
     descriptors: z.array(z.string().trim().min(1).max(32)).max(6).optional(),
@@ -193,10 +210,20 @@ const Email = Base.extend({
 
 const Image = Base.extend({
   type: z.literal("image"),
-  props: z.object({ src: z.string().url(), alt: z.string().default(""), rounded: z.boolean().default(true), fullWidth: z.boolean().default(false) }),
+  props: z.object({ src: MediaUrl, alt: z.string().default(""), rounded: z.boolean().default(true), fullWidth: z.boolean().default(false) }),
 });
 
-const Video = Base.extend({ type: z.literal("video"), props: z.object({ src: z.string().url(), poster: z.string().url().optional() }) });
+const Video = Base.extend({
+  type: z.literal("video"),
+  props: z.object({
+    src: MediaUrl,
+    poster: MediaUrl.optional(),
+    // Ambient: autoplays muted and loops with no controls, like a moving photo.
+    ambient: z.boolean().optional(),
+    aspect: z.enum(VIDEO_ASPECTS).optional(),
+    caption: z.string().max(140).optional(),
+  }),
+});
 const Spotify = Base.extend({ type: z.literal("spotify"), props: z.object({ uri: z.string() }) });
 const YouTube = Base.extend({ type: z.literal("youtube"), props: z.object({ id: z.string() }) });
 const MapS = Base.extend({ type: z.literal("map"), props: z.object({ lat: z.number(), lng: z.number(), label: z.string().optional() }) });
@@ -225,7 +252,7 @@ export const GALLERY_LAYOUTS = ["grid", "masonry", "carousel"] as const;
 const Gallery = Base.extend({
   type: z.literal("gallery"),
   props: z.object({
-    images: z.array(z.object({ src: z.string().url(), alt: z.string().default(""), category: z.string().max(40).optional() })).max(20),
+    images: z.array(z.object({ src: MediaUrl, alt: z.string().default(""), category: z.string().max(40).optional() })).max(20),
     layout: z.enum(GALLERY_LAYOUTS).default("grid"),
     lightbox: z.boolean().default(true),
     carouselFullWidth: z.boolean().default(false),

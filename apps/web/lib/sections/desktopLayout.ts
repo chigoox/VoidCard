@@ -166,14 +166,14 @@ export function defaultTileSize(section: Section, rowHeight = DEFAULT_DESKTOP_SE
   const rows = (px: number) => Math.max(1, Math.ceil(px / Math.max(16, rowHeight)));
   switch (section.type) {
     // Rows grow to fit content on the live page, so these are minimums.
-    case "header": return { w: 12, h: rows(200) };
+    case "header": return { w: 12, h: rows(section.props.layout === "hero" ? 540 : 200) };
     case "link":
     case "phone":
     case "email":
     case "schedule": return { w: 4, h: rows(64) };
     case "social": return { w: 6, h: rows(72) };
     case "image": return { w: 6, h: rows(320) };
-    case "video":
+    case "video": return { w: section.props.aspect === "21/9" ? 12 : 6, h: rows(section.props.aspect === "21/9" ? 380 : 320) };
     case "youtube": return { w: 6, h: rows(320) };
     case "spotify": return { w: 6, h: rows(160) };
     case "map": return { w: 6, h: rows(300) };

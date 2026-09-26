@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { LinkStyle, Section } from "@/lib/sections/types";
 import { designAttributes, speedMultiplier } from "@/lib/sections/design";
 import { StatsCounter } from "./StatsCounter";
+import { AmbientVideo } from "./AmbientVideo";
 import { markdownToHtml, socialHref } from "@/lib/sections/rendering";
 import { BrandedQR } from "@/components/BrandedQR";
 import { ProfileImage } from "@/components/profile/ProfileImage";
@@ -73,6 +74,18 @@ function scheduleLabel(provider: "calcom" | "calendly" | "ed5") {
       return "Book with ED5";
   }
 }
+/** Photo and/or looping video painted behind a section (design.media). */
+function DesignMedia({ section }: { section: Section }) {
+  const media = section.design?.media;
+  if (!media?.image && !media?.video) return null;
+  return (
+    <div className="vc-design-media" aria-hidden>
+      {media.image ? <ProfileImage src={media.image} alt="" fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" /> : null}
+      {media.video ? <AmbientVideo src={media.video} poster={media.image} /> : null}
+    </div>
+  );
+}
+
 // Premium styles are painted by `[data-vc-link-style]` rules in globals.css.
 const PREMIUM_LINK_STYLES = new Set<LinkStyle>(["gold", "glass", "outline", "underline", "neon"]);
 
@@ -133,6 +146,7 @@ export function SectionRenderer({
         className={[topBleedClassName, design?.className].filter(Boolean).join(" ")}
         style={{ ...(topBleedOffset === "none" ? {} : { paddingTop: "env(safe-area-inset-top, 0px)" }), ...(design?.style as CSSProperties | undefined) }}
       >
+        <DesignMedia section={section} />
         {renderSectionInner(section, verified, username, canEdit, editHref, true)}
       </div>
     );
@@ -148,6 +162,7 @@ export function SectionRenderer({
 
   const sectionFrame = (
     <div data-vc-section data-section-type={section.type} {...designProps}>
+      <DesignMedia section={section} />
       {renderSectionInner(section, verified, username, canEdit, editHref)}
     </div>
   );
@@ -173,6 +188,41 @@ function renderSectionInner(
     case "header": {
       const p = section.props;
       const descriptors = p.descriptors?.filter(Boolean) ?? [];
+      if (p.layout === "hero") {
+        return (
+          <header className="vc-hero p-6 sm:p-8 md:p-10" data-vc-hero>
+            <div className="vc-hero-media" aria-hidden>
+              {p.coverUrl ? <ProfileImage src={p.coverUrl} alt="" fill priority sizes="100vw" className="object-cover" /> : <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--vc-accent, #d4af37) 45%, #000), #050505)" }} />}
+              {p.coverVideoUrl ? <AmbientVideo src={p.coverVideoUrl} poster={p.coverUrl} /> : null}
+            </div>
+            <div className="relative flex max-w-2xl flex-col gap-4">
+              {p.avatarUrl ? (
+                <div className={["size-16 overflow-hidden border-2 shadow-2xl sm:size-20", p.avatarShape === "square" ? "rounded-md" : p.avatarShape === "rounded" ? "rounded-[28%]" : "rounded-full"].join(" ")} style={{ borderColor: "color-mix(in srgb, var(--vc-accent, #d4af37) 75%, #fff)" }}>
+                  <ProfileImage src={p.avatarUrl} alt={p.name} width={80} height={80} sizes="80px" className="size-full object-cover" />
+                </div>
+              ) : null}
+              {descriptors.length > 0 ? (
+                <p className="text-[11px] font-medium uppercase tracking-[0.35em]" style={{ color: "color-mix(in srgb, var(--vc-accent, #d4af37) 40%, #fff)" }}>
+                  {descriptors.join("  ·  ")}
+                </p>
+              ) : null}
+              <h1 className="font-display text-4xl leading-[1.02] tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)] sm:text-5xl md:text-6xl" style={{ overflowWrap: "anywhere" }}>
+                {p.name}
+                {verified && p.showVerified ? (
+                  <span className="ml-2 inline-flex align-middle" style={{ color: "var(--vc-accent, #d4af37)" }} title="Verified badge">
+                    <BadgeCheck className="size-7" aria-hidden />
+                    <span className="sr-only">Verified badge</span>
+                  </span>
+                ) : null}
+              </h1>
+              {p.tagline ? <p className="max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">{p.tagline}</p> : null}
+              {canEdit && editHref ? (
+                <a href={editHref} className="w-fit rounded-pill border border-white/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/90" data-testid="profile-edit-link" aria-label="Edit profile">Edit</a>
+              ) : null}
+            </div>
+          </header>
+        );
+      }
       const fullBleedTopHeader = !!topBleed && !!p.coverUrl;
       const avatarOverlapClass = p.coverUrl ? "-mt-12" : "";
       const avatarRadiusClass = p.avatarShape === "square" ? "rounded-md" : p.avatarShape === "rounded" ? "rounded-[28%]" : "rounded-full";
@@ -382,15 +432,27 @@ function renderSectionInner(
     }
     case "video": {
       const p = section.props;
+      const aspect = p.aspect ? { aspectRatio: p.aspect.replace("/", " / ") } : undefined;
       return (
-        <video
-          className="h-auto w-full"
-          style={{ borderRadius: "var(--vc-radius, 14px)" }}
-          src={p.src}
-          poster={p.poster}
-          controls
-          preload="metadata"
-        />
+        <figure className="space-y-2">
+          {p.ambient ? (
+            <div className="relative w-full overflow-hidden" style={{ borderRadius: "var(--vc-radius, 14px)", aspectRatio: aspect?.aspectRatio ?? "16 / 9" }}>
+              {p.poster ? <ProfileImage src={p.poster} alt="" fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" /> : null}
+              <AmbientVideo src={p.src} poster={p.poster} className="absolute inset-0 size-full object-cover" />
+            </div>
+          ) : (
+            <video
+              className="h-auto w-full object-cover"
+              style={{ borderRadius: "var(--vc-radius, 14px)", ...aspect }}
+              src={p.src}
+              poster={p.poster}
+              controls
+              playsInline
+              preload="metadata"
+            />
+          )}
+          {p.caption ? <figcaption className="text-xs" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>{p.caption}</figcaption> : null}
+        </figure>
       );
     }
     case "social": {

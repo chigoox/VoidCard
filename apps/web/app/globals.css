@@ -517,3 +517,29 @@ html, body {
 /* On wide grid tiles the profile actions keep a comfortable button width. */
 .vc-desktop-on .vc-cell [data-vc-profile-actions] { width: min(100%, 440px); margin-inline: auto; }
 .vc-desktop-on .vc-cell:has(header.items-start) [data-vc-profile-actions] { margin-inline: 0; }
+
+/* Section background media (design.media): photo/video behind the content. */
+.vc-design[data-vc-media] { padding: var(--vc-design-pad, 24px); overflow: hidden; min-height: var(--vc-media-min-h, 0px); display: flex; flex-direction: column; justify-content: flex-end; }
+.vc-design-media { position: absolute; inset: 0; z-index: -1; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.vc-design-media > :is(img, video) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vc-design-media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,calc(var(--vc-media-scrim, .4) * .35)) 0%, rgba(0,0,0,var(--vc-media-scrim, .4)) 100%); }
+
+/* Hero header: full-bleed media banner with the name overlaid. */
+.vc-hero { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; min-height: min(78svh, 620px); border-radius: var(--vc-design-radius, calc(var(--vc-radius, 14px) + 10px)); color: #fff; --vc-fg: #ffffff; --vc-fg-mute: rgba(255,255,255,.82); }
+/* In a desktop grid the hero fills its tile; pinned (sidebar) heroes stay near full height. */
+@media (min-width: 768px) {
+  .vc-desktop-on .vc-cell-inner > :has(.vc-hero) { flex: 1 1 auto; display: flex; flex-direction: column; }
+  .vc-desktop-on .vc-cell-inner [data-vc-section]:has(> .vc-hero) { flex: 1 1 auto; display: flex; flex-direction: column; }
+  .vc-desktop-on .vc-cell .vc-hero { flex: 1 1 auto; min-height: 360px; }
+  .vc-desktop-on .vc-cell[data-sticky] .vc-hero { min-height: min(calc(100vh - 140px), 780px); }
+}
+/* Edge-to-edge at the top of phones only; tiles on larger screens keep their radius. */
+@media (max-width: 767px) { [data-vc-top-bleed] .vc-hero { border-top-left-radius: 0; border-top-right-radius: 0; } }
+.vc-desktop-on [data-vc-top-bleed] .vc-hero { border-radius: var(--vc-design-radius, 24px); }
+@media (max-width: 767px) { .vc-desktop-on [data-vc-top-bleed] .vc-hero { border-top-left-radius: 0; border-top-right-radius: 0; } }
+.vc-hero-media { position: absolute; inset: 0; z-index: -2; }
+.vc-hero-media > :is(img, video) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vc-hero::before { content: ""; position: absolute; inset: 0; z-index: -1; background:
+  linear-gradient(180deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,.2) 55%, rgba(0,0,0,.82) 100%),
+  radial-gradient(120% 70% at 0% 100%, color-mix(in srgb, var(--vc-accent, #d4af37) 22%, transparent), transparent 60%); }
+@media (prefers-reduced-motion: reduce) { .vc-hero-media video, .vc-design-media video { display: none; } }

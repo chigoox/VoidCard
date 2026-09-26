@@ -634,6 +634,7 @@ function SectionEditorFields({
           </Field>
           <MediaField label="Avatar URL" value={p.avatarUrl ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, avatarUrl: value || undefined } })} />
           <MediaField label="Cover URL" value={p.coverUrl ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, coverUrl: value || undefined } })} />
+          <MediaField label="Cover video (loops muted — try the Hero banner layout in Design)" value={p.coverVideoUrl ?? ""} accept="video/mp4,video/webm" kind="video" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, coverVideoUrl: value || undefined } })} />
           <label className="flex items-center gap-2 text-sm text-ivory md:col-span-2">
             <input type="checkbox" checked={p.showSaveContact ?? true} onChange={(event) => onChange({ ...section, props: { ...p, showSaveContact: event.target.checked } })} className="size-4 rounded border-onyx-700 bg-onyx-950" />
             Show Save Contact button
@@ -789,6 +790,26 @@ function SectionEditorFields({
         <div className="grid gap-3">
           <MediaField label="Video URL" value={p.src} accept="video/mp4,video/webm" kind="video" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, src: value } })} />
           <MediaField label="Poster URL" value={p.poster ?? ""} accept="image/*" kind="image" recentMedia={recentMedia} onMediaAdded={onMediaAdded} onChange={(value) => onChange({ ...section, props: { ...p, poster: value || undefined } })} />
+          <label className="flex items-center justify-between gap-3 rounded-card border border-onyx-700 px-3 py-2.5 text-sm text-ivory">
+            <span>
+              Ambient loop
+              <span className="block text-[11px] text-ivory-mute">Plays muted on repeat with no controls — like a moving photo.</span>
+            </span>
+            <input type="checkbox" checked={!!p.ambient} onChange={(event) => onChange({ ...section, props: { ...p, ambient: event.target.checked || undefined } })} className="size-4" />
+          </label>
+          <Field label="Shape">
+            <select className={INPUT_CLASS_NAME} value={p.aspect ?? ""} onChange={(event) => onChange({ ...section, props: { ...p, aspect: (event.target.value || undefined) as typeof p.aspect } })}>
+              <option value="">Original</option>
+              <option value="16/9">Widescreen 16:9</option>
+              <option value="21/9">Cinematic 21:9</option>
+              <option value="4/5">Portrait 4:5</option>
+              <option value="1/1">Square</option>
+              <option value="9/16">Vertical 9:16</option>
+            </select>
+          </Field>
+          <Field label="Caption (optional)">
+            <input className={INPUT_CLASS_NAME} value={p.caption ?? ""} maxLength={140} onChange={(event) => onChange({ ...section, props: { ...p, caption: event.target.value || undefined } })} />
+          </Field>
         </div>
       );
     }

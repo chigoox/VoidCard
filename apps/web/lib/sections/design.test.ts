@@ -33,3 +33,20 @@ describe("stat parsing", () => {
     expect(parseStat("Many")).toBeNull();
   });
 });
+
+describe("media urls", () => {
+  it("accepts https and first-party paths, rejects everything else", async () => {
+    const { MediaUrl } = await import("./types");
+    for (const ok of ["https://cdn.example.com/a.mp4", "/showcase/gold-dust.mp4", "/marketing/luxury-banner.png"]) {
+      expect(MediaUrl.safeParse(ok).success).toBe(true);
+    }
+    for (const bad of ["//evil.example/x.mp4", "/a b.png", "/x\".png", "javascript:alert(1)", "showcase/x.mp4"]) {
+      expect(MediaUrl.safeParse(bad).success).toBe(false);
+    }
+  });
+
+  it("ships design media through the schema", () => {
+    expect(SectionDesign.safeParse({ media: { video: "/showcase/aurora-silk.mp4", overlay: 40 } }).success).toBe(true);
+    expect(designAttributes({ media: { image: "/showcase/aurora-silk.jpg" } })?.data).toHaveProperty("data-vc-media");
+  });
+});
