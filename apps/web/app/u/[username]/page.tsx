@@ -9,6 +9,8 @@ import { PublicMarketingPixels } from "@/components/profile/PublicMarketingPixel
 import { PublicProfileActions } from "@/components/profile/PublicProfileActions";
 import { PublicProfileTracker } from "@/components/profile/PublicProfileTracker";
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
+import { ProfileStack } from "@/components/sections/ProfileStack";
+import { desktopLayoutCss, readDesktopSettings } from "@/lib/sections/desktopLayout";
 import { Sections } from "@/lib/sections/types";
 import { buildMetadata, SITE_URL } from "@/lib/seo";
 import { jsonLdScript, person } from "@/lib/jsonld";
@@ -164,6 +166,7 @@ export default async function PublicProfilePage({
   const parsed = Sections.safeParse(sectionsRaw);
   const sections = parsed.success ? parsed.data : [];
   const { integrations } = readProfileIntegrations(profile.customCss ?? "");
+  const { settings: desktopSettings } = readDesktopSettings(profile.customCss ?? "");
   const actionAfterIndex = sections.findIndex((section) => section.visible !== false && section.type === "header");
   const headerSection = sections.find((section) => section.visible !== false && section.type === "header");
   const showSaveContact = headerSection?.type === "header" ? headerSection.props.showSaveContact ?? true : true;
@@ -192,8 +195,12 @@ export default async function PublicProfilePage({
   });
 
   return (
-    <main className="vc-profile-shell home-theme min-h-screen" style={profileShellStyle}>
+    <main
+      className={["vc-profile-shell home-theme min-h-screen", desktopSettings.enabled ? "vc-desktop-on" : ""].filter(Boolean).join(" ")}
+      style={profileShellStyle}
+    >
       <style dangerouslySetInnerHTML={{ __html: themeToCss(getThemePreset(themeId(variant?.theme ?? profile.theme)), ".vc-profile-shell, .vc-profile") }} />
+      <style dangerouslySetInnerHTML={{ __html: desktopLayoutCss(desktopSettings) }} />
       <style dangerouslySetInnerHTML={{ __html: customFontCss(profile.customFontUrl) }} />
       {profile.customCss && (
         <style dangerouslySetInnerHTML={{ __html: sanitizeCss(profile.customCss) }} />
@@ -219,9 +226,11 @@ export default async function PublicProfilePage({
         style={profileColumnStyle}
         data-testid="profile-public-content"
       >
-        <div className="vc-profile-stack">
-          {actionAfterIndex === -1 ? profileActions : null}
-          {sections.map((section, idx) => (
+        {actionAfterIndex === -1 ? <div className="mb-3">{profileActions}</div> : null}
+        <ProfileStack
+          sections={sections}
+          settings={desktopSettings}
+          renderSection={(section, idx) => (
             <Fragment key={section.id}>
               <SectionRenderer
                 section={section}
@@ -233,8 +242,8 @@ export default async function PublicProfilePage({
               />
               {idx === actionAfterIndex ? profileActions : null}
             </Fragment>
-          ))}
-        </div>
+          )}
+        />
         {!profile.removeBranding && (
           <p className="mt-12 text-center text-[10px] uppercase tracking-widest" style={{ color: "var(--vc-fg-mute, #a8a39a)" }}>
             Powered by <a href="https://vcard.ed5enterprise.com" style={{ color: "var(--vc-accent, #d4af37)" }}>VoidCard</a>

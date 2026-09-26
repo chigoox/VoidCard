@@ -36,11 +36,39 @@ const Display = z
   .partial()
   .optional();
 
+export const DESKTOP_GRID_COLUMNS = 12;
+export const DESKTOP_MAX_ROWS = 400;
+export const DESKTOP_CELL_ALIGNS = ["start", "center", "end", "stretch"] as const;
+export type DesktopCellAlign = (typeof DESKTOP_CELL_ALIGNS)[number];
+
+// Placement on the 12-column desktop grid. x/y are zero-based grid cells;
+// w/h are spans. Rows are a minimum height — content taller than its tile
+// grows the row on the public page instead of being clipped.
+export const DesktopPlacement = z.object({
+  x: z.number().int().min(0).max(DESKTOP_GRID_COLUMNS - 1),
+  y: z.number().int().min(0).max(DESKTOP_MAX_ROWS),
+  w: z.number().int().min(1).max(DESKTOP_GRID_COLUMNS),
+  h: z.number().int().min(1).max(60),
+  align: z.enum(DESKTOP_CELL_ALIGNS).optional(),
+  sticky: z.boolean().optional(),
+});
+export type DesktopPlacement = z.infer<typeof DesktopPlacement>;
+
+const Layout = z
+  .object({
+    desktop: DesktopPlacement.optional(),
+    hideOnDesktop: z.boolean().optional(),
+    hideOnMobile: z.boolean().optional(),
+  })
+  .optional();
+export type SectionLayout = z.infer<typeof Layout>;
+
 const Base = z.object({
   id: z.string().uuid(),
   type: z.enum(SECTION_TYPES),
   visible: z.boolean().default(true),
   display: Display,
+  layout: Layout,
 });
 
 const Header = Base.extend({

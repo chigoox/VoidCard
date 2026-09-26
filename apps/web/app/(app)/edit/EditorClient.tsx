@@ -50,11 +50,15 @@ import { THEME_PRESETS, getThemePreset, themeToCss } from "@/lib/themes/presets"
 import { SECTION_TEMPLATES } from "@/lib/editor/templates";
 import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/editor/styleStudio";
 import { readProfileIntegrations, writeProfileIntegrations, type ProfileIntegrations } from "@/lib/profile-integrations";
+import { readDesktopSettings, resolveDesktopLayout, writeDesktopSettings, type DesktopLayoutSettings } from "@/lib/sections/desktopLayout";
+import type { DesktopStudioChange } from "./DesktopLayoutStudio";
 
 const StyleStudioPanel = dynamic(() => import("./StyleStudioPanel"), {
   ssr: false,
   loading: () => <section className="card space-y-3 p-4 text-xs text-ivory-dim" data-testid="style-studio-loading">Loading style studio…</section>,
 });
+
+const DesktopLayoutStudio = dynamic(() => import("./DesktopLayoutStudio"), { ssr: false });
 
 const MediaManagerModal = dynamic(() => import("./MediaManagerModal").then((m) => m.MediaManagerModal), {
   ssr: false,
@@ -2087,6 +2091,17 @@ export default function EditorClient({
     markDirty();
   }
 
+  const { settings: desktopSettings } = readDesktopSettings(customCss);
+  const [desktopStudioOpen, setDesktopStudioOpen] = useState(false);
+  function applyDesktopStudioChange(change: DesktopStudioChange) {
+    pushHistory();
+    if (change.sections) setSections(change.sections);
+    if (change.settings) {
+      setCustomCssState((css) => writeDesktopSettings(change.settings as DesktopLayoutSettings, readDesktopSettings(css).rest));
+    }
+    markDirty();
+  }
+
   function setProfileIntegrations(next: ProfileIntegrations) {
     pushHistory();
     setCustomCssState(writeProfileIntegrations(next, integrationsCssRest));
@@ -2684,6 +2699,11 @@ export default function EditorClient({
         ) : null}
         <style dangerouslySetInnerHTML={{ __html: themeToCss(previewTheme, ".vc-profile-preview") }} />
         {previewCustomCss ? <style dangerouslySetInnerHTML={{ __html: previewCustomCss }} /> : null}
+        <DesktopLayoutCard
+          sections={sections}
+          settings={desktopSettings}
+          onOpen={() => setDesktopStudioOpen(true)}
+        />
         <div className="phone-frame mx-auto">
           <div
             className={[
@@ -2694,7 +2714,7 @@ export default function EditorClient({
             data-testid="preview-scroll"
           >
             <div className="vc-profile-stack">
-              {sections.map((section) => (
+              {sections.filter((section) => !section.layout?.hideOnMobile).map((section) => (
                 <PreviewSection
                   key={section.id}
                   section={section}
@@ -3492,7 +3512,69 @@ export default function EditorClient({
           )}
         </AnimatePresence>
       </div>
+      {desktopStudioOpen ? (
+        <DesktopLayoutStudio
+          sections={sections}
+          settings={desktopSettings}
+          themeCss={themeToCss(previewTheme, ".vc-profile-preview")}
+          customCss={previewCustomCss}
+          onChange={applyDesktopStudioChange}
+          onClose={() => setDesktopStudioOpen(false)}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
+          publicUrl={username ? `/u/${username}` : undefined}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function DesktopLayoutCard({
+  sections,
+  settings,
+  onOpen,
+}: {
+  sections: Sections;
+  settings: DesktopLayoutSettings;
+  onOpen: () => void;
+}) {
+  const placements = resolveDesktopLayout(sections, settings.rowHeight);
+  const rows = Math.max(1, [...placements.values()].reduce((max, p) => Math.max(max, p.y + p.h), 0));
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group mx-auto mb-4 hidden w-full max-w-[380px] items-center gap-3 rounded-card border border-onyx-700 bg-onyx-950/80 p-3 text-left transition hover:border-gold/60 lg:flex"
+      data-testid="open-desktop-studio"
+    >
+      <div
+        className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md border border-onyx-700 bg-onyx-900"
+        aria-hidden
+      >
+        {settings.enabled
+          ? [...placements.entries()].map(([id, p]) => (
+              <span
+                key={id}
+                className="absolute rounded-[2px] bg-gold/40 group-hover:bg-gold/60"
+                style={{
+                  left: `${(p.x / 12) * 100 + 2}%`,
+                  width: `${(p.w / 12) * 100 - 4}%`,
+                  top: `${(p.y / rows) * 100 + 2}%`,
+                  height: `${(p.h / rows) * 100 - 4}%`,
+                }}
+              />
+            ))
+          : <span className="absolute inset-y-1 left-1/2 w-6 -translate-x-1/2 rounded-[2px] bg-ivory/25" />}
+      </div>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-ivory group-hover:text-gold">Desktop layout</span>
+        <span className="block text-xs text-ivory-mute">
+          {settings.enabled ? "Custom grid is live · click to edit" : "Off — desktop shows the phone column. Design it →"}
+        </span>
+      </span>
+    </button>
   );
 }
 
