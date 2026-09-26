@@ -52,6 +52,7 @@ import { readStyleStudio, writeStyleStudio, type StyleStudio } from "@/lib/edito
 import { readProfileIntegrations, writeProfileIntegrations, type ProfileIntegrations } from "@/lib/profile-integrations";
 import { readDesktopSettings, resolveDesktopLayout, writeDesktopSettings, type DesktopLayoutSettings } from "@/lib/sections/desktopLayout";
 import type { DesktopStudioChange } from "./DesktopLayoutStudio";
+import { MobileCanvasEditor } from "./MobileCanvasEditor";
 
 const StyleStudioPanel = dynamic(() => import("./StyleStudioPanel"), {
   ssr: false,
@@ -92,7 +93,6 @@ const INPUT_CLASS_NAME =
   "w-full rounded-card border border-onyx-700 bg-onyx-950 px-3 py-2.5 text-sm text-ivory outline-none transition focus:border-gold/60";
 const TEXTAREA_CLASS_NAME = `${INPUT_CLASS_NAME} min-h-[112px] resize-y`;
 const MAX_GALLERY_IMAGES = 20;
-const EYE_COACH_STORAGE_KEY = "vc.editor.eyeCoach.v1";
 
 type MediaLibraryItem = {
   id: string;
@@ -1980,50 +1980,8 @@ export default function EditorClient({
   const [bulkLinksText, setBulkLinksText] = useState("");
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
-  const [toolbarExpanded, setToolbarExpanded] = useState(false);
-  const [eyeCoachVisible, setEyeCoachVisible] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [overDragId, setOverDragId] = useState<string | null>(null);
-  // Long-press / rubber-band state for the floating eye control
-  const [eyePressing, setEyePressing] = useState(false);
-  const eyePressTimer = useRef<number | null>(null);
-  const eyeLongPressFired = useRef(false);
-  const dismissEyeCoach = useCallback(() => {
-    setEyeCoachVisible(false);
-    try { window.localStorage.setItem(EYE_COACH_STORAGE_KEY, "1"); } catch {}
-  }, []);
-  const startEyePress = useCallback((onLong: () => void) => {
-    dismissEyeCoach();
-    eyeLongPressFired.current = false;
-    setEyePressing(true);
-    if (eyePressTimer.current) window.clearTimeout(eyePressTimer.current);
-    eyePressTimer.current = window.setTimeout(() => {
-      eyeLongPressFired.current = true;
-      try { (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }).vibrate?.(18); } catch {}
-      onLong();
-      setEyePressing(false);
-    }, 420);
-  }, [dismissEyeCoach]);
-  const endEyePress = useCallback((onShort: () => void) => {
-    if (eyePressTimer.current) { window.clearTimeout(eyePressTimer.current); eyePressTimer.current = null; }
-    setEyePressing(false);
-    if (!eyeLongPressFired.current) onShort();
-  }, []);
-  const cancelEyePress = useCallback(() => {
-    if (eyePressTimer.current) { window.clearTimeout(eyePressTimer.current); eyePressTimer.current = null; }
-    setEyePressing(false);
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (window.localStorage.getItem(EYE_COACH_STORAGE_KEY) === "1") return;
-      if (!window.matchMedia("(max-width: 767px)").matches) return;
-      const timer = window.setTimeout(() => setEyeCoachVisible(true), 700);
-      return () => window.clearTimeout(timer);
-    } catch {
-      return undefined;
-    }
-  }, []);
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledPublishAt ?? null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -2093,6 +2051,9 @@ export default function EditorClient({
 
   const { settings: desktopSettings } = readDesktopSettings(customCss);
   const [desktopStudioOpen, setDesktopStudioOpen] = useState(false);
+  // Phones default to editing the page itself; the list stays one tap away.
+  const [mobileView, setMobileView] = useState<"visual" | "list">("visual");
+  const [canvasInsertAt, setCanvasInsertAt] = useState<number | null>(null);
   function applyDesktopStudioChange(change: DesktopStudioChange) {
     pushHistory();
     if (change.sections) setSections(change.sections);
@@ -2242,7 +2203,7 @@ export default function EditorClient({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
-  function addSection(type: typeof SECTION_TYPES[number]) {
+  function addSection(type: typeof SECTION_TYPES[number], insertAt?: number): string {
     const id = crypto.randomUUID();
     const base = { id, type, visible: true } as const;
     let nextSection: SectionRecord;
@@ -2272,9 +2233,15 @@ export default function EditorClient({
 
     pushHistory();
     markDirty();
-    setSections((prev) => [...prev, nextSection]);
+    setSections((prev) => {
+      if (insertAt === undefined || insertAt >= prev.length) return [...prev, nextSection];
+      const next = [...prev];
+      next.splice(Math.max(0, insertAt), 0, nextSection);
+      return next as Sections;
+    });
     setCollapsed((prev) => ({ ...prev, [id]: false }));
     setAnnouncement(`Added ${type} section`);
+    return id;
   }
 
   async function openProductPicker() {
@@ -2318,9 +2285,9 @@ export default function EditorClient({
     setAnnouncement(`Loaded ${tpl.name} template`);
   }
 
-  function duplicateSection(index: number) {
+  function duplicateSection(index: number): string | undefined {
     const original = sections[index];
-    if (!original) return;
+    if (!original) return undefined;
     pushHistory();
     markDirty();
     const copy = { ...original, id: crypto.randomUUID() } as SectionRecord;
@@ -2335,6 +2302,7 @@ export default function EditorClient({
       const el = document.querySelector<HTMLElement>(`[data-section-row="${copy.id}"]`);
       el?.focus();
     });
+    return copy.id;
   }
 
   function updateSection(index: number, nextSection: SectionRecord) {
@@ -2752,6 +2720,24 @@ export default function EditorClient({
 
           {editorTab === "sections" ? (
             <div className="card relative space-y-3 border border-onyx-700 bg-onyx-950/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-onyx-950/85">
+              <div role="tablist" aria-label="Editing mode" className="grid grid-cols-2 gap-1 rounded-pill border border-onyx-700 p-1 md:hidden">
+                {([["visual", "Tap to edit"], ["list", "List & reorder"]] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="tab"
+                    aria-selected={mobileView === mode}
+                    onClick={() => setMobileView(mode)}
+                    className={[
+                      "rounded-pill px-3 py-2 text-xs font-medium transition",
+                      mobileView === mode ? "bg-gold text-onyx-950" : "text-ivory-mute",
+                    ].join(" ")}
+                    data-testid={`mobile-view-${mode}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs uppercase tracking-widest text-ivory-mute">
@@ -2773,7 +2759,13 @@ export default function EditorClient({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAddMenuOpen((open) => !open)}
+                    onClick={() => {
+                      if (mobileView === "visual" && window.matchMedia("(max-width: 767px)").matches) {
+                        setCanvasInsertAt(sections.length);
+                        return;
+                      }
+                      setAddMenuOpen((open) => !open);
+                    }}
                     className="btn-gold px-4 py-2 text-sm"
                     aria-expanded={addMenuOpen}
                     aria-haspopup="menu"
@@ -2783,7 +2775,7 @@ export default function EditorClient({
                   </button>
                 </div>
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className={["mt-3 flex-wrap items-center gap-2", mobileView === "visual" ? "hidden md:flex" : "flex"].join(" ")}>
                 <input
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
@@ -3216,7 +3208,31 @@ export default function EditorClient({
         {/* ─── Sections tab ─── */}
         {editorTab === "sections" ? <div className="flex flex-col gap-4 pb-28 md:pb-0">
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
+        {mobileView === "visual" ? (
+          <div className="md:hidden">
+            <MobileCanvasEditor
+              sections={sections}
+              validationById={validationById}
+              renderPreview={(section) => (
+                <PreviewSection section={section} isTop={section.id === firstVisibleSectionId} topBleedOffset="none" />
+              )}
+              renderFields={(section, onChange) => (
+                <SectionEditorFields section={section} recentMedia={mediaLibrary} onChange={onChange} onMediaAdded={addMediaToLibrary} />
+              )}
+              onChange={updateSection}
+              onMove={move}
+              onRemove={remove}
+              onDuplicate={duplicateSection}
+              onAdd={(type, insertAt) => addSection(type, insertAt)}
+              onOpenTemplates={() => setTemplatesOpen(true)}
+              insertAt={canvasInsertAt}
+              onInsertAtChange={setCanvasInsertAt}
+            />
+          </div>
+        ) : null}
+
+        <div className={mobileView === "visual" ? "hidden md:block" : undefined}>
+        <DndContext id="editor-sections" sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
           <SortableContext items={sections.map((section) => section.id)} strategy={verticalListSortingStrategy}>
             <ul className="space-y-3" data-testid="section-list">
               <AnimatePresence initial={false}>
@@ -3250,6 +3266,7 @@ export default function EditorClient({
             {activeDragSection ? <SectionDragPreview section={activeDragSection} /> : null}
           </DragOverlay>
         </DndContext>
+        </div>
 
         <div className="hidden md:flex md:flex-wrap md:items-center md:gap-2">
           <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-xs" aria-label="Undo" title="Undo (Ctrl+Z)" data-testid="undo"><Undo2 className="size-3.5" aria-hidden /> Undo</button>
@@ -3413,104 +3430,46 @@ export default function EditorClient({
         ) : null}
       </AnimatePresence>
 
-      {/* ── Floating action pill (mobile only) ── */}
+      {/* ── Mobile action bar: every tool is labeled and always visible ── */}
       <div
-        className="pointer-events-none fixed inset-x-0 z-50 flex justify-center md:hidden"
+        className="pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 md:hidden"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 4.75rem)" }}
         data-testid="mobile-action-bar"
       >
-        <AnimatePresence>
-          {eyeCoachVisible && !toolbarExpanded ? (
-            <motion.div
-              key="eye-coach"
-              initial={{ opacity: 0, y: 8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 6, scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 420, damping: 26, mass: 0.7 }}
-              className="pointer-events-auto absolute bottom-[calc(100%+0.75rem)] w-[min(18rem,calc(100vw-2rem))] rounded-card border border-gold/30 bg-onyx-950/95 p-3 text-center text-xs text-ivory shadow-2xl backdrop-blur"
-              role="status"
-              aria-live="polite"
-              data-testid="eye-coach-tip"
-            >
-              <p className="font-medium">Hold the eye to expand editor tools.</p>
-              <p className="mt-1 text-[11px] text-ivory-mute">Tap still opens the live preview.</p>
-              <button type="button" className="mt-2 rounded-full px-3 py-1 text-[11px] font-medium text-gold hover:bg-gold/10" onClick={dismissEyeCoach}>
-                Got it
-              </button>
-              <span className="absolute left-1/2 top-full size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-gold/30 bg-onyx-950/95" aria-hidden />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-        <AnimatePresence mode="wait" initial={false}>
-          {toolbarExpanded ? (
-            <motion.div
-              key="expanded"
-              initial={{ opacity: 0, scaleX: 0.4, scaleY: 0.7 }}
-              animate={{
-                opacity: 1,
-                scaleX: eyePressing ? 1.08 : 1,
-                scaleY: eyePressing ? 0.94 : 1,
-              }}
-              exit={{ opacity: 0, scaleX: 0.4, scaleY: 0.7 }}
-              transition={{ type: "spring", stiffness: 360, damping: 14, mass: 0.7 }}
-              style={{ originY: 1 }}
-              className="pointer-events-auto flex items-center gap-1 rounded-full border border-onyx-700 bg-onyx-950/95 px-2 py-1.5 shadow-2xl backdrop-blur"
-            >
-              <button type="button" onClick={undo} disabled={past.length === 0} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Undo" data-testid="undo">
-                <Undo2 className="size-4" aria-hidden />
-              </button>
-              <button type="button" onClick={redo} disabled={future.length === 0} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Redo" data-testid="redo">
-                <Redo2 className="size-4" aria-hidden />
-              </button>
-              <div className="mx-1 h-5 w-px bg-onyx-700" />
-              {/* Centered eye — tap = preview, long-press = collapse toolbar */}
-              <motion.button
-                type="button"
-                onPointerDown={(e) => { e.preventDefault(); startEyePress(() => setToolbarExpanded(false)); }}
-                onPointerUp={() => endEyePress(() => setMobilePreviewOpen((open) => !open))}
-                onPointerLeave={cancelEyePress}
-                onPointerCancel={cancelEyePress}
-                onContextMenu={(e) => e.preventDefault()}
-                animate={{ scale: eyePressing ? 1.32 : 1 }}
-                transition={{ type: "spring", stiffness: 520, damping: 9, mass: 0.55 }}
-                className="rounded-full bg-gold/15 p-2.5 text-gold ring-1 ring-gold/40 hover:bg-gold/25 select-none touch-none"
-                style={{ WebkitTapHighlightColor: "transparent" }}
-                aria-label={mobilePreviewOpen ? "Close preview · hold to collapse" : "Tap to preview · hold to collapse"}
-                data-testid="mobile-preview-open"
-              >
-                <Eye className="size-5" aria-hidden />
-              </motion.button>
-              <div className="mx-1 h-5 w-px bg-onyx-700" />
-              <button type="button" onClick={onSave} disabled={pending} className="btn-ghost rounded-full p-2.5 disabled:opacity-40" aria-label="Save draft" data-testid="save-draft">
-                <Save className="size-4" aria-hidden />
-              </button>
-              <button type="button" onClick={onPublish} disabled={pending} className="rounded-full bg-gold/10 p-2.5 text-gold hover:bg-gold/20 disabled:opacity-40" aria-label="Publish" data-testid="publish">
-                <Globe className="size-4" aria-hidden />
-              </button>
-            </motion.div>
-          ) : (
-            <motion.button
-              key="collapsed"
+        <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-onyx-700 bg-onyx-950/95 p-1.5 shadow-2xl backdrop-blur">
+          <p className="px-2 pb-1 pt-0.5 text-center text-[10px] uppercase tracking-widest text-ivory-mute" aria-live="polite" data-testid="mobile-save-status">
+            {!isOnline
+              ? "Offline — changes will save when you reconnect"
+              : validationById.size > 0
+                ? "Fix the highlighted section to save"
+                : pending
+                  ? "Saving…"
+                  : isDirty
+                    ? "Unsaved changes"
+                    : savedAt === "Published" ? "Published" : "All changes saved"}
+          </p>
+          <div className="flex items-stretch gap-1">
+            <ActionBarButton label="Undo" onClick={undo} disabled={past.length === 0} icon={<Undo2 className="size-4" aria-hidden />} testId="undo" />
+            <ActionBarButton label="Redo" onClick={redo} disabled={future.length === 0} icon={<Redo2 className="size-4" aria-hidden />} testId="redo" />
+            <ActionBarButton
+              label={mobilePreviewOpen ? "Close" : "Preview"}
+              onClick={() => setMobilePreviewOpen((open) => !open)}
+              icon={mobilePreviewOpen ? <X className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+              testId="mobile-preview-open"
+            />
+            <ActionBarButton label="Save" onClick={onSave} disabled={pending} icon={<Save className="size-4" aria-hidden />} testId="save-draft" />
+            <button
               type="button"
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{ opacity: 1, scale: eyePressing ? 1.28 : 1 }}
-              exit={{ opacity: 0, scale: 0.6 }}
-              transition={{ type: "spring", stiffness: 520, damping: 9, mass: 0.55 }}
-              onPointerDown={(e) => { e.preventDefault(); startEyePress(() => setToolbarExpanded(true)); }}
-              onPointerUp={() => endEyePress(() => setMobilePreviewOpen((open) => !open))}
-              onPointerLeave={cancelEyePress}
-              onPointerCancel={cancelEyePress}
-              onContextMenu={(e) => e.preventDefault()}
-              className="pointer-events-auto rounded-full border border-onyx-700 bg-onyx-950/95 p-3.5 shadow-2xl backdrop-blur select-none touch-none"
-              style={{ WebkitTapHighlightColor: "transparent" }}
-              aria-label={mobilePreviewOpen ? "Close preview · hold for editor tools" : "Tap to preview · hold for editor tools"}
-              aria-expanded={false}
-              data-testid="floating-toolbar-toggle"
+              onClick={onPublish}
+              disabled={pending}
+              className="btn-gold flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl px-3 text-sm disabled:opacity-50"
+              data-testid="publish"
             >
-              <Eye className="size-5 text-ivory" aria-hidden />
-            </motion.button>
-          )}
-        </AnimatePresence>
+              <Globe className="size-4" aria-hidden />
+              Publish
+            </button>
+          </div>
+        </div>
       </div>
       {desktopStudioOpen ? (
         <DesktopLayoutStudio
@@ -3528,6 +3487,33 @@ export default function EditorClient({
         />
       ) : null}
     </div>
+  );
+}
+
+function ActionBarButton({
+  label,
+  icon,
+  onClick,
+  disabled,
+  testId,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[10px] text-ivory-dim transition hover:bg-onyx-900 hover:text-ivory disabled:opacity-35"
+      data-testid={testId}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
