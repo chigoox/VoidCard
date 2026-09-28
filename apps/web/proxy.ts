@@ -19,6 +19,7 @@ const PUBLIC_ROUTES = [
   /^\/exchange(\/.*)?$/,
   /^\/contact$/,
   /^\/customers$/,
+  /^\/examples(\/[\w-]+)?$/,
   /^\/press$/,
   /^\/roadmap$/,
   /^\/why-voidcard$/,
@@ -34,6 +35,8 @@ const PUBLIC_ROUTES = [
   // Public API surfaces use their own auth, captcha, or shared-secret checks.
   /^\/api\/(analytics|cron|discover|lead-forms|stripe|short|public|v1|test|auth|security|wallet|consent)(\/.*)?$/,
   /^\/embed\.js$/,
+  // First-party static media (designed-template banners, marketing photos).
+  /^\/(showcase|marketing|icons)\/[\w.-]+$/,
   /^\/og\/.*/,
   /^\/_next\/.*/,
   /^\/\.well-known\/.*/,
@@ -280,7 +283,9 @@ export async function proxy(req: NextRequest) {
     if (!completed) {
       const url = req.nextUrl.clone();
       url.pathname = "/onboarding";
-      url.searchParams.set("next", pathname);
+      url.search = "";
+      // Keep the query (e.g. ?template= from /examples) for after onboarding.
+      url.searchParams.set("next", pathname + req.nextUrl.search);
       return NextResponse.redirect(url);
     }
   }

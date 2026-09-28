@@ -1,0 +1,207 @@
+<!doctype html>
+<!--
+  Generative, seamlessly looping backgrounds for the designed templates.
+  Every animated term is periodic in LOOP seconds, so frame 0 == frame LOOP.
+  Rendered frame-by-frame by render.mjs (window.renderFrame(t)).
+-->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const params = new URLSearchParams(location.search);
+const W = Number(params.get("w") || 1280), H = Number(params.get("h") || 720);
+const LOOP = Number(params.get("loop") || 10);
+const scene = params.get("scene") || "gold-dust";
+const canvas = document.getElementById("c");
+canvas.width = W; canvas.height = H;
+const TAU = Math.PI * 2;
+
+// ─── WebGL shader scenes ────────────────────────────────────────────────────
+const COMMON = `
+precision highp float;
+uniform vec2 uRes; uniform float uPhase; // uPhase in [0, 2π)
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),u.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),u.x), u.y); }
+float fbm(vec2 p){ float v=0., a=.5; for(int i=0;i<6;i++){ v+=a*noise(p); p=p*2.03+vec2(17.3,9.1); a*=.5; } return v; }
+// Loop-safe time offsets: walk a circle so the pattern returns to its start.
+vec2 loopOffset(float r){ return vec2(cos(uPhase), sin(uPhase)) * r; }
+`;
+
+const SHADERS = {
+  // Indigo → magenta → peach silk ribbons with slow domain warping.
+  "aurora-silk": `
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes; vec2 p = uv * vec2(uRes.x/uRes.y, 1.) * 1.6;
+  vec2 o = loopOffset(.55);
+  vec2 q = vec2(fbm(p + o), fbm(p + vec2(5.2, 1.3) - o));
+  vec2 r = vec2(fbm(p + 3.5*q + vec2(1.7, 9.2) + o*.7), fbm(p + 3.5*q + vec2(8.3, 2.8) - o*.7));
+  float f = fbm(p + 3.0*r);
+  float bands = sin((p.y + r.x*1.8 + f*1.2) * 5.5 + uPhase) * .5 + .5;
+  vec3 deep = vec3(.05,.03,.14), indigo = vec3(.24,.16,.62), magenta = vec3(.78,.18,.52), peach = vec3(1.,.66,.52);
+  vec3 col = mix(deep, indigo, smoothstep(.15,.75,f));
+  col = mix(col, magenta, smoothstep(.45,.95,r.y) * .85);
+  col = mix(col, peach, pow(bands, 6.) * smoothstep(.35,.9,f) * .55);
+  col += .08 * pow(max(0., 1. - length(uv - vec2(.7,.8))), 3.);
+  col *= .85 + .25*smoothstep(0., .8, uv.y);
+  gl_FragColor = vec4(col, 1.);
+}`,
+  // Golden-hour light through a window, raking across a plaster wall, with
+  // soft penumbra and pointed leaf shadows swaying in the breeze.
+  "light-shadow": `
+float leafShape(vec2 v){ // pointed leaf: lens shape plus a stem-side taper
+  v.x *= 1.0; float w = .11 * (1. - pow(abs(v.y)/.22, 2.));
+  return smoothstep(.02, -.02, abs(v.x) - max(w, 0.)) * step(abs(v.y), .22); }
+float leaves(vec2 p){ float d = 0.; for(int i=0;i<11;i++){ float fi=float(i);
+  vec2 c = vec2(hash(vec2(fi,1.))*1.4 + .1, hash(vec2(fi,7.))*.9 + .02);
+  c += .018*vec2(sin(uPhase + fi*1.7), cos(uPhase + fi*.9));
+  vec2 v = p - c; float a = hash(vec2(fi,3.))*6.28 + .12*sin(uPhase + fi*2.1);
+  v = mat2(cos(a),-sin(a),sin(a),cos(a)) * v;
+  d = max(d, leafShape(v * (1.1 + hash(vec2(fi,5.))*.6))); } return d; }
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes; vec2 p = uv * vec2(uRes.x/uRes.y, 1.);
+  vec3 wall = mix(vec3(.91,.85,.75), vec3(.80,.72,.61), smoothstep(.0,1.,uv.y*.5 + (1.-uv.x)*.35));
+  wall *= 1. + (fbm(p*55.)-.5)*.05 + (fbm(p*6.)-.5)*.06;
+  // Raking light: sheared window footprint, soft edges (penumbra).
+  vec2 w = p - vec2(1.02 + .025*sin(uPhase), .5);
+  w.x += w.y * .55; // shear from a low sun
+  float pen = .07;
+  float win = smoothstep(pen, -pen, abs(w.x)-.5) * smoothstep(pen, -pen, abs(w.y)-.3);
+  float bars = smoothstep(.028,.0, abs(mod(w.x+.25,.25)-.125)-.006) + smoothstep(.028,.0, abs(w.y)-.006);
+  float light = win * (1. - clamp(bars,0.,1.)*.85);
+  light *= 1. - leaves(p + vec2(-.35, .02))*.8;
+  vec3 sun = vec3(1.,.86,.62);
+  vec3 col = wall * (.66 + .62*light*sun);
+  col += vec3(.16,.09,.02) * light;
+  col += vec3(.08,.05,.01) * smoothstep(.9,.0,length(uv-vec2(.72,.55))); // bounce
+  col *= .92 + .08*smoothstep(1.3,.2,length(uv-vec2(.6,.5)));
+  gl_FragColor = vec4(col,1.);
+}`,
+  // Synthwave horizon: moving neon grid, sun bands, drifting haze.
+  "neon-grid": `
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes; vec2 p = (gl_FragCoord.xy - .5*uRes) / uRes.y;
+  vec3 col = mix(vec3(.02,.01,.06), vec3(.10,.02,.16), smoothstep(-.1,.5,p.y));
+  float horizon = -.05;
+  // Sun
+  vec2 sp = p - vec2(0., .16); float sun = smoothstep(.22,.215,length(sp));
+  float stripes = step(.5, fract((sp.y + .3) * 14.)) + step(0., sp.y);
+  col = mix(col, mix(vec3(1.,.25,.55), vec3(1.,.75,.3), smoothstep(-.2,.2,sp.y)), sun * clamp(stripes,0.,1.));
+  col += vec3(1.,.2,.6) * .35 * exp(-8.*length(sp));
+  if (p.y < horizon) {
+    float z = .35 / (horizon - p.y + .001);
+    vec2 g = vec2(p.x * z, z + uPhase / TAU_F);
+    vec2 gl = abs(fract(g * vec2(1.6, 1.)) - .5) / fwidthSafe(g);
+    float line = 1. - min(min(gl.x, gl.y), 1.);
+    float fade = smoothstep(18., 1., z);
+    col = mix(vec3(.02,.0,.05), col, .15);
+    col += line * fade * mix(vec3(.1,.9,1.), vec3(1.,.2,.8), smoothstep(.0,.9,abs(p.x)));
+    col += vec3(.0,.5,.8) * .25 * exp(-30.*abs(p.y - horizon));
+  }
+  col += vec3(.6,.1,.5) * .12 * fbm(p*3. + loopOffset(.4));
+  gl_FragColor = vec4(col,1.);
+}`,
+  // Soft botanical shadows swaying across a sunlit sage wall.
+  "botanical-light": `
+float leafShape(vec2 v, float len, float wid){
+  float w = wid * (1. - pow(abs(v.y)/len, 2.));
+  return smoothstep(.035, -.035, abs(v.x) - max(w, 0.)) * smoothstep(len+.03, len-.03, abs(v.y)); }
+float frond(vec2 p, vec2 base, float ang, float sway){
+  float d = 0.; float a = ang + .06*sin(uPhase + sway);
+  mat2 r = mat2(cos(a),-sin(a),sin(a),cos(a));
+  for(int k=0;k<9;k++){ float fk=float(k);
+    vec2 c = base + r * vec2(0., fk*.085);
+    float side = mod(fk,2.)*2.-1.; float la = a + side*(.9 + .04*sin(uPhase*2. + fk + sway));
+    vec2 v = mat2(cos(la),-sin(la),sin(la),cos(la)) * (p - c - r*vec2(side*.07, .02));
+    d = max(d, leafShape(v, .12 - fk*.006, .035)); }
+  return d; }
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes; vec2 p = uv * vec2(uRes.x/uRes.y, 1.);
+  vec3 wall = mix(vec3(.80,.85,.74), vec3(.68,.75,.62), uv.y*.4 + (1.-uv.x)*.3);
+  wall *= 1. + (fbm(p*60.)-.5)*.04;
+  float sunBand = smoothstep(.55, .0, abs((p.x - p.y*.7) - .55 - .03*sin(uPhase)));
+  float shadow = 0.;
+  shadow = max(shadow, frond(p, vec2(.35,-.05), -.35, 0.));
+  shadow = max(shadow, frond(p, vec2(1.25,-.1), .45, 1.7));
+  shadow = max(shadow, frond(p, vec2(.85,-.2), .1, 3.1) * .8);
+  float light = sunBand * (1. - shadow*.7);
+  vec3 col = wall * (.78 + .38*light) + vec3(.12,.1,.03)*light;
+  col = mix(col, col*vec3(.86,.92,.84), shadow*(1.-sunBand)*.5);
+  col *= .93 + .07*smoothstep(1.3,.2,length(uv-vec2(.5,.55)));
+  gl_FragColor = vec4(col,1.);
+}`,
+};
+
+function makeGL(src) {
+  const gl = canvas.getContext("webgl", { preserveDrawingBuffer: true, antialias: true });
+  const vs = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vs, "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}");
+  gl.compileShader(vs);
+  const fs = gl.createShader(gl.FRAGMENT_SHADER);
+  const full = "#extension GL_OES_standard_derivatives : enable\n" + COMMON +
+    "const float TAU_F = 6.2831853;\nvec2 fwidthSafe(vec2 g){ return max(fwidth(g), vec2(1e-4)); }\n" + src;
+  gl.getExtension("OES_standard_derivatives");
+  gl.shaderSource(fs, full);
+  gl.compileShader(fs);
+  if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(fs));
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog); gl.useProgram(prog);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "a"); gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const uRes = gl.getUniformLocation(prog, "uRes"), uPhase = gl.getUniformLocation(prog, "uPhase");
+  gl.viewport(0, 0, W, H);
+  return (t) => { gl.uniform2f(uRes, W, H); gl.uniform1f(uPhase, (t / LOOP) * TAU); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.finish(); };
+}
+
+// ─── Canvas 2D scene: gold dust & bokeh on onyx ─────────────────────────────
+function makeGoldDust() {
+  const ctx = canvas.getContext("2d");
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const bokeh = Array.from({ length: 26 }, () => ({ x: rnd(), y: rnd(), r: 40 + rnd() * 140, a: .05 + rnd() * .12, k: 1 + Math.floor(rnd() * 2), ph: rnd() * TAU, hue: rnd() }));
+  const dust = Array.from({ length: 420 }, () => ({ x: rnd(), y: rnd(), s: .6 + rnd() * 2.2, k: 1 + Math.floor(rnd() * 2), ph: rnd() * TAU, tw: rnd() }));
+  return (t) => {
+    const ph = (t / LOOP) * TAU;
+    const bg = ctx.createRadialGradient(W * .5, H * .35, 0, W * .5, H * .5, W * .8);
+    bg.addColorStop(0, "#1c160c"); bg.addColorStop(.55, "#0b0906"); bg.addColorStop(1, "#040403");
+    ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // Light sweep
+    const sweepX = W * (.5 + .45 * Math.sin(ph));
+    const sw = ctx.createLinearGradient(sweepX - 380, 0, sweepX + 380, H);
+    sw.addColorStop(0, "rgba(255,215,140,0)"); sw.addColorStop(.5, "rgba(255,215,140,.07)"); sw.addColorStop(1, "rgba(255,215,140,0)");
+    ctx.fillStyle = sw; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "lighter";
+    for (const b of bokeh) {
+      const x = (b.x + .04 * Math.sin(ph * b.k + b.ph)) * W;
+      const y = (((b.y - (t / LOOP) * b.k) % 1) + 1) % 1 * (H + 2 * b.r) - b.r;
+      const g = ctx.createRadialGradient(x, y, b.r * .1, x, y, b.r);
+      const c = b.hue > .6 ? "255,190,110" : b.hue > .25 ? "240,200,130" : "255,235,200";
+      g.addColorStop(0, `rgba(${c},${b.a * 1.4})`); g.addColorStop(.7, `rgba(${c},${b.a * .6})`); g.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, b.r, 0, TAU); ctx.fill();
+    }
+    for (const d of dust) {
+      const x = (d.x + .015 * Math.sin(ph * d.k + d.ph)) * W;
+      const y = (((d.y - (t / LOOP) * d.k) % 1) + 1) % 1 * H;
+      const a = .25 + .75 * Math.pow(.5 + .5 * Math.sin(ph * 3 * d.k + d.ph), 3) * d.tw;
+      ctx.fillStyle = `rgba(255,214,140,${a})`;
+      ctx.beginPath(); ctx.arc(x, y, d.s, 0, TAU); ctx.fill();
+      if (d.s > 2.2) { ctx.fillStyle = `rgba(255,220,160,${a * .15})`; ctx.beginPath(); ctx.arc(x, y, d.s * 5, 0, TAU); ctx.fill(); }
+    }
+    ctx.globalCompositeOperation = "source-over";
+    const vig = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .75);
+    vig.addColorStop(0, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,.65)");
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+  };
+}
+
+window.renderFrame = scene === "gold-dust" ? makeGoldDust() : makeGL(SHADERS[scene]);
+window.ready = true;
+</script>
+</body>
+</html>

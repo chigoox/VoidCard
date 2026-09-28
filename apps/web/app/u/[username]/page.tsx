@@ -12,6 +12,8 @@ import { SectionRenderer } from "@/components/sections/SectionRenderer";
 import { ProfileStack } from "@/components/sections/ProfileStack";
 import { desktopLayoutCss, readDesktopSettings } from "@/lib/sections/desktopLayout";
 import { ThemeSwitchButton } from "@/components/profile/ThemeSwitchButton";
+import { DesignFx } from "@/components/sections/DesignFx";
+import { hasDesign } from "@/lib/sections/design";
 import { ALT_THEME_SELECTOR, isLightTheme, readThemeSwitch, themeSwitchBootScript } from "@/lib/editor/themeSwitch";
 import { Sections } from "@/lib/sections/types";
 import { buildMetadata, SITE_URL } from "@/lib/seo";
@@ -222,6 +224,7 @@ export default async function PublicProfilePage({
         dangerouslySetInnerHTML={jsonLdScript(ld)}
       />
       <PublicMarketingPixels {...integrations} />
+      {sections.some((section) => hasDesign(section.design)) ? <DesignFx /> : null}
       {altTheme ? (
         <ThemeSwitchButton
           handle={handle}
@@ -243,7 +246,9 @@ export default async function PublicProfilePage({
       </section>
       <div
         className="mx-auto px-4 pb-24 pt-8 sm:px-6 sm:pt-10 vc-profile"
-        style={profileColumnStyle}
+        // With a desktop grid the column is transparent so the page-wide
+        // backdrop shows through instead of a boxed column.
+        style={desktopSettings.enabled ? { ...profileColumnStyle, background: "transparent" } : profileColumnStyle}
         data-testid="profile-public-content"
       >
         {actionAfterIndex === -1 ? <div className="mb-3">{profileActions}</div> : null}

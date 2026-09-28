@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/why-voidcard", label: "Why VoidCard" },
   { href: "/pricing", label: "Pricing" },
   { href: "/shop", label: "Shop" },
+  { href: "/examples", label: "Examples" },
   { href: "/customers", label: "Customers" },
 ];
 
