@@ -1,4 +1,4 @@
-// Five fully designed starting points. Each sets a theme, a desktop layout
+// Fully designed starting points. Each sets a theme, a desktop layout
 // and per-section design, so no two look alike out of the box.
 
 import type { Section as SectionRecord, SectionDesign, Sections } from "@/lib/sections/types";
@@ -67,6 +67,34 @@ const M = {
   botanical: "/showcase/botanical-light.mp4",
   botanicalStill: "/showcase/botanical-light.jpg",
 };
+
+// Photo slots for the business templates. Swap a path here to re-shoot a
+// template; every section that uses the slot follows.
+const P = {
+  fashionHero: M.portrait,
+  fashionLook1: "/marketing/luxury-banner.png",
+  fashionLook2: M.handoff,
+  fashionLook3: M.portrait,
+  hairHero: "/marketing/luxury-banner.png",
+  hairWork1: "/marketing/luxury-banner.png",
+  hairWork2: M.portrait,
+  hairWork3: M.handoff,
+  musicHero: M.handoff,
+  musicStage: M.neonStill2,
+  nailsHero: "/marketing/luxury-banner.png",
+  nailsSet1: M.auroraStill2,
+  nailsSet2: M.auroraStill3,
+  nailsSet3: M.auroraStill,
+};
+
+function gallery(photos: Array<[string, string]>, design: SectionDesign, display?: SectionRecord["display"], layout: "grid" | "masonry" | "carousel" = "grid"): SectionRecord {
+  return { id: uid(), type: "gallery", visible: true, design, display, props: { images: photos.map(([src, alt]) => ({ src, alt })), layout, lightbox: true, carouselFullWidth: false, filters: [], showCategoryStories: false } };
+}
+function booking(handle: string, ctaLabel: string, display?: SectionRecord["display"], design?: SectionDesign): SectionRecord {
+  // Button mode works before a Boox account is connected; switch to "embed"
+  // in the editor to show the live calendar inline.
+  return { id: uid(), type: "booking", visible: true, display, design, props: { provider: "boox", ownerSlug: handle, mode: "button", theme: "onyx", height: 820, ctaLabel } };
+}
 
 function email(label: string, address: string, design?: SectionDesign): SectionRecord {
   return { id: uid(), type: "email", visible: true, design, props: { label, email: address } };
@@ -178,6 +206,92 @@ export const SHOWCASE_TEMPLATES: ShowcaseTemplate[] = [
       link("Book a free discovery call", "https://example.com/call", "gold", motion("rise", 300)),
       link("Join the Sunday breathwork", "https://example.com/breath", "outline", motion("rise", 340)),
       social(handle, ["instagram", "youtube"]),
+    ],
+  },
+  {
+    id: "row-atelier",
+    name: "Row Atelier",
+    description: "Clothing boutique · editorial lookbook, drop countdown, sand tones.",
+    themeId: "sand-dune",
+    desktop: { preset: "magazine", maxWidth: 1240, gap: 22, rowHeight: 40, tiles: "none" },
+    build: (handle) => [
+      header(
+        { name: "Row Atelier", handle, tagline: "Small-batch tailoring and everyday luxury, cut in our studio downtown.", descriptors: ["Womenswear", "Menswear", "Made in LA"], layout: "hero", coverUrl: P.fashionHero },
+        { radius: 6, letterSpacing: -1 },
+        motion("reveal", 0, "load"),
+      ),
+      feature("shop", "The Autumn Drop", "Wool overcoats, silk shirting and the trouser everyone asks about. Ships Friday — sizes go fast.", { surface: "card", shadow: "lift", hover: "lift", align: "start", radius: 6, padding: 32, font: "display" }, motion("rise", 80), ["Shop the drop", "https://example.com/shop"]),
+      gallery([[P.fashionLook1, "Look 01 — the column coat"], [P.fashionLook2, "Look 02 — evening tailoring"], [P.fashionLook3, "Look 03 — the studio suit"]], { radius: 6, padding: 0 }, motion("reveal", 120)),
+      stats([["3", "Pieces per style, max"], ["100%", "Natural fibres"], ["Free", "Alterations for life"]], { surface: "outline", font: "display", align: "start", radius: 6, padding: 28 }, "Why Row", motion("rise", 160)),
+      quote("The only coat I've ever been stopped on the street about. Twice in one day.", "Jordan A.", "Customer since 2022", { surface: "outline", font: "display", scale: "lg", align: "start", radius: 6, padding: 32 }, motion("reveal", 120)),
+      link("Shop new arrivals", "https://example.com/shop", "card", motion("rise", 200)),
+      link("Book a fitting", "https://example.com/fitting", "outline", motion("rise", 240)),
+      link("Visit the studio", "https://maps.google.com", "underline", motion("rise", 280)),
+      social(handle, ["instagram", "tiktok"]),
+    ],
+  },
+  {
+    id: "gloss-hair",
+    name: "Gloss Hair Studio",
+    description: "Hair salon · champagne glass, service menu, portfolio, one-tap booking.",
+    themeId: "champagne-glam",
+    desktop: { preset: "sidebar", maxWidth: 1200, gap: 22, rowHeight: 40, tiles: "none" },
+    build: (handle) => [
+      header(
+        { name: "Gloss Hair Studio", handle, tagline: "Colour, cuts and silk-press finishes that move like they're lit from within.", descriptors: ["Colour", "Silk press", "Extensions"], layout: "hero", coverUrl: P.hairHero },
+        { radius: 30, shadow: "lift" },
+        motion("blur-in", 0, "load"),
+      ),
+      booking(handle, "Book your chair", motion("rise", 60), { shadow: "glow", radius: 48 }),
+      text("## Service menu\n**Signature silk press** — from $95\n\n**Lived-in blonde** — from $240\n\n**Precision cut & finish** — from $80\n\n**Hand-tied extensions** — consult", { surface: "glass", shadow: "soft", align: "start", radius: 26, padding: 30 }, motion("rise", 100)),
+      gallery([[P.hairWork1, "Platinum silk press"], [P.hairWork2, "Sleek glass-hair finish"], [P.hairWork3, "Soft evening waves"]], { radius: 26 }, motion("reveal", 140), "masonry"),
+      stats([["4.9★", "400+ reviews"], ["12", "Years behind the chair"], ["6", "Stylists"]], { surface: "foil", ambient: "border-flow", shadow: "glow", radius: 26, padding: 28, speed: "slow" }, undefined, motion("rise", 180)),
+      quote("My colour has never looked this expensive. I get asked who does my hair every single week.", "Tasha M.", "Client since 2021", { surface: "card", shadow: "lift", font: "display", radius: 26, padding: 30 }, motion("rise", 200)),
+      link("Shop aftercare", "https://example.com/aftercare", "glass", motion("rise", 240)),
+      social(handle, ["instagram", "tiktok"]),
+    ],
+  },
+  {
+    id: "solene",
+    name: "Solène",
+    description: "Music artist · new single, tour dates, streaming links, rose-dusk glow.",
+    themeId: "rose-dusk",
+    desktop: { preset: "bento", maxWidth: 1240, gap: 18, rowHeight: 34, tiles: "none" },
+    build: (handle) => [
+      header(
+        { name: "SOLÈNE", handle, tagline: "Midnight soul, velvet synths. New single “Glasshouse” out now.", descriptors: ["Singer", "Songwriter", "Paris → LA"], layout: "hero", coverUrl: P.musicHero },
+        { shadow: "glow", radius: 28, uppercase: true, letterSpacing: 6, accent: "#fda4af" },
+        motion("scale-in", 0, "load"),
+      ),
+      feature("music", "Glasshouse — the new single", "Written in one night, recorded live in one take. Out everywhere now.", { hover: "glow", ambient: "breathe", accent: "#fda4af", radius: 26, padding: 30, font: "display", media: { image: P.musicStage, overlay: 50, minHeight: 260 } }, motion("blur-in", 80), ["Listen now", "https://open.spotify.com"]),
+      stats([["120M", "Streams"], ["38", "Cities on tour"], ["2", "Gold records"]], { surface: "glass", shadow: "glow", accent: "#fda4af", radius: 24, padding: 26 }, undefined, motion("rise", 120)),
+      text("## The Glasshouse Tour\n**Oct 18** — Los Angeles, The Wiltern\n\n**Oct 24** — New York, Brooklyn Steel\n\n**Nov 02** — London, KOKO\n\n**Nov 09** — Paris, La Cigale", { surface: "card", shadow: "lift", align: "start", radius: 24, padding: 30, font: "display" }, motion("rise", 160)),
+      link("Listen on Spotify", "https://open.spotify.com", "neon", motion("rise", 200), { accent: "#fda4af" }),
+      link("Listen on Apple Music", "https://music.apple.com", "glass", motion("rise", 240)),
+      link("Tour tickets", "https://example.com/tour", "gold", motion("rise", 280)),
+      link("Merch", "https://example.com/merch", "outline", motion("rise", 320)),
+      social(handle, ["instagram", "tiktok", "youtube"]),
+    ],
+  },
+  {
+    id: "lacquer-lounge",
+    name: "Lacquer Lounge",
+    description: "Nail studio · blush gloss, set gallery, price menu, Boox booking.",
+    themeId: "blush-studio",
+    desktop: { preset: "bento", maxWidth: 1200, gap: 18, rowHeight: 36, tiles: "none" },
+    build: (handle) => [
+      header(
+        { name: "Lacquer Lounge", handle, tagline: "Structured gel, chrome and hand-painted art — sets that last three weeks and look like day one.", descriptors: ["Gel-X", "Chrome", "Nail art"], layout: "hero", coverUrl: P.nailsHero },
+        { radius: 32, shadow: "soft", accent: "#f9a8d4" },
+        motion("rise", 0, "load"),
+      ),
+      booking(handle, "Book your set", motion("scale-in", 60), { shadow: "glow", radius: 48, accent: "#ec4899" }),
+      gallery([[P.nailsSet1, "Pink chrome almond set"], [P.nailsSet2, "Lilac aura French"], [P.nailsSet3, "Velvet cat-eye"]], { radius: 28 }, motion("reveal", 100)),
+      text("## Menu\n**Gel-X full set** — $75\n\n**Structured gel manicure** — $55\n\n**Chrome or cat-eye** — +$15\n\n**Hand-painted art** — from $10 a nail", { surface: "glass", shadow: "soft", align: "start", radius: 28, padding: 30 }, motion("rise", 140)),
+      stats([["3 wks", "Wear, guaranteed"], ["2k+", "Sets done"], ["5.0★", "On Google"]], { surface: "gradient", bg: "#fce7f3", bg2: "#fbcfe8", gradientAngle: 150, text: "#500724", accent: "#be185d", radius: 28, padding: 26 }, undefined, motion("rise", 180)),
+      quote("Three weeks in and not a single chip. I've stopped going anywhere else.", "Alexis R.", "Regular since 2023", { surface: "card", shadow: "soft", hover: "lift", radius: 28, padding: 30 }, motion("rise", 200)),
+      link("Aftercare & policies", "https://example.com/policies", "glass", motion("rise", 240)),
+      social(handle, ["instagram", "tiktok"]),
     ],
   },
 ];

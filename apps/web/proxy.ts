@@ -19,6 +19,7 @@ const PUBLIC_ROUTES = [
   /^\/exchange(\/.*)?$/,
   /^\/contact$/,
   /^\/customers$/,
+  /^\/examples(\/[\w-]+)?$/,
   /^\/press$/,
   /^\/roadmap$/,
   /^\/why-voidcard$/,
@@ -282,7 +283,9 @@ export async function proxy(req: NextRequest) {
     if (!completed) {
       const url = req.nextUrl.clone();
       url.pathname = "/onboarding";
-      url.searchParams.set("next", pathname);
+      url.search = "";
+      // Keep the query (e.g. ?template= from /examples) for after onboarding.
+      url.searchParams.set("next", pathname + req.nextUrl.search);
       return NextResponse.redirect(url);
     }
   }

@@ -19,6 +19,7 @@ export async function SiteHeader() {
           <Link href="/why-voidcard" className="text-ink-500 hover:text-ink">Why</Link>
           <Link href="/pricing" className="text-ink-500 hover:text-ink">Pricing</Link>
           <Link href="/shop" className="text-ink-500 hover:text-ink">Shop</Link>
+          <Link href="/examples" className="text-ink-500 hover:text-ink">Examples</Link>
           <Link href="/customers" className="text-ink-500 hover:text-ink">Customers</Link>
           {isLoggedIn ? (
             <Link href="/dashboard" className="btn-primary">Dashboard</Link>

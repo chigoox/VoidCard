@@ -1611,6 +1611,7 @@ export default function EditorClient({
   initialScheduledPublishAt,
   canSchedule,
   canAbVariants,
+  requestedTemplate,
 }: {
   initial: Sections;
   username: string;
@@ -1621,6 +1622,8 @@ export default function EditorClient({
   initialScheduledPublishAt?: string | null;
   canSchedule?: boolean;
   canAbVariants?: boolean;
+  /** Designed template picked on /examples ("Use this design"). */
+  requestedTemplate?: string;
 }) {
   const [sections, setSections] = useState<Sections>(initial);
   const [themeId, setThemeId] = useState(initialThemeId);
@@ -1946,6 +1949,18 @@ export default function EditorClient({
     setTemplatesOpen(false);
     setAnnouncement(`Loaded the ${tpl.name} design`);
   }
+
+  const requestedTemplateHandled = useRef(false);
+  useEffect(() => {
+    if (requestedTemplateHandled.current || !requestedTemplate) return;
+    requestedTemplateHandled.current = true;
+    applyShowcase(requestedTemplate);
+    // Drop ?template= so a refresh doesn't offer it again.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("template");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, [requestedTemplate]);
 
   function duplicateSection(index: number): string | undefined {
     const original = sections[index];
