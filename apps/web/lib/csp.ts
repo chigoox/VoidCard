@@ -29,6 +29,8 @@ export function generateNonce(): string {
  * Build the CSP header value. Keep this in sync with vendor scripts loaded by
  * the app (Stripe, Turnstile, PostHog, Sentry, Supabase realtime).
  */
+const CDN_ORIGIN = `https://${process.env.NEXT_PUBLIC_BUNNY_CDN_HOST ?? "cdn.vcard.ed5enterprise.com"}`;
+
 export function buildCsp(nonce: string): string {
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -71,13 +73,15 @@ export function buildCsp(nonce: string): string {
       "data:",
       "blob:",
       "https://*.supabase.co",
+      CDN_ORIGIN,
       "https://*.stripe.com",
       "https://lh3.googleusercontent.com",
       "https://avatars.githubusercontent.com",
       "https://www.facebook.com",
       "https://www.google-analytics.com",
     ],
-    "media-src": ["'self'", "blob:", "https://*.supabase.co"],
+    // Uploaded images and banner videos may be served from the Bunny CDN.
+    "media-src": ["'self'", "blob:", "https://*.supabase.co", CDN_ORIGIN],
     "connect-src": [
       "'self'",
       "https://*.supabase.co",

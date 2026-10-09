@@ -93,6 +93,7 @@ export default async function EditPage({
         initialScheduledPublishAt={activeProfile.scheduledPublishAt}
         canSchedule={entitlementsFor(u.plan, { extraStorageBytes: u.bonusStorageBytes }).scheduledPublish}
         canAbVariants={entitlementsFor(u.plan, { extraStorageBytes: u.bonusStorageBytes }).abVariants}
+        requestedTemplate={typeof resolvedSearchParams.template === "string" ? resolvedSearchParams.template : undefined}
       />
     </div>
   );

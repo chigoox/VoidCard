@@ -37,6 +37,33 @@ const VARIANTS: Record<Exclude<SectionAnimation, "none">, Variants> = {
     hidden: { filter: "brightness(1)" },
     visible: { filter: ["brightness(1)", "brightness(1.18)", "brightness(1)"] },
   },
+  "blur-in": {
+    hidden: { opacity: 0, filter: "blur(14px)", scale: 1.03 },
+    visible: { opacity: 1, filter: "blur(0px)", scale: 1 },
+  },
+  rise: {
+    hidden: { opacity: 0, y: 48 },
+    visible: { opacity: 1, y: 0 },
+  },
+  // Never fully clipped: a zero-area start state can keep the in-view
+  // observer from ever firing.
+  reveal: {
+    // Negative side/bottom insets keep edge-to-edge bleeds, glows and shadows unclipped.
+    hidden: { opacity: 0, clipPath: "inset(-20% -20% 55% -20%)", y: 28 },
+    visible: { opacity: 1, clipPath: "inset(-20% -20% -20% -20%)", y: 0 },
+  },
+  "scale-in": {
+    hidden: { opacity: 0, scale: 0.82 },
+    visible: { opacity: 1, scale: 1 },
+  },
+  "flip-in": {
+    hidden: { opacity: 0, rotateX: -70, transformPerspective: 900 },
+    visible: { opacity: 1, rotateX: 0, transformPerspective: 900 },
+  },
+  "tilt-in": {
+    hidden: { opacity: 0, rotate: -4, y: 24, scale: 0.96 },
+    visible: { opacity: 1, rotate: 0, y: 0, scale: 1 },
+  },
 };
 
 // framer-motion 11 has a TypeScript clash with React 19's stricter ReactNode.
@@ -64,6 +91,18 @@ function interactiveTarget(animation: Exclude<SectionAnimation, "none">) {
       return { y: -8 };
     case "shimmer":
       return { filter: "brightness(1.18)" };
+    case "blur-in":
+      return { filter: "blur(1.5px)" };
+    case "rise":
+      return { y: -10 };
+    case "reveal":
+      return { y: -4 };
+    case "scale-in":
+      return { scale: 1.04 };
+    case "flip-in":
+      return { rotateX: 8, transformPerspective: 900 };
+    case "tilt-in":
+      return { rotate: -1.5 };
   }
 }
 
@@ -71,11 +110,14 @@ export function SectionMotion({
   animation,
   trigger,
   delay,
+  speed = 1,
   children,
 }: {
   animation: SectionAnimation;
   trigger: SectionAnimationTrigger;
   delay: number;
+  /** Duration multiplier from the section's design (slow 1.6 / fast 0.6). */
+  speed?: number;
   children: ReactNode;
 }) {
   const reduced = useReducedMotion();
@@ -84,8 +126,8 @@ export function SectionMotion({
   const variants = VARIANTS[animation];
   const isLoop = animation === "float" || animation === "shimmer";
   const baseTransition = isLoop
-    ? { duration: animation === "float" ? 4 : 2.4, repeat: Infinity, ease: "easeInOut", delay: delay / 1000 }
-    : { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: delay / 1000 };
+    ? { duration: (animation === "float" ? 4 : 2.4) * speed, repeat: Infinity, ease: "easeInOut", delay: delay / 1000 }
+    : { duration: (animation === "reveal" || animation === "blur-in" ? 0.9 : animation === "rise" || animation === "flip-in" ? 0.8 : 0.6) * speed, ease: [0.22, 1, 0.36, 1], delay: delay / 1000 };
 
   if (trigger === "hover" || trigger === "tap") {
     const target = interactiveTarget(animation);
@@ -110,7 +152,7 @@ export function SectionMotion({
       whileInView={trigger === "view" ? "visible" : undefined}
       variants={variants}
       transition={baseTransition}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.1 }}
     >
       {children}
     </MotionDiv>

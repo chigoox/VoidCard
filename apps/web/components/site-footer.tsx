@@ -29,6 +29,7 @@ export function SiteFooter() {
             <li><Link href="/docs/api" className="hover:text-ink">API</Link></li>
             <li><Link href="/changelog" className="hover:text-ink">Changelog</Link></li>
             <li><Link href="/roadmap" className="hover:text-ink">Roadmap</Link></li>
+            <li><Link href="/examples" className="hover:text-ink">Examples</Link></li>
             <li><Link href="/customers" className="hover:text-ink">Customers</Link></li>
             <li><Link href="/press" className="hover:text-ink">Press</Link></li>
             <li><Link href="/terms" className="hover:text-ink">Terms</Link></li>

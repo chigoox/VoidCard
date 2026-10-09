@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usesSharedProfilesAsPrimary } from "@/lib/profiles";
+import { SHOWCASE_TEMPLATES } from "@/lib/editor/showcaseTemplates";
 
 export const revalidate = 3600;
 
@@ -10,6 +11,7 @@ const STATIC_PATHS: { path: string; priority: number; changeFrequency: MetadataR
   { path: "/pricing", priority: 0.9, changeFrequency: "weekly" },
   { path: "/discover", priority: 0.85, changeFrequency: "daily" },
   { path: "/shop", priority: 0.9, changeFrequency: "daily" },
+  { path: "/examples", priority: 0.8, changeFrequency: "monthly" },
   { path: "/why-voidcard", priority: 0.7, changeFrequency: "monthly" },
   { path: "/changelog", priority: 0.6, changeFrequency: "weekly" },
   { path: "/contact", priority: 0.5, changeFrequency: "yearly" },
@@ -73,5 +75,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticEntries, ...profileEntries];
+  const exampleEntries: MetadataRoute.Sitemap = SHOWCASE_TEMPLATES.map((t) => ({
+    url: `${SITE_URL}/examples/${t.id}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...exampleEntries, ...profileEntries];
 }
