@@ -34,6 +34,8 @@ const PUBLIC_ROUTES = [
   /^\/u\/.+/,
   // Public API surfaces use their own auth, captcha, or shared-secret checks.
   /^\/api\/(analytics|cron|discover|lead-forms|stripe|short|public|v1|test|auth|security|wallet|consent)(\/.*)?$/,
+  // Store sections load active products client-side for every visitor.
+  /^\/api\/seller\/products$/,
   /^\/embed\.js$/,
   // First-party static media (designed-template banners, marketing photos).
   /^\/(showcase|marketing|icons)\/[\w.-]+$/,
