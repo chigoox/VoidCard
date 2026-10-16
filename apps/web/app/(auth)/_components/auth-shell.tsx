@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { THEME_COUNT } from "@/lib/marketing-facts";
 
 type AuthShellProps = {
   eyebrow: string;
@@ -11,7 +12,7 @@ type AuthShellProps = {
 
 const STATS = [
   { value: "30 sec", label: "Card pairing" },
-  { value: "12 themes", label: "Included on Free" },
+  { value: `${THEME_COUNT} themes`, label: "Included on Free" },
   { value: "0 caps", label: "On links or views" },
 ];
 

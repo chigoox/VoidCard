@@ -1,333 +1,381 @@
 import Image from "next/image";
 import Link from "next/link";
+import {
+  ArrowRight,
+  BarChart3,
+  CalendarCheck,
+  Check,
+  Contact,
+  Globe,
+  Images,
+  MessageSquareQuote,
+  Nfc,
+  PlayCircle,
+  ReceiptText,
+  ShoppingBag,
+  Sparkles,
+  UserPlus,
+  Wallet,
+} from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { TrustStrip } from "@/components/trust-strip";
+import { PhoneProfileMock } from "@/components/home/PhoneProfileMock";
+import { AmbientVideo } from "@/components/sections/AmbientVideo";
+import { showcaseCover } from "@/components/showcase/ShowcaseProfile";
+import { SHOWCASE_TEMPLATES } from "@/lib/editor/showcaseTemplates";
 import { buildMetadata } from "@/lib/seo";
 import { jsonLdScript, faqPage } from "@/lib/jsonld";
 
 export const metadata = buildMetadata({
-  title: "VoidCard — Metal NFC business cards + free link-in-bio",
+  title: "VoidCard — NFC business cards + a free page that books, sells and saves your contact",
   description:
-    "One tap shares every link, every time. Metal NFC card + a living profile that always reflects who you are right now. Free forever, premium by default.",
+    "For stylists, barbers, nail techs, boutiques, artists and local pros. One tap of your card opens a free page where clients book, buy, tip and save your contact. 0% platform fee on sales.",
   path: "/",
 });
 
 const HOME_FAQ = [
-  { q: "What is VoidCard?", a: "VoidCard is a metal NFC business card paired with a free link-in-bio profile. Tap the card to share every link you want, instantly, and update them any time without reprinting." },
-  { q: "How much does it cost?", a: "The profile is free forever with all themes, custom CSS, every section type, wallet pass, embed widget, and full analytics. Cards start at $19 (PVC) and $29 (metal)." },
-  { q: "How is VoidCard different from Linktree or Popl?", a: "VoidCard is free for all the features competitors gate behind subscriptions. We make money on the physical card, not the software." },
-  { q: "Do I need an app?", a: "No. The card uses standard NFC and works with any modern phone — no app install required for either party." },
+  {
+    q: "What is VoidCard?",
+    a: "An NFC business card plus a free page of your own. Tap the card on any modern phone and your page opens: clients can book, shop, tip, follow you and save your contact. Change the page any time — the card never needs reprinting.",
+  },
+  {
+    q: "What's free?",
+    a: "The page itself, forever: every theme and section (booking, shop, tips, gallery, video banners, reviews), analytics, wallet pass and contact saving. Pro ($4.99/mo) adds a custom domain, lead-capture forms, more profiles and unlimited cards. Cards start at $19.",
+  },
+  {
+    q: "Do you take a cut of my sales?",
+    a: "No. VoidCard's platform fee is 0%. Payments run through your own Stripe account, so Stripe's standard processing fees apply, and you can optionally share a percentage with us.",
+  },
+  {
+    q: "How does booking work?",
+    a: "Add a booking section and connect your Boox account. Clients pick a service and a time right from your page instead of messaging you.",
+  },
+  {
+    q: "Do my clients need an app?",
+    a: "No. The card uses standard NFC that iPhones and Android phones read natively, and your page also works as a normal link for your Instagram or TikTok bio.",
+  },
+  {
+    q: "What if I already use Linktree or a booking app?",
+    a: "Keep your booking app if you love it — link to it from your page. Most people find one VoidCard page replaces their link-in-bio, their store link and their paper cards.",
+  },
 ];
 
-const FEATURE_GROUPS = [
+const TRADES: Array<{ label: string; template?: string; href?: string; blurb: string }> = [
+  { label: "Hair & barbers", template: "gloss-hair", blurb: "Service menu, portfolio and one-tap booking." },
+  { label: "Nails & lashes", template: "lacquer-lounge", blurb: "Set gallery, prices and Book your set." },
+  { label: "Boutiques", template: "row-atelier", blurb: "Lookbook, new drops and Shop now." },
+  { label: "Artists & DJs", template: "nova-nights", blurb: "New release, tour dates and tickets." },
+  { label: "Creative studios", template: "aurora-studio", blurb: "Portfolio, services and enquiries." },
+  { label: "Coaches & wellness", template: "verdant", blurb: "Programs, reviews and discovery calls." },
+];
+
+const OUTCOMES = [
   {
-    eyebrow: "Profile builder",
-    title: "A public page that feels owned, not rented.",
-    points: [
-      "17 section types: links, gallery, video, embeds, forms, QR, map, schedule, tip jar",
-      "All themes and custom CSS available on Free",
-      "Draft and publish flow with live editing",
-      "Public profile routes with SEO metadata and downloadable vCard",
-    ],
-    href: "/try",
-    cta: "Try the editor",
+    icon: CalendarCheck,
+    title: "Stop booking in your DMs",
+    body: "Clients pick a service and a time straight from your page. No back-and-forth, no “what times do you have?”.",
+    detail: "Booking section with Boox",
   },
   {
-    eyebrow: "Cards and pairing",
-    title: "Physical cards that make the software memorable.",
-    points: [
-      "PVC, metal, custom-art, bundle, keychain, sticker, replacement, and team-pack SKUs",
-      "One-tap NFC redirect flow to the live profile",
-      "Manual and first-time pair flow for unpaired cards",
-      "Verified badge included with qualifying card purchases",
-    ],
-    href: "/shop",
-    cta: "Browse the shop",
+    icon: ShoppingBag,
+    title: "Sell without a monthly store fee",
+    body: "Products, merch, gift cards and tips — paid through your own Stripe account. VoidCard takes 0%.",
+    detail: "Shop and tip sections",
   },
   {
-    eyebrow: "Growth and analytics",
-    title: "Know what happened after the hand-off.",
-    points: [
-      "Track taps, views, and link clicks",
-      "Short links under the shared short domain",
-      "Lead capture and contact collection",
-      "Public API and webhooks for deeper workflows on paid plans",
-    ],
-    href: "/pricing",
-    cta: "See plan details",
-  },
-  {
-    eyebrow: "Business mode",
-    title: "Upgrade only when the business tooling matters.",
-    points: [
-      "Custom domains and brand removal on Pro",
-      "Multi-profile setups, scheduled publishing, and A/B variants",
-      "Team seats, brand kit, and roles on Team",
-      "Admin console for products, plans, orders, users, and settings",
-    ],
-    href: "/customers",
-    cta: "See who it fits",
+    icon: Contact,
+    title: "Never get lost in someone's camera roll",
+    body: "One tap saves your name, number and page into their contacts — no app, no typing, no paper card to lose.",
+    detail: "Save contact + wallet pass",
   },
 ] as const;
 
-const SHOWCASE_CASES = [
-  {
-    eyebrow: "Consultations and clinics",
-    title: "Share credentials and next steps in one handoff.",
-    body:
-      "A polished card can open a profile with booking, directions, intake links, and contact details without asking someone to type or search.",
-    href: "/customers",
-    cta: "See customer types",
-    src: "/marketing/premium-duo.png",
-    alt: "Two women hold premium VoidCards in a luxury interior.",
-  },
-  {
-    eyebrow: "Brands, founders, and teams",
-    title: "Look premium before the first sentence lands.",
-    body:
-      "Luxury brands, stylists, and event teams can hand over something physical that still routes to a profile updated in real time.",
-    href: "/contact",
-    cta: "Ask about team orders",
-    src: "/marketing/doctor-use-case.png",
-    alt: "A doctor hands a VoidCard to a patient while the matching profile is open on a phone.",
-  },
+const STEPS = [
+  { n: "1", title: "Claim your page", body: "Pick a design built for your trade, or start blank. Free, no card required." },
+  { n: "2", title: "Add what clients need", body: "Booking, prices, your work, your shop, your socials. Drag to arrange it for phone and desktop." },
+  { n: "3", title: "Tap, share, get booked", body: "Pair your card in 30 seconds, put the link in your bio, and watch taps turn into appointments." },
+] as const;
+
+const EVERYTHING = [
+  { icon: PlayCircle, title: "Video banners", body: "A looping clip of your work at the top of your page." },
+  { icon: Images, title: "Portfolio gallery", body: "Before-and-afters, lookbooks and sets, with a tap-to-zoom lightbox." },
+  { icon: ReceiptText, title: "Price menu", body: "Services and prices clients can read before they book." },
+  { icon: MessageSquareQuote, title: "Reviews", body: "Show off what clients say, with star ratings." },
+  { icon: BarChart3, title: "Analytics", body: "See taps, views and which buttons get clicked." },
+  { icon: Wallet, title: "Wallet pass", body: "Your card in Apple and Google Wallet, too." },
+  { icon: UserPlus, title: "Lead forms", body: "Collect names and emails at events.", pro: true },
+  { icon: Globe, title: "Your own domain", body: "yourname.com instead of a shared link.", pro: true },
+] as const;
+
+const PLANS = [
+  { name: "Free", price: "$0", note: "forever", points: ["Your page with every section", "Booking, shop and tips", "0% platform fee", "1 card"] },
+  { name: "Pro", price: "$4.99", note: "per month", points: ["Everything in Free", "Custom domain, no branding", "Lead-capture forms", "Unlimited cards, 10 profiles"] },
+  { name: "Team", price: "$14.99", note: "per month", points: ["Everything in Pro", "10 seats for your crew", "Shared brand kit", "Roles and permissions"] },
 ] as const;
 
 export default function HomePage() {
+  const trades = TRADES.map((trade) => {
+    const template = SHOWCASE_TEMPLATES.find((t) => t.id === trade.template);
+    return { ...trade, href: template ? `/examples/${template.id}` : trade.href ?? "/examples", cover: template ? showcaseCover(template) : null };
+  });
+
   return (
     <main className="min-h-screen bg-white text-ink">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={jsonLdScript(faqPage(HOME_FAQ))}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(faqPage(HOME_FAQ))} />
       <SiteHeader />
 
       {/* Hero */}
-      <section className="mx-auto grid max-w-7xl gap-16 px-6 pb-24 pt-20 md:grid-cols-2 md:items-center">
-        <div className="animate-fade-in">
-          <p className="eyebrow">NFC business cards · Free profile</p>
-          <h1 className="mt-3 font-display text-5xl font-semibold leading-[1.05] tracking-tight text-ink md:text-6xl">
-            One tap. Every link, every time.
-          </h1>
-          <p className="mt-5 max-w-xl text-lg text-ink-500">
-            VoidCard pairs a real metal NFC card with a living profile that always reflects who you are right now.
-            Free to use forever. Premium cards unlock the wow.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="/shop" className="btn-primary">Get your card</Link>
-            <Link href="/signup" className="btn-outline">Start free</Link>
-            <Link href="/try" className="btn-outline">Try the editor</Link>
-          </div>
-          <p className="mt-3 text-sm text-ink-400">
-            Free includes themes, custom CSS, all 17 sections, wallet pass, embed, and full analytics.
-          </p>
-        </div>
-
-        <div className="flex w-full justify-center md:justify-end">
-          <div className="w-full max-w-[35rem]">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[32px] border border-black/10 bg-black shadow-[0_30px_90px_-45px_rgba(10,10,10,0.65)]">
-              <Image
-                src="/marketing/handoff-hero.png"
-                alt="A VoidCard metal card is handed over while the matching profile is open on a phone."
-                fill
-                priority
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 44vw, 560px"
-              />
-              <div className="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/20 to-transparent" />
-              <div className="absolute left-5 top-5 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.22em] text-white/80 backdrop-blur">
-                No app required
-              </div>
-              <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
-                <p className="text-xs uppercase tracking-[0.24em] text-white/65">Real-world handoff</p>
-                <p className="mt-3 max-w-sm text-sm leading-6 text-white/80 md:text-base">
-                  One tap opens the live profile immediately, so the conversation keeps moving instead of waiting for someone to search, scan, or type.
-                </p>
-              </div>
-            </div>
-
-            <div className="-mt-10 ml-auto mr-4 max-w-[16rem] rounded-[24px] border border-black/10 bg-white/95 p-4 shadow-[0_24px_60px_-35px_rgba(10,10,10,0.35)] backdrop-blur">
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-500">What opens</p>
-              <div className="mt-3 space-y-2 text-sm text-ink-500">
-                {[
-                  "Contact card and save-to-phone",
-                  "Booking or lead capture",
-                  "Social, website, and live updates",
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-2">
-                    <span className="mt-1 size-1.5 shrink-0 rounded-full bg-ink" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Three trust-anchored claims */}
-      <section className="border-y border-paper-200 bg-paper-50">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 md:grid-cols-3">
-          {[
-            {
-              title: "Free forever — really",
-              body: "Themes, custom CSS, every section, wallet pass, embed, full analytics. No tap caps, no view caps, no link caps.",
-              href: "/pricing",
-              cta: "See what's free",
-            },
-            {
-              title: "Premium by default",
-              body: "Onyx Gold is the out-of-box profile look. Taste shipped, not assembled — and customizable down to the last pixel.",
-              href: "/u/voidluxury",
-              cta: "See a live profile",
-            },
-            {
-              title: "Your card pairs in 30 seconds",
-              body: "Tap to phone, sign in, done. Replacement cards re-pair just as fast. Cards never expire.",
-              href: "/shop",
-              cta: "Browse cards",
-            },
-          ].map((c) => (
-            <div key={c.title} className="flex flex-col">
-              <h3 className="font-display text-2xl font-semibold text-ink">{c.title}</h3>
-              <p className="mt-2 flex-1 text-ink-500">{c.body}</p>
-              <Link href={c.href} className="mt-4 text-sm font-medium text-ink underline-offset-4 hover:underline">
-                {c.cta} →
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-6 py-12">
-        <div className="relative overflow-hidden rounded-[32px] border border-black/10 bg-black shadow-[0_30px_90px_-45px_rgba(10,10,10,0.5)]">
-          <div className="relative min-h-[30rem] md:aspect-[16/7] md:min-h-0">
-            <Image
-              src="/marketing/luxury-banner.png"
-              alt="Two women hold VoidCards in a dark luxury interior."
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 1280px"
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.46)_46%,rgba(0,0,0,0.12)_100%)]" />
-          </div>
-
-          <div className="absolute inset-0 flex items-end md:items-center">
-            <div className="max-w-2xl p-6 text-white md:p-10">
-              <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/60">Luxury-first branding</p>
-              <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight md:text-5xl">
-                Built to feel expensive before you upgrade anything.
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-6 text-white/75 md:text-base">
-                The card is the hook. The live profile makes the handoff last, so a strong first impression turns into a profile people can actually act on.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/shop"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-medium text-ink shadow-soft transition hover:bg-paper-100"
-                >
-                  See card finishes
-                </Link>
-                <Link
-                  href="/why-voidcard"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 px-5 py-3 text-sm font-medium text-white transition hover:border-white/40 hover:bg-white/10"
-                >
-                  Why it stays free
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-6 py-24">
-        <div className="max-w-3xl">
-          <p className="text-sm uppercase tracking-[0.2em] text-ink-700">Feature set</p>
-          <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink md:text-5xl">
-            Everything that makes the card feel alive after the tap.
-          </h2>
-          <p className="mt-4 text-lg text-ink-500">
-            VoidCard is not just a link page. It is a profile builder, NFC product, lead engine,
-            analytics surface, and lightweight business system.
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {FEATURE_GROUPS.map((group) => (
-            <div key={group.title} className="surface flex flex-col p-6">
-              <p className="text-xs uppercase tracking-[0.2em] text-ink-700">{group.eyebrow}</p>
-              <h3 className="mt-3 font-display text-2xl text-ink">{group.title}</h3>
-              <ul className="mt-5 flex-1 space-y-2.5 text-sm text-ink-500">
-                {group.points.map((point) => (
-                  <li key={point} className="flex gap-2">
-                    <span className="text-ink-700">•</span>
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link href={group.href} className="mt-6 text-sm font-medium text-ink underline-offset-4 hover:underline">
-                {group.cta} →
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-6 pb-24">
-        <div className="grid gap-8 lg:grid-cols-[0.9fr,1.1fr] lg:items-start">
-          <div className="max-w-xl">
-            <p className="eyebrow">Use cases</p>
-            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink md:text-5xl">
-              Made for the rooms where polish and follow-through both matter.
-            </h2>
-            <p className="mt-4 text-lg text-ink-500">
-              These are the moments VoidCard actually solves: a premium first impression backed by a live profile that can book, route, capture, or convert on the spot.
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[38rem] bg-[radial-gradient(60%_60%_at_75%_30%,rgba(212,175,55,0.16),transparent_70%)]" aria-hidden />
+        <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-20 pt-16 md:grid-cols-[1.1fr_0.9fr] md:items-center md:pt-24">
+          <div className="animate-fade-in">
+            <p className="eyebrow">For stylists, barbers, nail techs, boutiques, artists &amp; local pros</p>
+            <h1 className="mt-4 font-display text-5xl font-semibold leading-[1.02] tracking-tight text-ink md:text-7xl">
+              Get booked, get paid, get saved — with one tap.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-ink-500">
+              A tap-to-share card plus a free page of your own. Clients book an appointment, buy from your shop, leave a tip and save your contact — no app, no DMs, no paper cards.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/customers" className="btn-outline">Explore customer types</Link>
-              <Link href="/contact" className="btn-outline">Talk about team orders</Link>
+            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <Link href="/signup" className="btn-primary px-6 py-3 text-base" data-testid="home-start-free">
+                Start free
+              </Link>
+              <Link href="/examples" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink underline-offset-4 hover:underline">
+                See pages built for your trade <ArrowRight className="size-4" aria-hidden />
+              </Link>
             </div>
+            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-500">
+              {["Free forever", "0% platform fee on sales", "Cards from $19", "Works on iPhone & Android"].map((item) => (
+                <li key={item} className="flex items-center gap-1.5">
+                  <Check className="size-4 text-ink" aria-hidden /> {item}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            {SHOWCASE_CASES.map((item) => (
-              <article key={item.title} className="surface overflow-hidden">
-                <div className="relative aspect-[4/5]">
-                  <Image
-                    src={item.src}
-                    alt={item.alt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 30vw"
-                  />
+          <div className="relative flex justify-center md:justify-end">
+            <div className="absolute -left-4 top-10 hidden w-56 overflow-hidden rounded-[28px] border border-black/10 shadow-[0_30px_70px_-40px_rgba(10,10,10,0.7)] lg:block">
+              <div className="relative aspect-[4/5]">
+                <Image src="/marketing/handoff-hero.png" alt="A client taps a VoidCard to open the matching page on her phone." fill sizes="224px" className="object-cover" priority />
+              </div>
+              <p className="flex items-center gap-1.5 bg-white px-4 py-3 text-xs font-medium text-ink">
+                <Nfc className="size-4" aria-hidden /> Tap the card, the page opens
+              </p>
+            </div>
+            <div className="relative md:mr-6">
+              <PhoneProfileMock />
+              <div className="absolute -bottom-5 -right-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm shadow-[0_20px_50px_-30px_rgba(10,10,10,0.5)] md:-right-8">
+                <p className="text-xs text-ink-400">New booking</p>
+                <p className="font-medium text-ink">Silk press · Sat 10:30</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pick your trade */}
+      <section className="border-y border-paper-200 bg-paper-50 py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div className="max-w-2xl">
+              <p className="eyebrow">Built for your trade</p>
+              <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight md:text-5xl">Start from a page that already fits.</h2>
+              <p className="mt-4 text-lg text-ink-500">Every design is a real VoidCard page. Open one, then make it yours in a click.</p>
+            </div>
+            <Link href="/examples" className="btn-outline">All examples</Link>
+          </div>
+          <div className="-mx-6 mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-4 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 lg:grid-cols-6" data-testid="home-trades">
+            {trades.map((trade) => (
+              <Link
+                key={trade.label}
+                href={trade.href}
+                className="group relative w-[62vw] max-w-[260px] shrink-0 snap-start overflow-hidden rounded-[24px] bg-onyx-950 text-white md:w-auto md:max-w-none"
+              >
+                <div className="relative aspect-[3/4]">
+                  {trade.cover?.image ? (
+                    <Image src={trade.cover.image} alt="" fill sizes="(min-width: 1024px) 16vw, (min-width: 768px) 33vw, 62vw" className="object-cover transition duration-700 group-hover:scale-105" />
+                  ) : null}
+                  {trade.cover?.video ? <AmbientVideo src={trade.cover.video} poster={trade.cover.image} className="absolute inset-0 size-full object-cover" /> : null}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 p-4">
+                    <p className="font-display text-xl leading-tight">{trade.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-white/70">{trade.blurb}</p>
+                    <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-white">
+                      See the page <ArrowRight className="size-3.5 transition group-hover:translate-x-0.5" aria-hidden />
+                    </p>
+                  </div>
                 </div>
-                <div className="p-5">
-                  <p className="text-xs uppercase tracking-[0.2em] text-ink-700">{item.eyebrow}</p>
-                  <h3 className="mt-3 font-display text-2xl text-ink">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-ink-500">{item.body}</p>
-                  <Link href={item.href} className="mt-5 inline-block text-sm font-medium text-ink underline-offset-4 hover:underline">
-                    {item.cta} →
-                  </Link>
-                </div>
-              </article>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA strip — card-led */}
-      <section className="mx-auto max-w-7xl px-6 py-24 text-center">
-        <h2 className="font-display text-4xl font-semibold tracking-tight text-ink md:text-5xl">
-          Your handle is probably still free.
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-ink-500">
-          Claim it in 30 seconds. Add the card whenever you&rsquo;re ready for the wow.
+      {/* Outcomes */}
+      <section className="mx-auto max-w-7xl px-6 py-24">
+        <div className="max-w-2xl">
+          <p className="eyebrow">What it does for you</p>
+          <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight md:text-5xl">Less admin. More appointments.</h2>
+        </div>
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
+          {OUTCOMES.map(({ icon: Icon, title, body, detail }) => (
+            <div key={title} className="surface flex flex-col p-7">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-ink text-white">
+                <Icon className="size-5" aria-hidden />
+              </span>
+              <h3 className="mt-5 font-display text-2xl font-semibold text-ink">{title}</h3>
+              <p className="mt-3 flex-1 leading-7 text-ink-500">{body}</p>
+              <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-ink-400">{detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="bg-ink py-24 text-white">
+        <div className="mx-auto max-w-7xl px-6">
+          <p className="text-sm uppercase tracking-[0.2em] text-white/50">How it works</p>
+          <h2 className="mt-3 max-w-2xl font-display text-4xl font-semibold tracking-tight md:text-5xl">Set up before your next client sits down.</h2>
+          <ol className="mt-12 grid gap-10 md:grid-cols-3">
+            {STEPS.map((step) => (
+              <li key={step.n}>
+                <span className="font-display text-5xl text-[#d4af37]">{step.n}</span>
+                <h3 className="mt-3 font-display text-2xl">{step.title}</h3>
+                <p className="mt-2 leading-7 text-white/70">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-12 flex flex-wrap gap-3">
+            <Link href="/signup" className="inline-flex min-h-11 items-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-paper-100">
+              Start free
+            </Link>
+            <Link href="/try" className="inline-flex min-h-11 items-center rounded-full border border-white/25 px-6 py-3 text-sm font-medium text-white transition hover:border-white/50">
+              Try the editor first
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* The card */}
+      <section className="mx-auto max-w-7xl px-6 py-24">
+        <div className="relative overflow-hidden rounded-[32px] bg-black text-white">
+          <div className="relative min-h-[32rem] md:aspect-[16/7] md:min-h-0">
+            <Image src="/marketing/luxury-banner.png" alt="Two clients hold matte black VoidCards with a gold mark." fill sizes="(max-width: 768px) 100vw, 1280px" className="object-cover object-[70%_center]" />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.55)_45%,rgba(0,0,0,0.1)_100%)]" />
+          </div>
+          <div className="absolute inset-0 flex items-end md:items-center">
+            <div className="max-w-xl p-6 md:p-12">
+              <p className="text-xs uppercase tracking-[0.22em] text-white/60">The card</p>
+              <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight md:text-5xl">The last business card you&rsquo;ll ever print.</h2>
+              <p className="mt-4 leading-7 text-white/75">
+                Hand someone something they keep. Change your prices, hours or links any time — the card always opens your latest page.
+              </p>
+              <ul className="mt-6 grid grid-cols-3 gap-3 text-sm">
+                {[["PVC", "$19"], ["Metal", "$29"], ["Keychain", "$15"]].map(([name, price]) => (
+                  <li key={name} className="rounded-2xl border border-white/15 bg-white/5 px-3 py-3 backdrop-blur">
+                    <p className="text-white/60">{name}</p>
+                    <p className="font-display text-2xl">{price}</p>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/shop" className="mt-6 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:bg-paper-100">
+                Shop cards <ArrowRight className="size-4" aria-hidden />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Everything on one page */}
+      <section className="mx-auto max-w-7xl px-6 pb-24">
+        <div className="max-w-2xl">
+          <p className="eyebrow">One page instead of five apps</p>
+          <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight md:text-5xl">Everything clients look for, in one place.</h2>
+          <p className="mt-4 text-lg text-ink-500">Your link in bio, booking link, store, portfolio and business card — together, and looking like you.</p>
+        </div>
+        <div className="mt-12 grid gap-px overflow-hidden rounded-[28px] border border-paper-200 bg-paper-200 sm:grid-cols-2 lg:grid-cols-4">
+          {EVERYTHING.map(({ icon: Icon, title, body, ...rest }) => (
+            <div key={title} className="bg-white p-6">
+              <div className="flex items-center gap-2">
+                <Icon className="size-5 text-ink" aria-hidden />
+                <h3 className="font-medium text-ink">{title}</h3>
+                {"pro" in rest && rest.pro ? <span className="rounded-full bg-paper-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-500">Pro</span> : null}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-ink-500">{body}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 flex items-center gap-2 text-sm text-ink-500">
+          <Sparkles className="size-4 text-ink" aria-hidden />
+          Make it unmistakably yours: themes, fonts, colours, animations and separate layouts for phone, tablet and desktop.
         </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/shop" className="btn-primary">Get your card</Link>
-          <Link href="/signup" className="btn-outline">Start free</Link>
-          <Link href="/why-voidcard" className="btn-outline">Why VoidCard</Link>
+      </section>
+
+      {/* Pricing */}
+      <section className="border-t border-paper-200 bg-paper-50 py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="max-w-2xl">
+            <p className="eyebrow">Pricing</p>
+            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight md:text-5xl">Free does the job. Upgrade if you grow.</h2>
+            <p className="mt-4 text-lg text-ink-500">We make money on cards, not by charging you to get paid.</p>
+          </div>
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {PLANS.map((plan, i) => (
+              <div key={plan.name} className={["flex flex-col rounded-[28px] border p-7", i === 0 ? "border-ink bg-white shadow-[0_30px_60px_-40px_rgba(10,10,10,0.5)]" : "border-paper-200 bg-white"].join(" ")}>
+                <p className="font-medium text-ink">{plan.name}</p>
+                <p className="mt-3">
+                  <span className="font-display text-5xl text-ink">{plan.price}</span>{" "}
+                  <span className="text-sm text-ink-400">{plan.note}</span>
+                </p>
+                <ul className="mt-6 flex-1 space-y-2.5 text-sm text-ink-500">
+                  {plan.points.map((point) => (
+                    <li key={point} className="flex gap-2">
+                      <Check className="mt-0.5 size-4 shrink-0 text-ink" aria-hidden /> {point}
+                    </li>
+                  ))}
+                </ul>
+                {i === 0 ? (
+                  <Link href="/signup" className="btn-primary mt-7 justify-center">Start free</Link>
+                ) : (
+                  <Link href="/pricing" className="btn-outline mt-7 justify-center">Compare plans</Link>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-sm text-ink-400">Payments run through your own Stripe account; Stripe&rsquo;s standard processing fees apply. Booking requires a Boox account.</p>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="mx-auto max-w-3xl px-6 py-24">
+        <h2 className="text-center font-display text-4xl font-semibold tracking-tight">Questions, answered</h2>
+        <div className="mt-10 divide-y divide-paper-200 border-y border-paper-200">
+          {HOME_FAQ.map((item) => (
+            <details key={item.q} className="group py-5">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-medium text-ink [&::-webkit-details-marker]:hidden">
+                {item.q}
+                <span className="text-xl leading-none text-ink-400 transition group-open:rotate-45" aria-hidden>+</span>
+              </summary>
+              <p className="mt-3 leading-7 text-ink-500">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="mx-auto max-w-7xl px-6 pb-24">
+        <div className="rounded-[32px] bg-ink px-6 py-16 text-center text-white md:py-20">
+          <h2 className="mx-auto max-w-2xl font-display text-4xl font-semibold tracking-tight md:text-5xl">Your name is probably still free.</h2>
+          <p className="mx-auto mt-4 max-w-xl text-white/70">Claim your page in a minute. Add the card whenever you&rsquo;re ready.</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/signup" className="inline-flex min-h-11 items-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-paper-100">
+              Start free
+            </Link>
+            <Link href="/shop" className="inline-flex min-h-11 items-center rounded-full border border-white/25 px-6 py-3 text-sm font-medium text-white transition hover:border-white/50">
+              Get a card
+            </Link>
+          </div>
         </div>
       </section>
 

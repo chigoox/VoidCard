@@ -8,13 +8,15 @@ export async function GET() {
 > Onyx-and-gold NFC business cards paired with a living profile that always reflects who you are right now.
 
 VoidCard sells NFC business cards (PVC, metal, custom-art) and pairs each card with a customizable
-link-in-bio profile, shop, analytics, wallet pass, embed widget, and contact exchange. Free tier is
-powerful (all themes, full custom CSS, 17 section types). Pro ($4.99/mo) adds custom domains, brand
+link-in-bio profile with booking (via Boox), a shop and tips (0% platform fee), analytics, wallet
+pass, embed widget, and contact exchange. Built for stylists, barbers, nail techs, boutiques, artists
+and other local pros. Free tier includes every theme and section type and full custom CSS. Pro ($4.99/mo) adds custom domains, brand
 removal, multi-profile, lead forms, API + webhooks, A/B variants, CSV export. Team ($14.99/mo) adds
 seats and brand kit.
 
 ## Product
 - [Home](${SITE_URL}/): What VoidCard is, who it's for.
+- [Examples](${SITE_URL}/examples): Designed example pages by trade.
 - [Pricing](${SITE_URL}/pricing): Free vs Pro vs Team. Verified Badge.
 - [Shop](${SITE_URL}/shop): Cards, keychains, stickers, bundles, team packs.
 - [Why VoidCard](${SITE_URL}/why-voidcard): Comparison vs dotcards.net and Linktree.

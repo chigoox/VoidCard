@@ -7,6 +7,8 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PublicMarketingPixels } from "@/components/profile/PublicMarketingPixels";
 import { PublicProfileActions } from "@/components/profile/PublicProfileActions";
+import { QuickActionBar } from "@/components/profile/QuickActionBar";
+import { quickActionsFor } from "@/lib/profile/quickActions";
 import { PublicProfileTracker } from "@/components/profile/PublicProfileTracker";
 import { SectionRenderer } from "@/components/sections/SectionRenderer";
 import { ProfileStack } from "@/components/sections/ProfileStack";
@@ -187,6 +189,8 @@ export default async function PublicProfilePage({
     />
   );
 
+  const quickActions = quickActionsFor(sections, { handle, showSaveContact });
+
   const linkUrls: string[] = Array.isArray(profile.links)
     ? (profile.links as Array<{ url?: string }>)
         .map((link) => link?.url)
@@ -234,6 +238,7 @@ export default async function PublicProfilePage({
         />
       ) : null}
       <PublicProfileTracker username={handle} variantId={variant?.id} />
+      {quickActions.length > 0 ? <QuickActionBar actions={quickActions} /> : null}
       <link
         rel="alternate"
         type="application/json"

@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { TrustStrip } from "@/components/trust-strip";
 import { buildMetadata } from "@/lib/seo";
+import { SECTION_TYPE_COUNT, THEME_COUNT } from "@/lib/marketing-facts";
 
 export const metadata = buildMetadata({
   title: "Why VoidCard — Free forever, premium by default",
@@ -29,13 +30,13 @@ const ROWS: Row[] = [
   },
   {
     feature: "Themes + custom CSS",
-    voidcard: "All 12 + full CSS, free",
+    voidcard: `All ${THEME_COUNT} + full CSS, free`,
     dotcards: "Templated",
     popl: "Limited",
     linktree: "Templated",
   },
   {
-    feature: "All 17 section types",
+    feature: `All ${SECTION_TYPE_COUNT} section types`,
     voidcard: "Free",
     dotcards: "Partial",
     popl: "Partial",
@@ -115,7 +116,7 @@ export default function WhyVoidCardPage() {
           {
             title: "Free forever — really",
             body:
-              "All 12 themes, full custom CSS, every section type, wallet pass, embed, full analytics. No tap caps, no view caps, no link caps. The only hard limit is 5 GB of media.",
+              `All ${THEME_COUNT} themes, full custom CSS, every section type, wallet pass, embed, full analytics. No tap caps, no view caps, no link caps. The only hard limit is 5 GB of media.`,
             link: { label: "See what's free", href: "/pricing" },
           },
           {
