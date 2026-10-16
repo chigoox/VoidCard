@@ -1,4 +1,5 @@
 import "server-only";
+import { cdnHost } from "./cdn-host";
 
 /**
  * Content-Security-Policy builder for VoidCard.
@@ -29,7 +30,7 @@ export function generateNonce(): string {
  * Build the CSP header value. Keep this in sync with vendor scripts loaded by
  * the app (Stripe, Turnstile, PostHog, Sentry, Supabase realtime).
  */
-const CDN_ORIGIN = `https://${process.env.NEXT_PUBLIC_BUNNY_CDN_HOST ?? "cdn.vcard.ed5enterprise.com"}`;
+const CDN_ORIGIN = `https://${cdnHost()}`;
 
 export function buildCsp(nonce: string): string {
   const directives: Record<string, string[]> = {
@@ -112,9 +113,12 @@ export function buildCsp(nonce: string): string {
 
   if (PROD) directives["upgrade-insecure-requests"] = [];
 
+  // A line break in any source (e.g. from an env var) makes the header
+  // invalid and fails every response, so never let one through.
   return Object.entries(directives)
     .map(([k, v]) => (v.length ? `${k} ${v.join(" ")}` : k))
-    .join("; ");
+    .join("; ")
+    .replace(/[\r\n]+/g, " ");
 }
 
 /**

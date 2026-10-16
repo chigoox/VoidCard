@@ -1,8 +1,9 @@
 /* eslint-disable @next/next/no-img-element -- Profile owners can provide external image URLs outside configured Next image hosts. */
 import type { CSSProperties, DragEvent } from "react";
 import Image from "next/image";
+import { cdnHost } from "@/lib/cdn-host";
 
-const BUNNY_CDN_HOST = process.env.NEXT_PUBLIC_BUNNY_CDN_HOST ?? "cdn.vcard.ed5enterprise.com";
+const BUNNY_CDN_HOST = cdnHost();
 
 function canUseNextImage(src: string) {
   if (src.startsWith("/")) return true;
