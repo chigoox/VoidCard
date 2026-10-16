@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AuthShell } from "../_components/auth-shell";
+import { SECTION_TYPE_COUNT, THEME_COUNT } from "@/lib/marketing-facts";
 
 const USERNAME_RE = /^[a-z0-9_.-]{3,32}$/;
 
@@ -261,7 +262,7 @@ function SignupPageContent() {
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <div className="rounded-card border border-onyx-800 bg-onyx-900/40 p-4">
           <p className="text-xs uppercase tracking-[0.24em] text-gold/80">Free forever</p>
-          <p className="mt-2 text-sm text-ivory-dim">All 12 themes, full custom CSS, all 17 section types, wallet pass, embed, and analytics.</p>
+          <p className="mt-2 text-sm text-ivory-dim">All {THEME_COUNT} themes, full custom CSS, all {SECTION_TYPE_COUNT} section types (shop, booking and tips included), wallet pass, embed, and analytics.</p>
         </div>
         <div className="rounded-card border border-onyx-800 bg-onyx-900/40 p-4">
           <p className="text-xs uppercase tracking-[0.24em] text-gold/80">Provisioned on callback</p>

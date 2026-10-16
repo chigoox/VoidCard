@@ -5,6 +5,7 @@ import { TrustStrip } from "@/components/trust-strip";
 
 import { buildMetadata } from "@/lib/seo";
 import { jsonLdScript, faqPage, breadcrumbs } from "@/lib/jsonld";
+import { SECTION_TYPE_COUNT, THEME_COUNT } from "@/lib/marketing-facts";
 
 export const metadata = buildMetadata({
   title: "Pricing — Free forever. Pro $4.99. Team $14.99.",
@@ -14,7 +15,7 @@ export const metadata = buildMetadata({
 });
 
 const FAQ = [
-  { q: "Is VoidCard really free forever?", a: "Yes. Free includes all 12 themes, full custom CSS, every section type, wallet pass, embed widget, and full analytics. We make money on the physical card and Pro/Team — never by gating Free features." },
+  { q: "Is VoidCard really free forever?", a: `Yes. Free includes all ${THEME_COUNT} themes, full custom CSS, every section type (including your shop, booking and tips), wallet pass, embed widget, and full analytics. We make money on the physical card and Pro/Team — never by gating Free features.` },
   { q: "What does Pro unlock?", a: "Custom domain, brand removal, up to 10 profiles, two-way contact exchange, lead forms, API + webhooks, custom fonts, password protection, scheduled publishing, A/B variants, CSV export, weekly digest, and 50 GB storage." },
   { q: "What's the Verified Badge?", a: "A one-time $5 upgrade (auto-included with metal/custom/bundle/team purchases) required for custom-art cards, apex custom domains, and non-HTTPS webhooks." },
   { q: "Can I cancel any time?", a: "Yes. Cancel from Account → Billing. The cancel button is the same size as the upgrade button. You stay on Pro/Team until the end of the current period." },
@@ -48,8 +49,10 @@ const TIERS: Tier[] = [
     tagline: "Powerful by default. Designed to convert.",
     cta: { label: "Start free", href: "/signup" },
     features: [
-      "All 12 themes + full custom CSS",
-      "All 17 section types",
+      `All ${THEME_COUNT} themes + full custom CSS`,
+      `All ${SECTION_TYPE_COUNT} section types`,
+      "Shop + tips · 0% platform fee",
+      "Booking section (connect Boox)",
       "Apple/Google Wallet pass",
       "Embed widget for any site",
       "Full analytics dashboard",
@@ -101,7 +104,8 @@ const TIERS: Tier[] = [
 
 const COMPARISON_ROWS: ComparisonRow[] = [
   { label: "Themes + custom CSS", free: "Included", pro: "Included", team: "Included" },
-  { label: "Section types", free: "All 17", pro: "All 17", team: "All 17" },
+  { label: "Section types", free: `All ${SECTION_TYPE_COUNT}`, pro: `All ${SECTION_TYPE_COUNT}`, team: `All ${SECTION_TYPE_COUNT}` },
+  { label: "Shop, tips + booking", free: "Included · 0% fee", pro: "Included · 0% fee", team: "Included · 0% fee" },
   { label: "Wallet pass + embed widget", free: "Included", pro: "Included", team: "Included" },
   { label: "Analytics", free: "Included", pro: "Included + CSV", team: "Included + rollups" },
   { label: "1-way contact capture", free: "Included", pro: "Included", team: "Included" },
@@ -238,8 +242,8 @@ export default function PricingPage() {
         <div className="rounded-card border border-paper-200 bg-paper-50 p-7">
           <h3 className="font-display text-2xl text-ink">What Free will never lose</h3>
           <ul className="mt-4 space-y-2 text-sm text-ink-500">
-            <li className="flex gap-2"><span className="text-ink-700">·</span> All 12 themes + full custom CSS</li>
-            <li className="flex gap-2"><span className="text-ink-700">·</span> All 17 section types</li>
+            <li className="flex gap-2"><span className="text-ink-700">·</span> All {THEME_COUNT} themes + full custom CSS</li>
+            <li className="flex gap-2"><span className="text-ink-700">·</span> All {SECTION_TYPE_COUNT} section types</li>
             <li className="flex gap-2"><span className="text-ink-700">·</span> Wallet pass, embed, full analytics</li>
             <li className="flex gap-2"><span className="text-ink-700">·</span> No tap, view, or link caps</li>
             <li className="flex gap-2"><span className="text-ink-700">·</span> No upsell modals on Free features</li>
