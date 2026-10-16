@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 import withSerwistInit from "@serwist/next";
+import { cdnHost } from "./lib/cdn-host";
 
-const bunnyCdnHost = process.env.NEXT_PUBLIC_BUNNY_CDN_HOST ?? "cdn.vcard.ed5enterprise.com";
+const bunnyCdnHost = cdnHost();
 const workspaceRoot = path.join(process.cwd(), "..", "..");
 
 const withSerwist = withSerwistInit({
