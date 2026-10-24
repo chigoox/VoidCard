@@ -50,9 +50,6 @@ function ambientVideo(src: string, poster: string, aspect: "16/9" | "21/9" | "4/
 
 // First-party media shipped in /public (see scripts/showcase-media).
 const M = {
-  // Note: the marketing file names don't match their content.
-  portrait: "/marketing/doctor-use-case.png", // two women in black tailoring, portrait
-  handoff: "/marketing/handoff-hero.png", // couple exchanging a card at a bar
   gold: "/showcase/gold-dust.mp4",
   goldStill: "/showcase/gold-dust.jpg",
   aurora: "/showcase/aurora-silk.mp4",
@@ -68,23 +65,26 @@ const M = {
   botanicalStill: "/showcase/botanical-light.jpg",
 };
 
-// Photo slots for the business templates. Swap a path here to re-shoot a
-// template; every section that uses the slot follows.
+// Photography for the designed templates (generated for these pages; see
+// public/showcase/photos). Swap a path here to re-shoot a template.
+const PHOTO = (name: string) => `/showcase/photos/${name}.jpg`;
 const P = {
-  fashionHero: M.portrait,
-  fashionLook1: "/marketing/luxury-banner.png",
-  fashionLook2: M.handoff,
-  fashionLook3: M.portrait,
-  hairHero: "/marketing/luxury-banner.png",
-  hairWork1: "/marketing/luxury-banner.png",
-  hairWork2: M.portrait,
-  hairWork3: M.handoff,
-  musicHero: M.handoff,
-  musicStage: M.neonStill2,
-  nailsHero: "/marketing/luxury-banner.png",
-  nailsSet1: M.auroraStill2,
-  nailsSet2: M.auroraStill3,
-  nailsSet3: M.auroraStill,
+  stylistHero: PHOTO("stylist-hero"),
+  stylistAtelier: PHOTO("stylist-atelier"),
+  fashionHero: PHOTO("fashion-hero"),
+  fashionLook1: PHOTO("fashion-look-1"),
+  fashionLook2: PHOTO("fashion-look-2"),
+  fashionLook3: PHOTO("fashion-look-3"),
+  hairHero: PHOTO("hair-hero"),
+  hairWork1: PHOTO("hair-blonde"),
+  hairWork2: PHOTO("hair-silk-press"),
+  hairWork3: PHOTO("hair-waves"),
+  musicHero: PHOTO("music-hero"),
+  musicStage: PHOTO("music-stage"),
+  nailsHero: PHOTO("nails-hero"),
+  nailsSet1: PHOTO("nails-chrome"),
+  nailsSet2: PHOTO("nails-lilac"),
+  nailsSet3: PHOTO("nails-cat-eye"),
 };
 
 function gallery(photos: Array<[string, string]>, design: SectionDesign, display?: SectionRecord["display"], layout: "grid" | "masonry" | "carousel" = "grid"): SectionRecord {
@@ -109,14 +109,14 @@ export const SHOWCASE_TEMPLATES: ShowcaseTemplate[] = [
     desktop: { preset: "sidebar", maxWidth: 1240, gap: 22, rowHeight: 40, tiles: "none" },
     build: (handle) => [
       header(
-        { name: "Maison Noir", handle, tagline: "Private wardrobe styling for people who dress with intent.", descriptors: ["Paris", "London", "By appointment"], layout: "hero", coverUrl: M.portrait },
+        { name: "Maison Noir", handle, tagline: "Private wardrobe styling for people who dress with intent.", descriptors: ["Paris", "London", "By appointment"], layout: "hero", coverUrl: P.stylistHero },
         { radius: 30, shadow: "lift" },
         motion("blur-in", 0, "load"),
       ),
       stats([["14", "Years dressing clients"], ["1,200+", "Looks composed"], ["98%", "Clients who return"]], { surface: "foil", ambient: "border-flow", shadow: "glow", radius: 26, padding: 34, align: "start", speed: "slow", media: { video: M.gold, image: M.goldStill, overlay: 25, minHeight: 200 } }, "The atelier", motion("rise", 80)),
       feature("calendar", "Private consultation", "Ninety minutes in your wardrobe or ours. We edit first, then build — one inevitable piece at a time.", { surface: "card", shadow: "lift", hover: "lift", radius: 26, padding: 30, align: "start" }, motion("rise", 140), ["Reserve a date", "https://example.com/book"]),
       feature("briefcase", "Travel capsule", "A complete, packable wardrobe for your next season abroad — delivered pressed.", { surface: "card", shadow: "lift", hover: "lift", radius: 26, padding: 30, align: "start" }, motion("rise", 200)),
-      image(M.handoff, "A client handing over her Maison Noir card over evening drinks", { radius: 26, shadow: "lift", hover: "shine" }, motion("reveal", 100)),
+      image(P.stylistAtelier, "A capsule wardrobe being styled on a brass rail in the Maison Noir atelier", { radius: 26, shadow: "lift", hover: "shine" }, motion("reveal", 100)),
       quote("She saw the version of me I kept putting off. Every piece still feels inevitable.", "Camille R.", "Gallery director, Paris", { surface: "outline", font: "display", scale: "lg", radius: 26, padding: 34, align: "start" }, motion("reveal", 120)),
       link("Book a consultation", "https://example.com/book", "gold", motion("rise", 240)),
       link("View the lookbook", "https://example.com/lookbook", "glass", motion("rise", 300)),
