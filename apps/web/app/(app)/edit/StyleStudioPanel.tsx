@@ -35,14 +35,31 @@ function Field({
   label,
   className,
   children,
+  group = false,
 }: {
   label: string;
   className?: string;
   children: ReactNode;
+  /**
+   * Set when the field holds several controls (buttons, an upload). A <label>
+   * forwards taps anywhere inside it to its first control, which opened the
+   * file picker or picked an option on stray taps.
+   */
+  group?: boolean;
 }) {
+  const classes = ["block space-y-1", className ?? ""].join(" ").trim();
+  const caption = <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">{label}</span>;
+  if (group) {
+    return (
+      <div role="group" aria-label={label} className={classes}>
+        {caption}
+        {children}
+      </div>
+    );
+  }
   return (
-    <label className={["block space-y-1", className ?? ""].join(" ").trim()}>
-      <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">{label}</span>
+    <label className={classes}>
+      {caption}
       {children}
     </label>
   );
@@ -347,7 +364,7 @@ export default function StyleStudioPanel({
             {[300, 400, 500, 600, 700].map((w) => <option key={w} value={w}>{w}</option>)}
           </select>
         </Field>
-        <Field label="Background" className="sm:col-span-2">
+        <Field label="Background" className="sm:col-span-2" group>
           <div className="grid grid-cols-3 gap-2">
             {(["solid", "gradient", "mesh"] as const).map((mode) => (
               <button

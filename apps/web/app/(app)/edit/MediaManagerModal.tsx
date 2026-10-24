@@ -281,7 +281,7 @@ export function MediaManagerModal({
 
   return <>{createPortal((
     <div
-      className="safe-modal-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+      className="safe-modal-sheet fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label="Media library"
