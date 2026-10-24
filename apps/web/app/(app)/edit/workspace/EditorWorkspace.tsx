@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -112,6 +112,18 @@ export function EditorWorkspace({
     if (id && id !== selectedId) setTab(device === "phone" ? "content" : tab);
   }
 
+  /** Switch sections from the tab strip: keep the inspector tab, bring the section into view. */
+  function jump(id: string) {
+    setSelectedId(id);
+    requestAnimationFrame(() => {
+      const canvas = document.querySelector('[data-testid="workspace-canvas"]');
+      const target = canvas?.querySelector(`[data-testid="canvas-section-${id}"], [data-section-id="${id}"]`);
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
+  const sectionTabs = sections.length > 1 ? <SectionTabs sections={sections} selectedId={selectedId} onSelect={jump} /> : null;
+
   function update(next: Section) {
     const index = sections.findIndex((section) => section.id === next.id);
     if (index >= 0) onUpdateSection(index, next);
@@ -150,6 +162,8 @@ export function EditorWorkspace({
       onApplyDesignToAll={(design) => onReplaceSections(sections.map((section) => ({ ...section, design }) as Section))}
       renderContentFields={renderContentFields}
       layoutPanel={device === "phone" ? null : <GridLayoutPanel controller={grid} section={selected} />}
+      // On phones the sheet covers the page's tab strip, so repeat it inside.
+      sectionTabs={wide ? null : sectionTabs}
     />
   ) : null;
 
@@ -204,6 +218,8 @@ export function EditorWorkspace({
           </button>
         </div>
       </div>
+
+      {sectionTabs ? <div className="shrink-0">{sectionTabs}</div> : null}
 
       <div className="flex min-h-0 flex-1 gap-4">
         <div
@@ -300,6 +316,7 @@ function Inspector({
   onApplyDesignToAll,
   renderContentFields,
   layoutPanel,
+  sectionTabs,
 }: {
   section: Section;
   index: number;
@@ -317,6 +334,7 @@ function Inspector({
   onApplyDesignToAll: (design: SectionDesign) => void;
   renderContentFields: (section: Section, onChange: (next: Section) => void) => ReactNode;
   layoutPanel: ReactNode;
+  sectionTabs?: ReactNode;
 }) {
   const setLayoutFlag = (key: "hideOnMobile" | "hideOnDesktop", hidden: boolean) => {
     const layout = { ...section.layout, [key]: hidden || undefined };
@@ -327,6 +345,7 @@ function Inspector({
 
   return (
     <div className="space-y-4" data-testid="section-inspector">
+      {sectionTabs}
       <div className="hidden items-start justify-between gap-2 md:flex">
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-[0.25em] text-gold/80">{SECTION_META[section.type].label}</p>
@@ -385,6 +404,48 @@ function Inspector({
           </Group>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Every section as a tab, so you can jump between them without scrolling the page. */
+function SectionTabs({ sections, selectedId, onSelect }: { sections: Section[]; selectedId: string | null; onSelect: (id: string) => void }) {
+  const listRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!selectedId) return;
+    const tab = listRef.current?.querySelector<HTMLElement>(`[data-tab-id="${selectedId}"]`);
+    tab?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [selectedId]);
+  return (
+    <div
+      ref={listRef}
+      role="tablist"
+      aria-label="Sections"
+      className="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      data-testid="section-tabs"
+    >
+      {sections.map((section, index) => {
+        const active = section.id === selectedId;
+        const hidden = section.visible === false;
+        return (
+          <button
+            key={section.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onSelect(section.id)}
+            data-tab-id={section.id}
+            className={[
+              "flex max-w-[11rem] shrink-0 snap-start items-center gap-1.5 rounded-pill border px-3 py-1.5 text-xs transition",
+              active ? "border-gold bg-gold text-onyx-950" : "border-onyx-700 bg-onyx-950/70 text-ivory-dim hover:border-gold/50 hover:text-ivory",
+              hidden && !active ? "opacity-50" : "",
+            ].join(" ")}
+          >
+            <span className={["tabular-nums", active ? "text-onyx-950/60" : "text-ivory-mute"].join(" ")}>{index + 1}</span>
+            <span className="truncate">{sectionTitle(section)}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

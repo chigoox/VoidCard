@@ -179,7 +179,7 @@ function MediaField({
   }
 
   return (
-    <Field label={label} className="space-y-2">
+    <Field label={label} className="space-y-2" group>
       {value && kind === "image" ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={value} alt="" className="h-20 w-20 rounded-card border border-onyx-800 object-cover" />
@@ -506,14 +506,31 @@ function Field({
   label,
   className,
   children,
+  group = false,
 }: {
   label: string;
   className?: string;
   children: ReactNode;
+  /**
+   * Set when the field holds several controls (buttons, an upload). A <label>
+   * forwards taps anywhere inside it to its first control, which opened the
+   * file picker or picked an option on stray taps.
+   */
+  group?: boolean;
 }) {
+  const classes = ["block space-y-1", className ?? ""].join(" ").trim();
+  const caption = <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">{label}</span>;
+  if (group) {
+    return (
+      <div role="group" aria-label={label} className={classes}>
+        {caption}
+        {children}
+      </div>
+    );
+  }
   return (
-    <label className={["block space-y-1", className ?? ""].join(" ").trim()}>
-      <span className="text-[11px] uppercase tracking-[0.25em] text-ivory-mute">{label}</span>
+    <label className={classes}>
+      {caption}
       {children}
     </label>
   );

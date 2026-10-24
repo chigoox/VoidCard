@@ -39,6 +39,15 @@ const LABELS: Record<string, string> = {
 };
 const label = (value: string) => LABELS[value] ?? value;
 
+// Design settings are split into small tabs instead of one long scroll.
+type DesignPane = "style" | "background" | "text" | "motion";
+const DESIGN_PANES: Array<{ id: DesignPane; label: string }> = [
+  { id: "style", label: "Style" },
+  { id: "background", label: "Background" },
+  { id: "text", label: "Text" },
+  { id: "motion", label: "Motion" },
+];
+
 /** Every visual knob for one section. Changes are validated before saving. */
 export function DesignFields({
   section,
@@ -52,6 +61,7 @@ export function DesignFields({
   mediaUrls?: string[];
 }) {
   const design = section.design ?? {};
+  const [pane, setPane] = useState<DesignPane>("style");
 
   function setDesign(patch: Partial<SectionDesignValue>, keepPreset = false) {
     const merged: Record<string, unknown> = { ...design, ...patch };
@@ -72,107 +82,141 @@ export function DesignFields({
 
   return (
     <div className="space-y-6" data-testid="design-fields">
-      <Group title="Looks">
-        <div className="grid grid-cols-2 gap-2">
-          {DESIGN_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => setDesign({ ...emptyDesign(), ...preset.design, preset: preset.id }, true)}
-              className={[
-                "group overflow-hidden rounded-card border text-left transition",
-                design.preset === preset.id ? "border-gold ring-1 ring-gold/50" : "border-onyx-700 hover:border-gold/50",
-              ].join(" ")}
-              title={preset.description}
-              data-testid={`design-preset-${preset.id}`}
-            >
-              <PresetSwatch design={preset.design} />
-              <span className="block px-2.5 pb-2 pt-1.5 text-xs font-medium text-ivory group-hover:text-gold">{preset.name}</span>
-            </button>
-          ))}
-        </div>
-        {onApplyToAll ? (
-          <button type="button" className="text-xs text-ivory-mute underline-offset-2 hover:text-gold hover:underline" onClick={() => onApplyToAll(design)}>
-            Apply this look to every section
+      <div role="tablist" aria-label="Design settings" className="-mx-1 flex gap-1 overflow-x-auto px-1">
+        {DESIGN_PANES.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={pane === item.id}
+            onClick={() => setPane(item.id)}
+            className={[
+              "shrink-0 rounded-pill border px-3 py-1.5 text-xs transition",
+              pane === item.id ? "border-gold bg-gold/10 text-gold" : "border-onyx-700 text-ivory-mute hover:text-ivory",
+            ].join(" ")}
+            data-testid={`design-pane-${item.id}`}
+          >
+            {item.label}
           </button>
-        ) : null}
-      </Group>
-
-      <Group title="Surface">
-        <Chips values={DESIGN_SURFACES} value={design.surface ?? "none"} onPick={(surface) => setDesign({ surface })} cols={4} />
-      </Group>
-
-      <Group title="Background photo / video">
-        <MediaInput label="Photo" value={design.media?.image} placeholder="https://… or pick below" onChange={(image) => setDesign({ media: { ...design.media, image } })} />
-        {mediaUrls.length > 0 ? (
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
-            {mediaUrls.slice(0, 12).map((url) => (
-              <button key={url} type="button" onClick={() => setDesign({ media: { ...design.media, image: url } })} className={["size-12 shrink-0 overflow-hidden rounded-md border", design.media?.image === url ? "border-gold" : "border-onyx-700"].join(" ")} aria-label="Use this photo">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="size-full object-cover" />
+        ))}
+      </div>
+      {pane === "style" ? (
+        <Group title="Looks">
+          <div className="grid grid-cols-2 gap-2">
+            {DESIGN_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => setDesign({ ...emptyDesign(), ...preset.design, preset: preset.id }, true)}
+                className={[
+                  "group overflow-hidden rounded-card border text-left transition",
+                  design.preset === preset.id ? "border-gold ring-1 ring-gold/50" : "border-onyx-700 hover:border-gold/50",
+                ].join(" ")}
+                title={preset.description}
+                data-testid={`design-preset-${preset.id}`}
+              >
+                <PresetSwatch design={preset.design} />
+                <span className="block px-2.5 pb-2 pt-1.5 text-xs font-medium text-ivory group-hover:text-gold">{preset.name}</span>
               </button>
             ))}
           </div>
-        ) : null}
-        <MediaInput label="Looping video (MP4)" value={design.media?.video} placeholder="https://….mp4" onChange={(video) => setDesign({ media: { ...design.media, video } })} />
-        {design.media?.image || design.media?.video ? (
-          <>
-            <Range label="Darken for legibility" suffix="%" min={0} max={90} step={5} value={design.media?.overlay ?? 40} onChange={(overlay) => setDesign({ media: { ...design.media, overlay } })} />
-            <Range label="Minimum height" suffix="px" min={0} max={900} step={20} value={design.media?.minHeight ?? 0} onChange={(minHeight) => setDesign({ media: { ...design.media, minHeight: minHeight || undefined } })} />
-            <button type="button" className="text-xs text-ivory-mute hover:text-ivory" onClick={() => setDesign({ media: undefined })}>Remove background media</button>
-          </>
-        ) : null}
-      </Group>
+          {onApplyToAll ? (
+            <button type="button" className="text-xs text-ivory-mute underline-offset-2 hover:text-gold hover:underline" onClick={() => onApplyToAll(design)}>
+              Apply this look to every section
+            </button>
+          ) : null}
+        </Group>
+      ) : null}
 
-      <Group title="Colour">
-        <ColorRow label="Accent" value={design.accent} onChange={(accent) => setDesign({ accent })} />
-        <ColorRow label="Text" value={design.text} onChange={(text) => setDesign({ text })} />
-        <ColorRow label="Background" value={design.bg} onChange={(bg) => setDesign({ bg, ...(bg ? {} : { bg2: undefined }) })} />
-        {design.bg ? (
-          <>
-            <ColorRow label="Gradient to" value={design.bg2} onChange={(bg2) => setDesign({ bg2 })} />
-            {design.bg2 ? (
-              <Range label="Gradient angle" suffix="°" min={0} max={360} step={5} value={design.gradientAngle ?? 135} onChange={(gradientAngle) => setDesign({ gradientAngle })} />
-            ) : null}
-          </>
-        ) : null}
-        <ColorRow label="Border" value={design.border} onChange={(border) => setDesign({ border })} />
-        {design.border || design.borderWidth !== undefined ? (
-          <Range label="Border width" suffix="px" min={0} max={8} step={1} value={design.borderWidth ?? 1} onChange={(borderWidth) => setDesign({ borderWidth })} />
-        ) : null}
-      </Group>
+      {pane === "background" ? (
+        <Group title="Surface">
+          <Chips values={DESIGN_SURFACES} value={design.surface ?? "none"} onPick={(surface) => setDesign({ surface })} cols={4} />
+        </Group>
+      ) : null}
 
-      <Group title="Shape">
-        <Range label="Corner radius" suffix="px" min={0} max={48} step={2} value={design.radius ?? 20} onChange={(radius) => setDesign({ radius })} />
-        <Range label="Inner padding" suffix="px" min={0} max={64} step={2} value={design.padding ?? 20} onChange={(padding) => setDesign({ padding })} />
-      </Group>
+      {pane === "background" ? (
+        <Group title="Background photo / video">
+          <MediaInput label="Photo" value={design.media?.image} placeholder="https://… or pick below" onChange={(image) => setDesign({ media: { ...design.media, image } })} />
+          {mediaUrls.length > 0 ? (
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {mediaUrls.slice(0, 12).map((url) => (
+                <button key={url} type="button" onClick={() => setDesign({ media: { ...design.media, image: url } })} className={["size-12 shrink-0 overflow-hidden rounded-md border", design.media?.image === url ? "border-gold" : "border-onyx-700"].join(" ")} aria-label="Use this photo">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="size-full object-cover" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <MediaInput label="Looping video (MP4)" value={design.media?.video} placeholder="https://….mp4" onChange={(video) => setDesign({ media: { ...design.media, video } })} />
+          {design.media?.image || design.media?.video ? (
+            <>
+              <Range label="Darken for legibility" suffix="%" min={0} max={90} step={5} value={design.media?.overlay ?? 40} onChange={(overlay) => setDesign({ media: { ...design.media, overlay } })} />
+              <Range label="Minimum height" suffix="px" min={0} max={900} step={20} value={design.media?.minHeight ?? 0} onChange={(minHeight) => setDesign({ media: { ...design.media, minHeight: minHeight || undefined } })} />
+              <button type="button" className="text-xs text-ivory-mute hover:text-ivory" onClick={() => setDesign({ media: undefined })}>Remove background media</button>
+            </>
+          ) : null}
+        </Group>
+      ) : null}
 
-      <Group title="Typography">
-        <Chips values={DESIGN_FONTS} value={design.font ?? "inherit"} onPick={(font) => setDesign({ font })} cols={4} />
-        <Chips values={DESIGN_SCALES} value={design.scale ?? "md"} onPick={(scale) => setDesign({ scale })} cols={4} />
-        <Chips values={DESIGN_ALIGNS} value={design.align ?? "center"} onPick={(align) => setDesign({ align })} cols={3} />
-        <Range label="Letter spacing" suffix="" min={-5} max={40} step={1} value={design.letterSpacing ?? 0} onChange={(letterSpacing) => setDesign({ letterSpacing })} />
-        <Toggle label="ALL CAPS" checked={!!design.uppercase} onChange={(uppercase) => setDesign({ uppercase: uppercase || undefined })} />
-      </Group>
+      {pane === "background" ? (
+        <Group title="Colour">
+          <ColorRow label="Accent" value={design.accent} onChange={(accent) => setDesign({ accent })} />
+          <ColorRow label="Text" value={design.text} onChange={(text) => setDesign({ text })} />
+          <ColorRow label="Background" value={design.bg} onChange={(bg) => setDesign({ bg, ...(bg ? {} : { bg2: undefined }) })} />
+          {design.bg ? (
+            <>
+              <ColorRow label="Gradient to" value={design.bg2} onChange={(bg2) => setDesign({ bg2 })} />
+              {design.bg2 ? (
+                <Range label="Gradient angle" suffix="°" min={0} max={360} step={5} value={design.gradientAngle ?? 135} onChange={(gradientAngle) => setDesign({ gradientAngle })} />
+              ) : null}
+            </>
+          ) : null}
+          <ColorRow label="Border" value={design.border} onChange={(border) => setDesign({ border })} />
+          {design.border || design.borderWidth !== undefined ? (
+            <Range label="Border width" suffix="px" min={0} max={8} step={1} value={design.borderWidth ?? 1} onChange={(borderWidth) => setDesign({ borderWidth })} />
+          ) : null}
+        </Group>
+      ) : null}
 
-      <Group title="Depth & interaction">
-        <Sub label="Shadow"><Chips values={DESIGN_SHADOWS} value={design.shadow ?? "none"} onPick={(shadow) => setDesign({ shadow })} cols={4} /></Sub>
-        <Sub label="On hover"><Chips values={DESIGN_HOVERS} value={design.hover ?? "none"} onPick={(hover) => setDesign({ hover })} cols={3} /></Sub>
-      </Group>
+      {pane === "style" ? (
+        <Group title="Shape">
+          <Range label="Corner radius" suffix="px" min={0} max={48} step={2} value={design.radius ?? 20} onChange={(radius) => setDesign({ radius })} />
+          <Range label="Inner padding" suffix="px" min={0} max={64} step={2} value={design.padding ?? 20} onChange={(padding) => setDesign({ padding })} />
+        </Group>
+      ) : null}
 
-      <Group title="Motion">
-        <Sub label="Always-on effect"><Chips values={DESIGN_AMBIENTS} value={design.ambient ?? "none"} onPick={(ambient) => setDesign({ ambient })} cols={3} /></Sub>
-        <Sub label="Entrance"><Chips values={SECTION_ANIMATIONS} value={animation} onPick={(value) => setDisplay({ animation: value })} cols={3} /></Sub>
-        {animation !== "none" ? (
-          <>
-            <Sub label="Play"><Chips values={SECTION_ANIMATION_TRIGGERS} value={section.display?.animationTrigger ?? "load"} onPick={(animationTrigger) => setDisplay({ animationTrigger })} cols={2} /></Sub>
-            <Range label="Delay" suffix="ms" min={0} max={2000} step={50} value={section.display?.animationDelay ?? 0} onChange={(animationDelay) => setDisplay({ animationDelay })} />
-          </>
-        ) : null}
-        <Sub label="Tempo"><Chips values={["slow", "normal", "fast"] as const} value={design.speed ?? "normal"} onPick={(speed) => setDesign({ speed: speed === "normal" ? undefined : speed })} cols={3} /></Sub>
-      </Group>
+      {pane === "text" ? (
+        <Group title="Typography">
+          <Chips values={DESIGN_FONTS} value={design.font ?? "inherit"} onPick={(font) => setDesign({ font })} cols={4} />
+          <Chips values={DESIGN_SCALES} value={design.scale ?? "md"} onPick={(scale) => setDesign({ scale })} cols={4} />
+          <Chips values={DESIGN_ALIGNS} value={design.align ?? "center"} onPick={(align) => setDesign({ align })} cols={3} />
+          <Range label="Letter spacing" suffix="" min={-5} max={40} step={1} value={design.letterSpacing ?? 0} onChange={(letterSpacing) => setDesign({ letterSpacing })} />
+          <Toggle label="ALL CAPS" checked={!!design.uppercase} onChange={(uppercase) => setDesign({ uppercase: uppercase || undefined })} />
+        </Group>
+      ) : null}
 
-      <TypeSpecific section={section} onChange={onChange} />
+      {pane === "motion" ? (
+        <Group title="Depth & interaction">
+          <Sub label="Shadow"><Chips values={DESIGN_SHADOWS} value={design.shadow ?? "none"} onPick={(shadow) => setDesign({ shadow })} cols={4} /></Sub>
+          <Sub label="On hover"><Chips values={DESIGN_HOVERS} value={design.hover ?? "none"} onPick={(hover) => setDesign({ hover })} cols={3} /></Sub>
+        </Group>
+      ) : null}
+
+      {pane === "motion" ? (
+        <Group title="Motion">
+          <Sub label="Always-on effect"><Chips values={DESIGN_AMBIENTS} value={design.ambient ?? "none"} onPick={(ambient) => setDesign({ ambient })} cols={3} /></Sub>
+          <Sub label="Entrance"><Chips values={SECTION_ANIMATIONS} value={animation} onPick={(value) => setDisplay({ animation: value })} cols={3} /></Sub>
+          {animation !== "none" ? (
+            <>
+              <Sub label="Play"><Chips values={SECTION_ANIMATION_TRIGGERS} value={section.display?.animationTrigger ?? "load"} onPick={(animationTrigger) => setDisplay({ animationTrigger })} cols={2} /></Sub>
+              <Range label="Delay" suffix="ms" min={0} max={2000} step={50} value={section.display?.animationDelay ?? 0} onChange={(animationDelay) => setDisplay({ animationDelay })} />
+            </>
+          ) : null}
+          <Sub label="Tempo"><Chips values={["slow", "normal", "fast"] as const} value={design.speed ?? "normal"} onPick={(speed) => setDesign({ speed: speed === "normal" ? undefined : speed })} cols={3} /></Sub>
+        </Group>
+      ) : null}
+
+      {pane === "style" ? <TypeSpecific section={section} onChange={onChange} /> : null}
 
       <button
         type="button"

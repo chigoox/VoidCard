@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Cropper, { type Area } from "react-easy-crop";
 import { RotateCcw, RotateCw } from "lucide-react";
 
@@ -90,9 +91,25 @@ export function CropModal({
     }
   }
 
-  return (
+  // Lock the page behind the dialog and let Escape cancel.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onCancel]);
+
+  // Portal to <body>: inside the editor's animated panels a fixed overlay is
+  // positioned against the panel, so the crop UI landed off-screen.
+  return <>{createPortal(
     <div
-      className="safe-modal-sheet fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/80 backdrop-blur-sm sm:items-center"
+      className="safe-modal-sheet fixed inset-0 z-[130] flex items-end justify-center overflow-y-auto bg-black/80 backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label="Crop image"
@@ -189,6 +206,7 @@ export function CropModal({
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>,
+    document.body,
+  )}</>;
 }
