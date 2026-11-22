@@ -38,7 +38,7 @@ const PUBLIC_ROUTES = [
   /^\/api\/seller\/products$/,
   /^\/embed\.js$/,
   // First-party static media (designed-template banners, marketing photos).
-  /^\/(showcase|marketing|icons)\/[\w.-]+$/,
+  /^\/(showcase|marketing|icons)(\/[\w-]+)*\/[\w.-]+$/,
   /^\/og\/.*/,
   /^\/_next\/.*/,
   /^\/\.well-known\/.*/,

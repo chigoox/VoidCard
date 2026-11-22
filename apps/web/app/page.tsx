@@ -65,8 +65,8 @@ const TRADES: Array<{ label: string; template?: string; href?: string; blurb: st
   { label: "Hair & barbers", template: "gloss-hair", blurb: "Service menu, portfolio and one-tap booking." },
   { label: "Nails & lashes", template: "lacquer-lounge", blurb: "Set gallery, prices and Book your set." },
   { label: "Boutiques", template: "row-atelier", blurb: "Lookbook, new drops and Shop now." },
-  { label: "Artists & DJs", template: "nova-nights", blurb: "New release, tour dates and tickets." },
-  { label: "Creative studios", template: "aurora-studio", blurb: "Portfolio, services and enquiries." },
+  { label: "Artists & DJs", template: "solene", blurb: "New release, tour dates and merch." },
+  { label: "Stylists & consultants", template: "maison-noir", blurb: "Portfolio, services and private bookings." },
   { label: "Coaches & wellness", template: "verdant", blurb: "Programs, reviews and discovery calls." },
 ];
 

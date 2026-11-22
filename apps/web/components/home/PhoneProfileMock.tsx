@@ -18,7 +18,7 @@ export function PhoneProfileMock() {
       <div className="absolute left-1/2 top-4 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-black" aria-hidden />
       <div className="overflow-hidden rounded-[36px] bg-[#0f0d0a] text-[#f6efe2]" aria-hidden>
         <div className="relative h-48">
-          <Image src="/marketing/luxury-banner.png" alt="" fill sizes="300px" className="object-cover object-[30%_20%]" priority />
+          <Image src="/showcase/photos/hair-hero.jpg" alt="" fill sizes="300px" className="object-cover object-[50%_25%]" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f0d0a] via-[#0f0d0a]/30 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 px-5 pb-3">
             <p className="text-[9px] uppercase tracking-[0.3em] text-[#e9c98a]">Colour · Silk press</p>
