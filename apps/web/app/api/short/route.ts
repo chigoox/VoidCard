@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 const Body = z.object({
-  target: z.string().url().max(2048),
+  // http(s) only: a 308 to javascript:/data: URLs must never be issued.
+  target: z.string().url().max(2048).refine((v) => /^https?:\/\//i.test(v), "Use an http(s) link"),
   code: z.string().regex(/^[a-z0-9-]{3,32}$/).optional(),
 });
 

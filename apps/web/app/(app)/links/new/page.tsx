@@ -1,11 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
-
-function shortUrl(code: string) {
-  const domain = process.env.NEXT_PUBLIC_SHORT_DOMAIN;
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vcard.ed5enterprise.com";
-  return domain ? `https://${domain}/${code}` : `${site}/s/${code}`;
-}
+import { shortUrl } from "@/lib/short-domain";
 
 export default function NewShortLinkPage() {
   const [target, setTarget] = useState("");

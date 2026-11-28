@@ -4,6 +4,7 @@ import { createAdminClient } from "./lib/supabase/admin";
 import { getCookieDomain } from "./lib/supabase/cookie-domain";
 import { buildCsp, cspHeaderName, generateNonce, REPORT_TO_HEADER } from "./lib/csp";
 import { ONBOARDING_COOKIE, ONBOARDING_TOTAL_STEPS } from "./lib/onboarding-constants";
+import { isShortHost, routeShortHostPath } from "./lib/short-domain";
 
 const PUBLIC_ROUTES = [
   /^\/$/,
@@ -203,6 +204,17 @@ export async function proxy(req: NextRequest) {
 
   const pathname = req.nextUrl.pathname;
   const host = normalizeRequestHost(req.headers.get("host"));
+
+  // Link shortener domain: /l/<code> → the redirect route, anything else → the site.
+  if (isShortHost(host) && !pathname.startsWith("/_next/") && pathname !== "/favicon.ico") {
+    const target = routeShortHostPath(pathname);
+    if (target.kind === "code") {
+      const url = req.nextUrl.clone();
+      url.pathname = `/s/${target.code}`;
+      return NextResponse.rewrite(url);
+    }
+    return NextResponse.redirect(new URL("/", siteOrigin()), 308);
+  }
 
   if (isCustomDomainCandidate(host) && isCanonicalSiteRoute(pathname)) {
     const canonicalUrl = new URL(`${pathname}${req.nextUrl.search}`, siteOrigin());

@@ -17,6 +17,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     .maybeSingle();
 
   if (!data) return new NextResponse("Not found", { status: 404 });
+  if (!/^https?:\/\//i.test(data.target)) return new NextResponse("Not found", { status: 404 });
   if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) {
     return new NextResponse("Link expired", { status: 410 });
   }
